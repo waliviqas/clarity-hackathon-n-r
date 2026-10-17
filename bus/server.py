@@ -26,6 +26,10 @@ Endpoints:
                                  clip second = run-clock ts - start_ts; reason says why available is false
     GET  /health                 liveness + counts of valid/invalid events
 
+Logs: every accepted event is appended to <CLARITY_RUNS_DIR>/<run_id>/events.jsonl, and one line
+{"event_id", "type", "source", "ts", "recv_wall"} to arrivals.jsonl next to it (recv_wall = unix time
+the bus accepted it). python -m bus.metrics reads both to measure wall-clock latencies.
+
 Polling (GET /events, bus.client.fetch): since_ts is inclusive and results come in arrival order,
 not ts order. Poll with a lookback (e.g. since_ts = newest ts seen - 30) and de-duplicate by event_id.
 """
@@ -36,6 +40,7 @@ import json
 import logging
 import math
 import os
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -53,6 +58,7 @@ CLIP_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/we
 STRICT = os.environ.get("CLARITY_BUS_STRICT", "1") != "0"
 RUN_ID = os.environ.get("CLARITY_RUN_ID", "run_dev")
 LOG_PATH = Path(os.environ.get("CLARITY_RUNS_DIR", "runs")) / RUN_ID / "events.jsonl"
+ARRIVALS_PATH = LOG_PATH.with_name("arrivals.jsonl")
 CAMERAS_PATH = Path(os.environ.get("CLARITY_CAMERAS", "data/cameras.json"))
 CORS_ORIGINS = [o.strip() for o in
                 os.environ.get("CLARITY_BUS_CORS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
@@ -128,6 +134,17 @@ def append_to_log(event: dict) -> None:
         f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
 
+def append_arrival(event: dict, recv_wall: float) -> None:
+    """When the bus accepted the event, for bus.metrics. Best effort: events.jsonl stays the record."""
+    line = {"event_id": event.get("event_id"), "type": event.get("type"), "source": event.get("source"),
+            "ts": event.get("ts"), "recv_wall": round(recv_wall, 6)}
+    try:
+        with ARRIVALS_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(line, ensure_ascii=False) + "\n")
+    except OSError as e:
+        log.warning("could not write %s: %s", ARRIVALS_PATH, e)
+
+
 def read_cameras():
     """The active cameras.json as a dict, or None if it's missing or broken."""
     try:
@@ -178,7 +195,9 @@ async def post_event(request: Request):
             counts["duplicates"] += 1
             log.warning("duplicate event_id %s (%s); producers should use unique ids", event.get("event_id"),
                         event.get("type"))
+        recv_wall = time.time()
         append_to_log(event)
+        append_arrival(event, recv_wall)
         remember(event)
         await broadcast(event)
     return {"ok": True, "event_id": event.get("event_id"), "warnings": errors}
