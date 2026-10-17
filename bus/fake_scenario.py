@@ -3,7 +3,8 @@
 Each incident follows one route of four cameras: crime spot -> junction -> real exit, plus a decoy
 exit next to the junction. The junction agent relays to both exits; the real exit answers "match",
 the decoy answers "no_match". Walking times come from cameras.json, so the script matches the map.
-Every event has source="fake_scenario" so the dashboard can label it as scripted.
+Every event has source="fake_scenario" so the dashboard can label it as scripted. Event text names cameras
+only by their cameras.json names, which are neutral ("Route 1: west door"); roles never appear in it.
 
 Run from the repo root (bus running, started with the same CLARITY_CAMERAS):
     python -m bus.fake_scenario --speed 5

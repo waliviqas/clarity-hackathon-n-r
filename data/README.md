@@ -44,11 +44,20 @@ We may film teammates acting out a purse snatch or a scuffle across 3–4 phone 
 Fill in a copy of `data/staged/clip_log_template.csv` (one row per camera, 4 per take), then from the repo root:
 
 ```
-python data/build_site.py data/staged/clip_log.csv            # add --takes 1 while only take 1 is logged
+python data/convert_clips.py data/raw/staged                  # on Brev: 720p, constant 10 fps, H.264, audio stripped
+python data/build_site.py data/staged/clip_log.csv --check-clips data/raw/staged   # add --takes 1 while only take 1 is logged
 python contracts/validate.py data/sites/annex/cameras.json
+python -m feeds.replay --cameras data/sites/annex/cameras.json --check            # before every real run
 ```
 
-It writes `data/sites/annex/cameras.json`, `data/ground_truth/take<N>.json` and `data/manifests/annex.json` (stdlib only). Clips are synced by the clock shown in each clip; each take's earliest crime/junction/exit clip starts at run-clock +0 / +10 / +20 s, so the three takes replay overlapped and nothing starts before 0. Decoy clips (empty path, filmed separately) ignore their clock and start with the junction clip. Travel times are differences of suspect-enter times; the decoy link is the logged stopwatch walk. Any blank or malformed cell stops the build with the row and column named; nothing is written until the whole log is clean. `phone_owner` is never copied into the outputs.
+- **Convert first** (`data/convert_clips.py`, needs `ffmpeg`: `sudo apt-get install -y ffmpeg`). It writes a `.mp4` copy next to each clip; point the log's `clip_file` cells at the `.mp4` names. Audio is dropped for privacy, and a constant frame rate keeps feeds' clock exact.
+- **Alignment:** clips are synced by the clock shown in each clip. Each take is lined up on its crime: the crime row's `suspect_enter` plays at run-clock 5 / 15 / 25 s (takes 1/2/3); the junction and exit clips follow by the clock, so a clip may start before 0 (feeds skips those frames). Decoy clips (empty path, filmed separately) ignore their clock and start with the junction clip.
+- **Travel times** are the walk between cameras: next camera's `suspect_enter` minus the previous camera's `suspect_exit` (0 if the views overlap); the decoy link is the logged stopwatch walk. A warning flags a junction whose two branches point the same 8-way direction.
+- **Neutral camera names:** `Route <N>: <spot_description>` (or `Route <N>: camera <k>`). Names never say crime / junction / exit / decoy, because models may see them; a `spot_description` that does is an error. Roles live only in `data/ground_truth/take<N>.json` (`camera_roles`).
+- Optional `heading_deg` column (compass direction the phone faces, 0–360) goes into `cameras.json`; older logs without the column still work.
+- `--check-clips DIR` fails, listing every `clip_file` not found as `DIR/take<N>/<clip_file>` with the exact upper/lower case (the Brev box is Linux). `feeds.replay --check` opens every clip and prints resolution, fps, frame count, duration and codec; exit code 1 if any is missing or unreadable.
+
+`build_site.py` writes `data/sites/annex/cameras.json`, `data/ground_truth/take<N>.json` and `data/manifests/annex.json` (stdlib only). Any blank or malformed cell stops the build with the row and column named; nothing is written until the whole log is clean. `phone_owner` is never copied into the outputs.
 
 ## Derived files we commit
 

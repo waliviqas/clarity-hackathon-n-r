@@ -3,7 +3,7 @@
     from feeds.base import open_feeds, FrameBuffer, FramePacket
 
     buf = FrameBuffer(n=8)
-    for pkt in open_feeds("data/sites/annex/cameras.json", fps=1.0, speed=1.0, max_width=960):
+    for pkt in open_feeds("data/sites/annex/cameras.json", fps=1.0, speed=1.0):
         buf.push(pkt)
         frames = buf.last_n(pkt.camera_id, 4)   # oldest first, newest = pkt
 
@@ -12,17 +12,24 @@ source.start_ts plus the frame's time in the clip, so the three takes overlap on
 is sampled on the same run-clock grid (0, 1/fps, 2/fps, ...), taking the first frame at or after each instant.
 frame_idx is the frame's index in its source clip (0-based), so a packet can be traced to its clip.
 Frames with ts < 0 are skipped. A missing or unreadable clip logs a warning and that camera is left out.
+One frame that won't decode is skipped (warning); a camera stops only after 30 unreadable frames in a row.
 
 Pacing: speed=1 yields frames in real time, speed=2 twice as fast; speed=0 or pace=False never sleeps
-(tests, batch runs). A slow consumer never loses frames; the feed just falls behind real time.
+(tests, batch runs). By default a slow consumer never loses frames; the feed just falls behind real time.
 
-Optional keyword arguments (the defaults keep frames full size and publish nothing):
-    max_width=960        shrink wider frames to this width, keeping the aspect ratio (INTER_AREA). 12 cameras x
-                         8 buffered 1080p frames is ~600 MB; at 960 wide it's about a quarter of that.
+Optional keyword arguments:
+    max_width=960        (default) shrink wider frames to this width, keeping the aspect ratio (INTER_AREA);
+                         narrower frames are left alone. None = original size. 12 cameras x 8 buffered 1080p
+                         frames is ~600 MB; at 960 wide it's about a quarter of that.
     publish_status=True  publish camera_status events to the bus (bus.client.publish), one per state change:
                          "online" with a camera's first frame, "offline" when its clip ends (or when the feed is
                          closed early), "offline" if its clip is missing, "degraded" if the clip is there but
-                         can't be decoded. ts is on the run clock; fps is the sampling fps.
+                         can't be decoded. Mid-clip: "degraded" at an unreadable frame, back to "online" with the
+                         next good one, "offline" after 30 unreadable frames in a row. ts is on the run clock; fps
+                         is the sampling fps. Default False (publishes nothing).
+    drop_late=True       when paced and the consumer is more than one sample interval behind real time, skip the
+                         stale samples so the frames it gets are live (logs each camera's skip count once, when
+                         the feed ends). Default False: every sample is delivered, late if need be.
 
 cameras.json is checked when open_feeds is called: a missing "cameras" list, a camera without camera_id,
 a duplicate camera_id or a non-numeric source.start_ts raises one ValueError that lists every problem.
@@ -60,6 +67,8 @@ log = logging.getLogger("feeds")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_NATIVE_FPS = 30.0  # used when a clip doesn't report its frame rate
+DEFAULT_MAX_WIDTH = 960
+MAX_BAD_FRAMES = 30  # unreadable frames in a row before a camera is given up on
 EPS = 1e-6
 
 
@@ -182,8 +191,16 @@ def _shrink(image: np.ndarray, max_width: int | None) -> np.ndarray:
     return cv2.resize(image, (max_width, max(1, round(h * max_width / w))), interpolation=cv2.INTER_AREA)
 
 
+def _mid_clip(next_idx: int, frame_count: float, native: float) -> bool:
+    """True if a failed read at next_idx is a bad frame inside the clip, not its end. frame_count is the
+    container's estimate, which can run a little long for variable-frame-rate phone clips, so a failure in the
+    last second counts as the end; unknown (<= 0) means the end too."""
+    return frame_count > 0 and next_idx < frame_count - max(1.0, native)
+
+
 def _camera_frames(cam: dict, fps: float, clip: tuple, max_width: int | None) -> Iterator[FramePacket | _Status]:
-    """One camera's frames sampled at fps, in ts order, ending with a _Status marker for how it ended."""
+    """One camera's frames sampled at fps, in ts order, with _Status markers: "degraded" at the first unreadable
+    frame of a run, and one at the end for how the camera ended."""
     cap, native, failure = clip
     cam_id = cam["camera_id"]
     start_ts = (cam.get("source") or {}).get("start_ts")
@@ -196,27 +213,47 @@ def _camera_frames(cam: dict, fps: float, clip: tuple, max_width: int | None) ->
         return
     # Sample instants sit on the run-clock grid (0, 1/fps, 2/fps, ...) so every camera is sampled
     # at the same moments; each takes the first frame at or after its instant.
-    step, idx, sent, ended = 1.0 / fps, -1, 0, "offline"
+    step, idx, sent, bad, gave_up = 1.0 / fps, -1, 0, 0, False
     next_ts = max(0.0, math.ceil(start_ts / step - EPS) * step)
+    frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     try:
         # Decode every frame in order (grab is cheap) and convert only the sampled ones;
         # seeking is no faster for phone clips and can land on the wrong frame.
-        while cap.grab():
+        while True:
+            grabbed = cap.grab()
+            if not grabbed and not _mid_clip(idx + 1, frame_count, native):
+                break  # end of the clip
             idx += 1
             ts = start_ts + idx / native
-            if ts < 0 or ts + EPS < next_ts:
+            image = None
+            if grabbed:
+                if ts < 0 or ts + EPS < next_ts:
+                    bad = 0  # not a sample, but it decoded
+                    continue
+                ok, image = cap.retrieve()
+                if not ok:
+                    image = None
+            if image is None:
+                bad += 1
+                if bad == 1:
+                    log.warning("%s: couldn't decode frame %d; skipping it", cam_id, idx)
+                    yield _Status(cam_id, round(max(0.0, ts), 3), "degraded")
+                if bad >= MAX_BAD_FRAMES:
+                    log.warning("%s: %d unreadable frames in a row (to frame %d); stopping this camera",
+                                cam_id, bad, idx)
+                    gave_up = True
+                    break
                 continue
+            if bad:
+                log.info("%s: frames readable again from frame %d", cam_id, idx)
+            bad = 0
             next_ts = (math.floor(ts / step + EPS) + 1) * step
-            ok, image = cap.retrieve()
-            if not ok or image is None:
-                log.warning("%s: couldn't decode frame %d; stopping this camera", cam_id, idx)
-                ended = "degraded"
-                break
             sent += 1
             yield FramePacket(cam_id, round(ts, 3), idx, "replay", _shrink(image, max_width))
     finally:
         cap.release()
-    if sent == 0:
+    ended = "offline"
+    if sent == 0 and not gave_up:
         log.warning("%s: no frames (empty clip, or all before run-clock 0)", cam_id)
         ended = "degraded"
     yield _Status(cam_id, round(max(0.0, start_ts + (idx + 1) / native), 3), ended)
@@ -264,7 +301,8 @@ class _StatusPublisher:
 # ---------- all cameras ----------
 
 def open_feeds(cameras_json: str, fps: float = 1.0, speed: float = 1.0, pace: bool = True, *,
-               max_width: int | None = None, publish_status: bool = False) -> Iterator[FramePacket]:
+               max_width: int | None = DEFAULT_MAX_WIDTH, publish_status: bool = False,
+               drop_late: bool = False) -> Iterator[FramePacket]:
     """Yields frames from all cameras interleaved in ts order. Wali samples ~1 fps.
     Bad arguments or a bad cameras.json raise here, at the call, not at the first frame."""
     if not fps > 0:
@@ -274,15 +312,17 @@ def open_feeds(cameras_json: str, fps: float = 1.0, speed: float = 1.0, pace: bo
     if max_width is not None and (isinstance(max_width, bool) or not isinstance(max_width, int) or max_width < 1):
         raise ValueError(f"max_width must be a whole number of pixels >= 1, or None (got {max_width!r})")
     cameras = load_cameras(cameras_json)
-    return _interleave(cameras, fps, speed if pace else 0.0, max_width, publish_status)
+    return _interleave(cameras, fps, speed if pace else 0.0, max_width, publish_status, drop_late)
 
 
 def _interleave(cameras: list[dict], fps: float, speed: float, max_width: int | None,
-                publish_status: bool) -> Iterator[FramePacket]:
+                publish_status: bool, drop_late: bool = False) -> Iterator[FramePacket]:
     status = _StatusPublisher(fps) if publish_status else None
     clips: list[tuple] = []
     streams: list[Iterator] = []
     anchor: tuple[float, float] | None = None  # (wall clock, ts) of the first paced item
+    late_after = 1.0 / fps / speed if speed > 0 else math.inf  # one sample interval, in wall-clock seconds
+    dropped: dict[str, int] = {}
     try:
         clips = [_open_clip(cam) for cam in cameras]
         if not any(cap is not None for cap, _, _ in clips):
@@ -293,6 +333,7 @@ def _interleave(cameras: list[dict], fps: float, speed: float, max_width: int | 
             is_status = isinstance(item, _Status)
             if is_status and status is None:
                 continue  # status markers cost no time when nobody publishes them
+            wait = 0.0
             if speed > 0:
                 if anchor is None:
                     anchor = (time.monotonic(), item.ts)
@@ -304,8 +345,14 @@ def _interleave(cameras: list[dict], fps: float, speed: float, max_width: int | 
                 continue
             if status is not None:
                 status.set(item.camera_id, "online", item.ts)
+            if drop_late and -wait > late_after:
+                dropped[item.camera_id] = dropped.get(item.camera_id, 0) + 1
+                continue
             yield item
     finally:
+        for camera_id, n in sorted(dropped.items()):
+            log.warning("%s: skipped %d late frame(s) to stay live (the consumer fell more than one sample "
+                        "behind real time)", camera_id, n)
         for s in streams:  # release every clip even if the consumer stops early
             s.close()
         for cap, _, _ in clips:  # covers streams that never started
@@ -320,10 +367,11 @@ def main() -> None:
     parser.add_argument("cameras_json")
     parser.add_argument("--fps", type=float, default=1.0)
     parser.add_argument("--speed", type=float, default=0.0, help="0 = no sleeping (default)")
+    parser.add_argument("--max-width", type=int, default=DEFAULT_MAX_WIDTH, help="0 = full size")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     count = 0
-    for pkt in open_feeds(args.cameras_json, fps=args.fps, speed=args.speed):
+    for pkt in open_feeds(args.cameras_json, fps=args.fps, speed=args.speed, max_width=args.max_width or None):
         h, w = pkt.image.shape[:2]
         print(f"{pkt.ts:9.3f}  {pkt.camera_id}  frame {pkt.frame_idx:6d}  {w}x{h}  {pkt.source_kind}")
         count += 1

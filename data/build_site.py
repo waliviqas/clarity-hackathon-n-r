@@ -2,32 +2,44 @@
 
 Writes (paths under --root, default the repo root):
     data/sites/annex/cameras.json    camera graph: positions, neighbors, travel times, clip sources
-    data/ground_truth/take<N>.json   per incident: subject, activity, outfit, path on the run clock
+    data/ground_truth/take<N>.json   per incident: subject, activity, outfit, path on the run clock, camera roles
     data/manifests/annex.json        camera_id -> clip file + start_ts, for feeds/
 
 Clock sync: every clip shows a seconds clock. At clip second `clock_shown_at_s` the clock reads
-`clock_reading_hhmmss`, so clip second t is wall time reading + (t - clock_shown_at_s). Within a
-take, the earliest first frame among the crime/junction/exit clips is run-clock = take offset
-(+0 / +10 / +20 s for takes 1/2/3), which replays the three separately filmed takes overlapped on
-one clock with no clip starting before its take's offset. Decoy clips (an empty path, filmed
-separately) ignore their clock and start with the junction clip.
+`clock_reading_hhmmss`, so clip second t is wall time reading + (t - clock_shown_at_s). Each take is lined up
+on its crime: the crime row's suspect_enter is run-clock take offset + 5 s (5 / 15 / 25 s for takes 1/2/3), so
+the three separately filmed takes replay overlapped with their crimes 10 s apart. The junction and exit clips
+follow through the clock sync, so a clip may start before run-clock 0 (feeds skips frames with ts < 0).
+Decoy clips (an empty path, filmed separately) ignore their clock and start with the junction clip.
 
-Travel times: crime->junction and junction->exit are differences of suspect_enter times on the run
-clock; junction->decoy is the logged walk ("stopwatch s: N" in the decoy row's notes). Directions
-come from lat/lon (8-way compass). Every link is written both ways.
+Travel times: crime->junction and junction->exit are the walk between cameras on the run clock: the next
+camera's suspect_enter minus the previous camera's suspect_exit (0 if the views overlap). junction->decoy is
+the logged walk ("stopwatch s: N" in the decoy row's notes). Directions come from lat/lon (8-way compass).
+Every link is written both ways. A warning flags a junction whose two branches point the same 8-way
+direction, because the graph can't tell them apart.
+
+Camera names are neutral, because models and prompts may see them: "Route <N>: <spot_description>", or
+"Route <N>: camera <k>" (k = 1-4 in camera_id order within the take) when spot_description is blank. Roles
+(crime / junction / exit / decoy) are written only to ground truth, never to cameras.json or the manifest,
+and a spot_description that names a role or a crime is an error.
 
 Accepted cell formats:
     lat / lon            35.77531 and -78.63702, or iPhone Compass style 35°46'31"N and 78°38'13"W
                          (spaces work instead of the symbols: 35 46 31 N)
+    heading_deg          optional column: compass direction the phone faces, 0-360 (0 = north, 90 = east)
     clip seconds         23.5, or m:ss like 0:23.5
     clock_reading        HH:MM:SS (or HHMMSS); one clock per take, 12 h or 24 h
     file encoding        UTF-8 (with or without BOM), or Windows-1252 (Excel "CSV (Comma delimited)")
-phone_owner, spot_description and the decoy rows' clock cells are optional (spot_description goes into the camera name;
-phone_owner is never copied into the outputs). Every other blank cell is an error.
+phone_owner, spot_description, heading_deg and the decoy rows' clock cells are optional (spot_description goes
+into the camera name; phone_owner is never copied into the outputs). Every other blank cell is an error.
+Logs made before the heading_deg column existed still work.
 
 Run from the repo root (stdlib only):
     python data/build_site.py data/staged/clip_log.csv
     python data/build_site.py data/staged/clip_log.csv --takes 1      # only take 1 is logged so far
+    python data/build_site.py data/staged/clip_log.csv --check-clips data/raw/staged
+        (also checks that every clip_file exists in data/raw/staged/take<N>/ with the exact upper/lower case;
+         the Brev box runs Linux, where IMG_0001.MOV and img_0001.mov are different files)
 Then check: python contracts/validate.py data/sites/annex/cameras.json
 """
 from __future__ import annotations
@@ -37,6 +49,7 @@ import csv
 import io
 import json
 import math
+import os
 import re
 import sys
 from datetime import datetime
@@ -44,13 +57,14 @@ from pathlib import Path
 
 SITE_ID = "annex"
 ROLES = ("crime", "junction", "exit", "decoy")
-ROLE_NAMES = {"crime": "crime spot", "junction": "junction", "exit": "exit", "decoy": "decoy exit"}
 PATH_ROLES = ("crime", "junction", "exit")
 TAKE_OFFSETS = {1: 0.0, 2: 10.0, 3: 20.0}
+CRIME_AT_S = 5.0  # a take's crime (crime row's suspect_enter) plays at run-clock offset + this: 5 / 15 / 25 s
 ACTIVITIES = ("stabbing", "fistfight", "purse_snatch")
 COLUMNS = ("take", "activity", "role", "camera_id", "phone_owner", "spot_description", "lat", "lon",
            "clip_file", "clock_shown_at_s", "clock_reading_hhmmss", "suspect_enter_s",
            "suspect_exit_s", "notes")
+OPTIONAL_COLUMNS = ("heading_deg",)  # added later; older logs without it still build
 CAMERA_ID = re.compile(r"^cam_(0[1-9]|1[0-2])$")
 # Decimal degrees, or degrees-minutes-seconds with symbols or spaces: 35°46'31"N, 35 46 31 N
 COORD = re.compile(r"""^(-?\d+(?:\.\d+)?)(?:\s*°\s*|\s+)?(?:(\d+(?:\.\d+)?)(?:\s*['′]\s*|\s+)?)?"""
@@ -58,6 +72,11 @@ COORD = re.compile(r"""^(-?\d+(?:\.\d+)?)(?:\s*°\s*|\s+)?(?:(\d+(?:\.\d+)?)(?:\
 COORD_EXAMPLE = {"lat": "35.77531 or 35°46'31\"N", "lon": "-78.63702 or 78°38'13\"W"}
 OUTFIT = re.compile(r"suspect outfit:\s*([^;]*)", re.IGNORECASE)
 STOPWATCH = re.compile(r"stopwatch s:\s*([0-9:.]*)", re.IGNORECASE)
+# Words that would tell a model a camera's role or the crime if they reached a camera name or clip path.
+# Whole words only ("stable yard" is fine): no letter may touch either end, so "_decoy.mov" still counts.
+ROLE_WORDS = re.compile(r"(?<![a-z])(?:crimes?|decoys?|junctions?|exits?|suspects?|victims?|(?:fist)?fights?|"
+                        r"fighting|snatch(?:es|ed|ing|ers?)?|stab(?:s|bed|bing)?|robber(?:s|y)?|robbing|thefts?|"
+                        r"thief|thieves)(?![a-z])", re.IGNORECASE)
 COMPASS = ("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest")
 EARTH_RADIUS_M = 6_371_000
 ANNEX_REF = {"lat": 35.7753, "lon": -78.6370}   # rough Red Hat Annex location, a sanity anchor only
@@ -192,6 +211,7 @@ def parse_row(row: dict, problems: Problems) -> dict:
         "spot": row.get("spot_description", ""),
         "lat": problems.cell(row, "lat", lambda s: parse_coord(s, "lat")),
         "lon": problems.cell(row, "lon", lambda s: parse_coord(s, "lon")),
+        "heading": problems.cell(row, "heading_deg", _heading, required=False),
         "clip_file": problems.cell(row, "clip_file", _clip_file),
         # decoy clips are aligned to the junction clip, so their clock cells are never read
         "shown_at": problems.cell(row, "clock_shown_at_s", parse_seconds) if on_path else None,
@@ -201,6 +221,15 @@ def parse_row(row: dict, problems: Problems) -> dict:
     }
     if role not in ROLES:
         problems.append(f"{where(row)}, column 'role': must be one of {', '.join(ROLES)}")
+    word = ROLE_WORDS.search(out["spot"])
+    if word:
+        problems.append(f"{where(row)}, column 'spot_description': {word.group(0)!r} gives away the camera's role "
+                        "or the crime, and the description becomes the camera name that models see; "
+                        "describe the place instead, e.g. 'west door' or 'bike rack'")
+    word = ROLE_WORDS.search(out["clip_file"] or "")
+    if word:
+        print(f"WARNING {where(row)}: clip_file {out['clip_file']!r} contains {word.group(0)!r}; the file name "
+              f"goes into cameras.json (source.uri), so consider renaming the clip without {word.group(0)!r}")
     if on_path and out["enter"] is not None and out["exit"] is not None and out["exit"] <= out["enter"]:
         problems.append(f"{where(row)}: suspect_exit_s must be after suspect_enter_s")
     if role == "decoy" and (row.get("suspect_enter_s") or row.get("suspect_exit_s")):
@@ -248,6 +277,16 @@ def _clip_file(text: str) -> str:
     return text
 
 
+def _heading(text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError("expected compass degrees 0-360 (0 = north, 90 = east)") from None
+    if not (math.isfinite(value) and 0 <= value <= 360):
+        raise ValueError("must be compass degrees 0-360 (0 = north, 90 = east)")
+    return value
+
+
 def _positive(value: float) -> float:
     if value <= 0:
         raise ValueError("must be > 0")
@@ -273,17 +312,19 @@ def build_take(n: int, rows: list[dict], problems: Problems) -> dict | None:
             by_role[role][k] is None for role in PATH_ROLES for k in ("shown_at", "clock", "enter", "exit")):
         return None  # cell errors already recorded
 
-    # Wall time of each path clip's first frame; the earliest is run-clock = take offset, so no clip
-    # starts before the offset (events need ts >= 0). The empty decoy clip plays with the junction.
+    # Wall time of each path clip's first frame. The crime clip is placed so the suspect enters it at
+    # offset + CRIME_AT_S; the other path clips keep their clock gap to it, so they may start before 0
+    # (feeds skips ts < 0). The empty decoy clip plays with the junction.
     first = {role: by_role[role]["clock"] - by_role[role]["shown_at"] for role in PATH_ROLES}
-    earliest = min(first.values())
+    crime_start = TAKE_OFFSETS[n] + CRIME_AT_S - by_role["crime"]["enter"]
     start_ts = {}
     for role in PATH_ROLES:
-        gap = first[role] - earliest
-        if gap > MAX_CLOCK_GAP_S:
-            problems.append(f"{by_role[role]['where']}: clip starts {gap:.0f} s after the take's earliest "
-                            "clip; check clock_reading_hhmmss (same clock for the whole take?)")
-        start_ts[role] = round(TAKE_OFFSETS[n] + gap, 2)
+        gap = first[role] - first["crime"]
+        if abs(gap) > MAX_CLOCK_GAP_S:
+            problems.append(f"{by_role[role]['where']}: clip starts {abs(gap):.0f} s "
+                            f"{'after' if gap > 0 else 'before'} the take's crime clip; check "
+                            "clock_reading_hhmmss (same clock for the whole take?)")
+        start_ts[role] = round(crime_start + gap, 2)
     start_ts["decoy"] = start_ts["junction"]
 
     path = [{"camera_id": by_role[role]["camera_id"],
@@ -300,11 +341,15 @@ def build_take(n: int, rows: list[dict], problems: Problems) -> dict | None:
         return None
 
     c, j, e = (by_role[role]["camera_id"] for role in PATH_ROLES)
-    links = {(c, j): path[1]["t_enter"] - path[0]["t_enter"],
-             (j, e): path[2]["t_enter"] - path[1]["t_enter"],
+    links = {(c, j): walk(path[0], path[1]), (j, e): walk(path[1], path[2]),
              (j, decoy["camera_id"]): decoy["stopwatch"]}
     return {"take": n, "by_role": by_role, "start_ts": start_ts, "path": path,
             "links": {k: round(v, 1) for k, v in links.items()}}
+
+
+def walk(prev: dict, cur: dict) -> float:
+    """Walking time between two cameras: suspect leaves prev, enters cur (0 when the views overlap)."""
+    return max(0.0, cur["t_enter"] - prev["t_exit"])
 
 
 def check_positions(rows: list[dict], problems: Problems) -> None:
@@ -331,6 +376,39 @@ def check_links(takes: list[dict], cams: dict[str, dict], problems: Problems) ->
                                 "direction between them; log more precise positions (decimal degrees)")
 
 
+def warn_same_direction(takes: list[dict], cams: dict[str, dict]) -> None:
+    """The graph predicts the next camera from the walking direction, so a junction's two branches need two
+    different 8-way directions."""
+    for t in takes:
+        j, e, d = (t["by_role"][role]["camera_id"] for role in ("junction", "exit", "decoy"))
+        way = compass(cams[j], cams[e])
+        if way == compass(cams[j], cams[d]):
+            print(f"WARNING take {t['take']}: from the junction {j}, both the exit {e} and the decoy {d} are "
+                  f"{way}, so the graph can't tell them apart by direction; re-check their lat/lon, or move "
+                  "the decoy phone to another side of the junction")
+
+
+def check_clips(takes: list[dict], clip_dir: Path, problems: Problems) -> None:
+    """Every clip_file must exist in clip_dir/take<N>/ with the exact case (Linux file names are case-sensitive)."""
+    if not clip_dir.is_dir():
+        problems.append(f"--check-clips: folder {clip_dir} not found")
+        return
+    for t in takes:
+        folder = clip_dir / f"take{t['take']}"
+        if folder.name not in os.listdir(clip_dir) or not folder.is_dir():
+            problems.append(f"take {t['take']}: clip folder {folder} not found (expected exactly 'take{t['take']}')")
+            continue
+        names = set(os.listdir(folder))
+        for role in ROLES:
+            r = t["by_role"][role]
+            if r["clip_file"] in names:
+                continue
+            near = sorted(x for x in names if x.lower() == r["clip_file"].lower())
+            hint = (f"; found {near[0]!r}: the upper/lower case differs, and the Brev box (Linux) treats them as "
+                    "different files" if near else "")
+            problems.append(f"{r['where']}: clip {r['clip_file']!r} not found in {folder}{hint}")
+
+
 def mean_center(rows: list[dict]) -> dict:
     return {"lat": round(sum(r["lat"] for r in rows) / len(rows), 6),
             "lon": round(sum(r["lon"] for r in rows) / len(rows), 6)}
@@ -344,13 +422,16 @@ def cameras_json(takes: list[dict], cams: dict[str, dict]) -> dict:
             neighbors[b].append({"camera_id": a, "travel_time_s": travel, "direction": compass(cams[b], cams[a])})
     cameras = []
     for t in takes:
+        in_take = sorted(r["camera_id"] for r in t["by_role"].values())
         for role in ROLES:
             r = t["by_role"][role]
-            name = f"Route {t['take']}: {ROLE_NAMES[role]}" + (f" ({r['spot']})" if r["spot"] else "")
+            # neutral on purpose: no role words (models may see names); k follows camera_id, not role
+            spot = r["spot"] or f"camera {in_take.index(r['camera_id']) + 1}"
+            name = f"Route {t['take']}: {spot}"
             cameras.append({
-                "camera_id": r["camera_id"], "name": name, "take": t["take"], "role": role,
+                "camera_id": r["camera_id"], "name": name, "take": t["take"],
                 "position": {"lat": round(r["lat"], 7), "lon": round(r["lon"], 7)},
-                "site_xy": None, "heading_deg": None,
+                "site_xy": None, "heading_deg": None if r["heading"] is None else round(r["heading"], 1),
                 "neighbors": sorted(neighbors[r["camera_id"]], key=lambda nb: nb["camera_id"]),
                 "source": {"kind": "replay", "uri": f"data/raw/staged/take{t['take']}/{r['clip_file']}",
                            "start_ts": t["start_ts"][role]},
@@ -366,7 +447,8 @@ def ground_truth(t: dict) -> dict:
     return {"site_id": SITE_ID, "take": t["take"], "run_offset_s": TAKE_OFFSETS[t["take"]],
             "incident_id": f"inc_take{t['take']}", "subject_id": f"subj_take{t['take']}",
             "activity": crime["activity"], "appearance": crime["outfit"],
-            "path": t["path"], "decoy_camera_id": t["by_role"]["decoy"]["camera_id"]}
+            "path": t["path"], "decoy_camera_id": t["by_role"]["decoy"]["camera_id"],
+            "camera_roles": {t["by_role"][role]["camera_id"]: role for role in ROLES}}
 
 
 def manifest(takes: list[dict]) -> dict:
@@ -374,13 +456,14 @@ def manifest(takes: list[dict]) -> dict:
     for t in takes:
         for role in ROLES:
             r = t["by_role"][role]
-            clips[r["camera_id"]] = {"take": t["take"], "role": role, "clip_file": r["clip_file"],
+            clips[r["camera_id"]] = {"take": t["take"], "clip_file": r["clip_file"],
                                      "uri": f"data/raw/staged/take{t['take']}/{r['clip_file']}",
                                      "start_ts": t["start_ts"][role]}
     return {"site_id": SITE_ID, "clips": dict(sorted(clips.items()))}
 
 
-def build(rows: list[dict], wanted: set[int] | None) -> tuple[dict, list[dict], dict]:
+def build(rows: list[dict], wanted: set[int] | None,
+          clip_dir: Path | None = None) -> tuple[dict, list[dict], dict]:
     problems = Problems()
     if wanted:
         rows = [r for r in rows if r.get("take") in {str(n) for n in wanted}]
@@ -403,11 +486,14 @@ def build(rows: list[dict], wanted: set[int] | None) -> tuple[dict, list[dict], 
             takes.append(t)
     if not problems:
         check_links(takes, seen, problems)
+    if clip_dir is not None:
+        check_clips(takes, clip_dir, problems)
     if problems:
         print(f"{len(problems)} problem(s) in the clip log; nothing written:", file=sys.stderr)
         for msg in problems:
             print(f"ERROR {msg}", file=sys.stderr)
         raise SystemExit(1)
+    warn_same_direction(takes, seen)
     return cameras_json(takes, seen), takes, manifest(takes)
 
 
@@ -423,6 +509,9 @@ def main() -> int:
     parser.add_argument("--takes", default="", help="comma-separated takes to build, e.g. 1 or 1,2 (default: all)")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent,
                         help="folder that receives data/... (default: the repo root)")
+    parser.add_argument("--check-clips", type=Path, metavar="DIR",
+                        help="also check every clip_file exists as DIR/take<N>/<clip_file>, exact case "
+                             "(e.g. data/raw/staged)")
     args = parser.parse_args()
     for stream in (sys.stdout, sys.stderr):  # a Windows pipe can't print every character in a cell
         stream.reconfigure(errors="replace")
@@ -431,11 +520,18 @@ def main() -> int:
     except ValueError:
         raise SystemExit(f"ERROR --takes: expected numbers like 1,2 (got {args.takes!r})")
 
-    cameras, takes, clips = build(read_rows(args.log), wanted)
+    cameras, takes, clips = build(read_rows(args.log), wanted, args.check_clips)
     for t in takes:
         hops = " -> ".join(f"{p['camera_id']}@{p['t_enter']}s" for p in t["path"])
         links = ", ".join(f"{a}-{b} {s}s" for (a, b), s in t["links"].items())
         print(f"take {t['take']}: {hops} | links: {links}")
+        early = [f"{t['by_role'][role]['camera_id']} at {t['start_ts'][role]} s" for role in ROLES
+                 if t["start_ts"][role] < 0]
+        if early:
+            print(f"note: take {t['take']} clip(s) start before run-clock 0 ({', '.join(early)}); "
+                  "feeds skips those first seconds")
+    if args.check_clips:
+        print(f"all {sum(len(t['by_role']) for t in takes)} clips found in {args.check_clips}")
     data = args.root / "data"
     write_json(data / "sites" / SITE_ID / "cameras.json", cameras)
     for t in takes:
