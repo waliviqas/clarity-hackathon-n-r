@@ -18,7 +18,7 @@ import type { BusSnapshot, ClarityEvent } from '../src/lib/types.ts';
 import { CHASE_COLORS } from '../src/lib/constants.ts';
 import {
   applyEvents, applySnapshot, buildOperatorAction, cameraName, computeHighlight, evidenceOf, initialState, isCrimeActivity,
-  liveDetectionsByCamera, pruneRecent,
+  liveDetectionsByCamera, pruneRecent, runClockAt,
 } from '../src/lib/state.ts';
 import type { StoreState } from '../src/lib/state.ts';
 import { getState, select, subscribe } from '../src/lib/store.ts';
@@ -77,6 +77,10 @@ function offline(): void {
   check(replaced.events.length === 2 && replaced.incidents.length === 0 && replaced.cameras.list.length === 3,
     'bus_snapshot replaces events, incidents and cameras');
   check(replaced.recent.size === 0, 'snapshot events are never recent (no animation)');
+  check(replaced.liveFrom === 2 && applyEvents(replaced, [cameraStatusEx], true, 2001).liveFrom === 2,
+    'liveFrom marks where live arrivals start (snapshot history before it)');
+  check(runClockAt(replaced, 2000) === replaced.lastTs && runClockAt(replaced, 5000) === (replaced.lastTs ?? 0) + 3
+    && runClockAt(initialState(), 0) === null, 'runClockAt extrapolates the run clock at 1x from the snapshot');
   check(replaced.highlighted.has('det_8f2a'), 'selection survives a snapshot and re-highlights');
   const noCams = applySnapshot(replaced, { ...snap, cameras: null }, 2001);
   check(noCams.cameras.list.length === 3, 'a snapshot with cameras=null keeps the map we had');

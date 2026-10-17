@@ -85,6 +85,14 @@ export function useRunId(): string | null {
   return useStore((s) => s.runId);
 }
 
+/**
+ * Index into useEvents() where live arrivals start: events[i] with i >= this arrived after the latest
+ * bus_snapshot (animate those); earlier ones are history (draw the final state, no animation).
+ */
+export function useLiveFrom(): number {
+  return useStore((s) => s.liveFrom);
+}
+
 /** Increments on every bus_snapshot (state replaced: draw it without animation). */
 export function useSnapshotCount(): number {
   return useStore((s) => s.snapshots);

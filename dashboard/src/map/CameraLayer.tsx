@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Map as LeafletMap } from 'leaflet';
-import { useMap } from 'react-leaflet';
-import { cameraName, isCrimeActivity, LABELS, useCameraStatus, useLiveDetections } from '../lib';
+import type { LatLngTuple, Map as LeafletMap } from 'leaflet';
+import { useMap, useMapEvents } from 'react-leaflet';
+import { cameraName, getState, isCrimeActivity, LABELS, select, useCameraStatus, useLiveDetections } from '../lib';
 import type { Camera, CameraHealth } from '../lib';
 import { ALERT_RING_R, CameraMarker, LABEL_FONT, MARKER_PX } from './CameraMarker.tsx';
+import type { ChaseView } from './chase.ts';
+import type { Circle } from './chaseGeometry.ts';
+import { ChaseLayer } from './ChaseLayer.tsx';
+import type { ChaseAvoid } from './ChaseLayer.tsx';
 import type { PlacedCamera } from './geo.ts';
 import { awayFromNeighbors, chooseSmall, layoutLabels } from './labels.ts';
 import type { LabelInput, LabelLayout, Rect, Vec } from './labels.ts';
@@ -18,16 +22,28 @@ interface CamLabelSpec {
   alert: boolean;
 }
 
+interface CameraLayerProps {
+  placed: readonly PlacedCamera[];
+  /** camera_id -> [lat, lon] of the placed cameras. */
+  posById: ReadonlyMap<string, LatLngTuple>;
+  chase: ChaseView;
+}
+
+const NO_AVOID: ChaseAvoid = { rects: [], circles: [] };
+
 /**
- * All camera markers, with labels placed so they don't cover each other or other markers.
- * Lives inside <MapContainer> because placement needs the map's current zoom and size.
+ * The cameras and the chases between them: markers with labels placed so they don't cover each
+ * other or other markers, then the paths / arrows / predictions underneath (their "70%" labels keep
+ * clear of the camera labels). Lives inside <MapContainer> because placement needs the map's zoom and size.
  */
-export function CameraLayer({ placed }: { placed: readonly PlacedCamera[] }) {
+export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
   const map = useMap();
   const status = useCameraStatus();
   const live = useLiveDetections();
   const viewTick = useMapViewTick(map);
   const fontTick = useFontsTick();
+  // A click on the empty map clears the selection (lines and arrows stop their clicks from reaching it).
+  useMapEvents({ click: () => { if (getState().selection !== null) select(null); } });
 
   const cams = placed.map(({ camera, lat, lon }) => {
     const seen = live.get(camera.camera_id);
@@ -62,8 +78,10 @@ export function CameraLayer({ placed }: { placed: readonly PlacedCamera[] }) {
     [map, specKey, viewTick, fontTick],
   );
 
+  const avoid = layout ? layout.avoid : NO_AVOID;
   return (
     <>
+      <ChaseLayer chase={chase} posById={posById} avoid={avoid} viewTick={viewTick} />
       {cams.map((c, i) => (
         <CameraMarker
           key={c.camera.camera_id}
@@ -74,8 +92,11 @@ export function CameraLayer({ placed }: { placed: readonly PlacedCamera[] }) {
           pulseId={c.pulseId}
           pulseCrime={c.pulseCrime}
           crimeActivity={c.crimeActivity}
-          label={layout?.byId.get(c.camera.camera_id) ?? null}
-          small={layout?.small ?? false}
+          label={layout?.layout.byId.get(c.camera.camera_id) ?? null}
+          small={layout?.layout.small ?? false}
+          fill={chase.cameras.get(c.camera.camera_id)?.fill ?? null}
+          highlighted={chase.cameras.get(c.camera.camera_id)?.highlighted ?? false}
+          badge={chase.cameras.get(c.camera.camera_id)?.badge ?? null}
         />
       ))}
     </>
@@ -88,7 +109,8 @@ function healthWord(health: CameraHealth | undefined): string {
 
 // ---------- layout ----------
 
-function computeLayout(map: LeafletMap, specs: readonly CamLabelSpec[]): LabelLayout | null {
+/** Label layout, plus what the chase labels must avoid (label boxes, marker dots, map controls). */
+function computeLayout(map: LeafletMap, specs: readonly CamLabelSpec[]): { layout: LabelLayout; avoid: ChaseAvoid } | null {
   const size = map.getSize();
   if (!specs.length || size.x === 0 || size.y === 0) return null;
 
@@ -117,7 +139,20 @@ function computeLayout(map: LeafletMap, specs: readonly CamLabelSpec[]): LabelLa
 
   // Size from the names alone (stable while alerts come and go), placement from the full labels.
   const small = chooseSmall(inputs(false), opts);
-  return layoutLabels(inputs(true), small, opts);
+  const items = inputs(true);
+  const layout = layoutLabels(items, small, opts);
+
+  const rects: Rect[] = [...blocked];
+  const circles: Circle[] = [];
+  for (const it of items) {
+    circles.push({ x: it.x, y: it.y, r: it.markerR + 3 });
+    const p = layout.byId.get(it.id);
+    if (!p) continue;
+    const box = small ? it.small : it.big;
+    const x0 = it.x + p.ax - p.fx * box.w, y0 = it.y + p.ay - p.fy * box.h;
+    rects.push({ x0: x0 - 3, y0: y0 - 3, x1: x0 + box.w + 3, y1: y0 + box.h + 3 });
+  }
+  return { layout, avoid: { rects, circles } };
 }
 
 /** Map controls (zoom buttons, attribution) in container pixels: labels stay off them. */

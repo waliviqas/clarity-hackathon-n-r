@@ -2,26 +2,42 @@ import 'leaflet/dist/leaflet.css';
 import './map.css';
 import { useMemo } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
+import type { LatLngTuple } from 'leaflet';
 import type { MapContainerProps } from 'react-leaflet';
 import { AttributionControl, MapContainer, TileLayer, ZoomControl } from 'react-leaflet';
 import { TIMING, useCameras } from '../lib';
 import { CameraLayer } from './CameraLayer.tsx';
 import { FIT_OPTIONS, FitToCameras } from './FitToCameras.tsx';
 import { boundsOf, layoutKey, placeCameras } from './geo.ts';
+import { useChase } from './useChase.ts';
 
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 /** OSM's ODbL attribution; must stay visible on the map. Reads "© OpenStreetMap contributors". */
 const OSM_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors';
-const MAP_STYLE = { '--pulse-ms': `${TIMING.detectionPulseMs}ms` } as CSSProperties;
+const MAP_STYLE = {
+  '--pulse-ms': `${TIMING.detectionPulseMs}ms`,
+  '--relay-dash-ms': `${TIMING.relayDashMs}ms`,
+  '--relay-fade-ms': `${TIMING.relayFadeMs}ms`,
+  '--badge-ms': `${TIMING.verdictBadgeMs}ms`,
+} as CSSProperties;
 
-/** The map column: OSM (darkened), one marker per camera with a collision-free label, detection pulses. */
+/**
+ * The map column: OSM (darkened), one marker per camera with a collision-free label, detection pulses,
+ * and the chases (incident paths, relay arrows, predicted next cameras).
+ */
 export default function MapView() {
   const { site, list } = useCameras();
 
   const placed = useMemo(() => placeCameras(list), [list]);
   const fitKey = layoutKey(site?.site_id, placed);
   const bounds = useMemo(() => boundsOf(placed), [placed]);
+  const posById = useMemo(
+    () => new Map<string, LatLngTuple>(placed.map((p) => [p.camera.camera_id, [p.lat, p.lon]])),
+    [placed],
+  );
+  const known = useMemo(() => new Set(posById.keys()), [posById]);
+  const chase = useChase(known);
 
   if (!site) return <MapNote>Waiting for the camera list from the event bus.</MapNote>;
 
@@ -51,7 +67,7 @@ export default function MapView() {
       <AttributionControl position="bottomright" prefix={false} />
       <ZoomControl position="bottomleft" />
       <FitToCameras bounds={bounds} fitKey={fitKey} />
-      <CameraLayer placed={placed} />
+      <CameraLayer placed={placed} posById={posById} chase={chase} />
     </MapContainer>
   );
 }

@@ -72,6 +72,13 @@ export interface StoreState {
   lastTs: number | null;
   /** Date.now() ms when the last live event arrived (to extrapolate the run clock between events). */
   lastEventAt: number | null;
+  /** Date.now() ms when lastTs was last read from the bus (a live event or a bus_snapshot). See runClockAt(). */
+  clockAt: number | null;
+  /**
+   * Index into `events` where live arrivals start: events[i] with i >= liveFrom arrived over the socket
+   * after the latest bus_snapshot (animate those); earlier ones are snapshot history (draw, don't animate).
+   */
+  liveFrom: number;
   /** event_id -> Date.now() ms of arrival, for events that arrived live in the last few seconds.
    *  Snapshot events are never "recent": after a (re)connect the screen draws the final state, no animation. */
   recent: ReadonlyMap<string, number>;
@@ -105,6 +112,8 @@ export function initialState(): StoreState {
     connection: { state: 'connecting', retries: 0, nextRetryAt: null, lastError: null },
     lastTs: null,
     lastEventAt: null,
+    clockAt: null,
+    liveFrom: 0,
     recent: EMPTY_MAP,
     snapshots: 0,
     ignored: 0,
@@ -201,6 +210,16 @@ export function liveDetectionsByCamera(
     out.set(e.camera_id, { latest: e, crime });
   }
   return out;
+}
+
+/**
+ * The run clock now (seconds), extrapolated at 1x from the newest ts seen: lastTs + time since it was
+ * read. Null before any event. Between events of a faster replay this runs behind, never ahead.
+ */
+export function runClockAt(state: StoreState, nowMs: number): number | null {
+  if (state.lastTs === null) return null;
+  const since = state.clockAt === null ? 0 : Math.max(0, nowMs - state.clockAt) / 1000;
+  return state.lastTs + since;
 }
 
 export function colorOf(state: StoreState, subjectId: string | null | undefined): string {
@@ -318,6 +337,7 @@ export function applyEvents(state: StoreState, raws: readonly unknown[], live: b
     lastTs,
     ignored,
     lastEventAt: live ? now : state.lastEventAt,
+    clockAt: live ? now : state.clockAt,
     recent: live ? recent : state.recent,
     cameraStatus: statusChanged ? cameraStatus : state.cameraStatus,
     dispatches: incidentsChanged ? dispatches : state.dispatches,
@@ -377,7 +397,12 @@ export function applySnapshot(state: StoreState, snap: BusSnapshot, now: number)
     snapshots: state.snapshots + 1,
   };
   const next = applyEvents(fresh, Array.isArray(snap.events) ? snap.events : [], false, now);
-  return { ...next, highlighted: computeHighlight(next.selection, next.eventsById) };
+  return {
+    ...next,
+    clockAt: now,
+    liveFrom: next.events.length,
+    highlighted: computeHighlight(next.selection, next.eventsById),
+  };
 }
 
 export function setCameras(state: StoreState, config: unknown): StoreState {

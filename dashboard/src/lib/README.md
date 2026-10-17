@@ -26,6 +26,7 @@ Each fills its slot (`height: 100%`, scroll inside yourself). Until then a place
 | `useRecent()` | `Map<event_id, arrivedAtMs>` for events that arrived **live** in the last 6 s (animate only these) |
 | `useLiveDetections()` | `Map<camera_id, { latest, crime }>`: newest live detection per camera and the newest one with a crime activity (or null), within the recent window. Empty after a snapshot. The map pulses from it; use it to light camera nodes |
 | `useSnapshotCount()` | bumps on every `bus_snapshot` (state replaced: redraw, don't animate) |
+| `useLiveFrom()` | index into `useEvents()` where live arrivals start: `events[i]` with `i >= liveFrom` arrived after the latest snapshot (animate those; earlier ones are history). Unlike `useRecent()` it doesn't expire after 6 s |
 | `useSubjectColors()`, `useDetectionSubjects()`, `useLastTs()`, `useRunId()` | as named |
 | `useStore(selector)` | any slice; the selector must return existing state, never a new object |
 
@@ -36,10 +37,11 @@ Each fills its slot (`height: 100%`, scroll inside yourself). Until then a place
 - `sendOperatorAction(incidentId, 'confirm' | 'dismiss', note?)` → `Promise<{ ok, event, error?, kind? }>`. Never throws. On failure `kind` is `'network'` (bus unreachable / timeout) or `'rejected'` (the bus answered with an HTTP error, e.g. 422). Unique `op_` id, `ts` = newest ts seen, `source: "dashboard"`. The store marks the incident right away on success.
 - `evidenceOf(e)`, `cameraOf(e)` (relay → from_camera, dispatch → last path camera), `isScripted(e)`, `getEvent(id)`.
 - `isCrimeActivity(a)` → true for `stabbing | fistfight | purse_snatch` (false for `none` or junk).
+- `runClock(nowMs?)` → the run clock now (seconds): newest `ts` seen, extrapolated at 1x since it arrived (live event or snapshot); null before any event. `runClockAt(state, nowMs)` is the pure version.
 - `cameraName(byId[id], id)` → the camera's `name`, or its camera_id when the name is empty/missing. Use it wherever a camera is named on screen.
 
 ## Constants (`constants.ts`)
-`CHASE_COLORS`, `COLORS` (hex mirrors of `src/tokens.css`), `TIMING` (all animation/connection timings), `LABELS` (on-screen words: "coordinator", "Scripted run", status words "Tracking" / "Needs your decision" / "Confirmed" / "Dismissed", `status.alertNoConfirm` "Alert" for an alert dispatch with `requires_human_confirm: false`, `activity.*` e.g. "Purse snatch", `cameraHealth.*` "Online" / "Offline" / "Degraded"). Style with the CSS variables in `src/tokens.css`.
+`CHASE_COLORS`, `COLORS` (hex mirrors of `src/tokens.css`; `COLORS.uncertain` = `--uncertain`, amber for "uncertain" verdicts), `TIMING` (all animation/connection timings, incl. `relayGraceS`, `relayDefaultArrivalS`, `relayFadeMs`, `relayDashMs`, `verdictBadgeMs`), `LABELS` (`verdictBadge.no_match` "✕ no match" / `.uncertain` "? uncertain", on-screen words: "coordinator", "Scripted run", status words "Tracking" / "Needs your decision" / "Confirmed" / "Dismissed", `status.alertNoConfirm` "Alert" for an alert dispatch with `requires_human_confirm: false`, `activity.*` e.g. "Purse snatch", `cameraHealth.*` "Online" / "Offline" / "Degraded"). Style with the CSS variables in `src/tokens.css`.
 
 ## Files
 `types.ts` (mirrors `contracts/schemas/`; no invented fields) · `state.ts` (pure reducers) · `store.ts` (the instance) · `bus.ts` (WS + reconnect, GET /cameras, POST /events) · `hooks.ts` · `config.ts` (`VITE_BUS_URL`). Lib files import each other with `.ts` extensions so plain Node can run them (`npm run check:store`).

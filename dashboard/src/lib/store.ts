@@ -4,7 +4,7 @@
 import type { BusSnapshot, ClarityEvent } from './types.ts';
 import { TIMING } from './constants.ts';
 import {
-  applyEvents, applySnapshot, colorOf, initialState, pruneRecent, select as selectReducer,
+  applyEvents, applySnapshot, colorOf, initialState, pruneRecent, runClockAt, select as selectReducer,
   setCameras, setConnection, subjectOfEvent,
 } from './state.ts';
 import type { Connection, StoreState } from './state.ts';
@@ -99,6 +99,11 @@ export function chaseVar(subjectId: string | null | undefined): string {
 export function subjectOf(eventOrId: ClarityEvent | string): string | null {
   const e = typeof eventOrId === 'string' ? state.eventsById.get(eventOrId) : eventOrId;
   return e ? subjectOfEvent(e, state.detectionSubjects) : null;
+}
+
+/** Run-clock seconds now (newest ts seen, extrapolated at 1x since it arrived), or null before any event. */
+export function runClock(nowMs: number = Date.now()): number | null {
+  return runClockAt(state, nowMs);
 }
 
 /** Look up any event by id (undefined if not seen). */

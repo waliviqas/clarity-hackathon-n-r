@@ -6,7 +6,8 @@
 // Reproduces Leaflet's default fit (FIT_OPTIONS padding, zoomSnap .25, Web Mercator) for the map
 // column at 1920x1080 (full screen and in a browser window), estimates label widths on the generous
 // side (Barlow Semi Condensed ~0.5 em per character), then runs the real placement code.
-// Passes when no label covers another marker, label or map control and every label stays in view.
+// Passes when no label covers another marker, label or map control, every label stays in view, and no
+// label sits between its camera and another one (unless a leader line ties it to its own camera).
 // Also prints a denser synthetic layout (same site at 1/2 and 1/3 scale) to show the 13 px and
 // leader-line fallbacks; those are informational.
 // Exit code 0 = all checks passed.
@@ -124,11 +125,14 @@ function run(label: string, cams: readonly Camera[], w: number, h: number, alert
     return r.x0 < view.x0 || r.y0 < view.y0 || r.x1 > view.x1 || r.y1 > view.y1;
   }).map((it) => it.id);
   const sides = items.map((it) => `${it.id}:${layout.byId.get(it.id)!.side}${layout.byId.get(it.id)!.leader ? '+leader' : ''}`);
-  console.log(`\n${label}  ${w}x${h}  zoom ${z}  names ${layout.small ? '13' : '15'} px  collisions ${layout.collisions}  leaders ${layout.leaders}  out of view ${out.length}`);
+  console.log(`\n${label}  ${w}x${h}  zoom ${z}  names ${layout.small ? '13' : '15'} px  collisions ${layout.collisions}  leaders ${layout.leaders}  between ${layout.ambiguous}  out of view ${out.length}`);
   console.log(`      ${sides.join('  ')}`);
+  const untied = layoutLabels(items, small, { ...opts, tie: false });
+  console.log(`      (without the between-cameras rule: ${untied.ambiguous} label(s) would sit between two cameras)`);
   if (strict) {
     check(layout.collisions === 0, `${label} ${w}x${h}: no label covers a marker, label or control`);
     check(out.length === 0, `${label} ${w}x${h}: every label inside the map${out.length ? ` (out: ${out.join(', ')})` : ''}`);
+    check(layout.ambiguous === 0, `${label} ${w}x${h}: no label sits between its camera and another (or it has a leader)`);
   }
 }
 

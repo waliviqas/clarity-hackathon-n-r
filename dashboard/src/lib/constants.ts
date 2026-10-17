@@ -13,6 +13,8 @@ export const COLORS = {
   muted: '#8EA3B3',
   alert: '#FF6B5A',
   ok: '#46C38A',
+  /** agent_verdict "uncertain" (amber; always paired with a "?" so it never relies on color). */
+  uncertain: '#FFB020',
   /** Returned by colorFor() for a subject that has no color yet (e.g. a bare detection). */
   unassigned: '#E6EDF2',
 } as const;
@@ -29,6 +31,12 @@ export const TIMING = {
   verdictBadgeMs: 5000,
   /** A relay arrow stays until a verdict at to_camera, or expected_arrival_s + this many run-clock seconds. */
   relayGraceS: 10,
+  /** ...and when the relay has no expected_arrival_s, assume this many run-clock seconds. */
+  relayDefaultArrivalS: 30,
+  /** A relay arrow fades out over this long after a no_match / uncertain verdict at its target. */
+  relayFadeMs: 1200,
+  /** One trip of the travelling relay dash along its pattern (the only continuous animation). */
+  relayDashMs: 700,
   reconnectMinMs: 500,
   reconnectMaxMs: 5000,
   /** Small text frame so idle tunnels (brev port-forward) don't drop the socket; the bus ignores it. */
@@ -50,6 +58,11 @@ export const LABELS = {
     dismiss: 'Dismissed',
   },
   noIncidents: 'No incidents yet.',
+  /** Map badge on a camera for 5 s after its agent answers a relay without a match. */
+  verdictBadge: {
+    no_match: '✕ no match',
+    uncertain: '? uncertain',
+  },
   /** detection.activity / dispatch.incident_type as words. */
   activity: {
     stabbing: 'Stabbing',

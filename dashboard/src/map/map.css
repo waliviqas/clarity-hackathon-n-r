@@ -64,6 +64,16 @@
 }
 /* offline / degraded: hollow --muted (the label also says so: never color alone) */
 .cam.is-offline .cam-dot { background: transparent; border-color: var(--muted); }
+/* a subject was confirmed here: the dot fills with its chase color (inline background) */
+
+/* selected, or cited by the selection: a thin ring with an ink gap, outside any alert ring */
+.cam-select-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+}
+.cam.is-alert .cam-select-ring { inset: -12px; }
 
 /* crime seen here recently: a steady --alert ring around the dot */
 .cam-alert-ring {
@@ -133,6 +143,77 @@
 @keyframes cam-pulse-hold {
   from { opacity: 1; }
   to { opacity: 0; }
+}
+
+/* ---------- verdict badge (5 s after a camera's agent answers without a match) ---------- */
+/* Sits across the marker from the label; text + glyph, never color alone. Holds, then fades out at the
+   end of TIMING.verdictBadgeMs (the component unmounts it soon after). */
+.cam-badge {
+  position: absolute;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-sign);
+  font-weight: 600;
+  font-size: var(--fs-small);
+  line-height: 1;
+  padding: 3px 6px 4px;
+  border-radius: 3px;
+  background: var(--ink);
+  border: 1px solid currentColor;
+  animation: cam-badge var(--badge-ms, 5000ms) linear forwards;
+}
+.cam-badge.is-no-match { color: var(--muted); }
+.cam-badge.is-uncertain { color: var(--uncertain); }
+@keyframes cam-badge {
+  0%, 90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---------- chases (ChaseLayer): Leaflet SVG paths in panes under the markers ---------- */
+/* Relay arrow: the dash travels toward the target camera (the only continuous animation). The dash
+   pattern is CHASE_STYLE.arrowDash ("10 8"): one trip = an 18 px offset. */
+.chase-arrow.is-live { animation: relay-dash var(--relay-dash-ms, 700ms) linear infinite; }
+@keyframes relay-dash {
+  from { stroke-dashoffset: 18; }
+  to { stroke-dashoffset: 0; }
+}
+/* no_match / uncertain at the target: the arrow fades out */
+.chase-arrow.is-fading,
+.chase-arrow-head.is-fading { animation: chase-fade var(--relay-fade-ms, 1200ms) ease-out forwards; }
+@keyframes chase-fade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* "70%" on a predicted line: an ink pill on the line, in the chase color */
+.chase-prob-icon { background: none; border: 0; }
+.chase-prob {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-sign);
+  font-weight: 600;
+  font-size: 13px; /* PROB_LABEL.fontPx in sizes.ts */
+  line-height: 17px;
+  padding: 0 5px;
+  border-radius: 3px;
+  color: var(--c, var(--text));
+  background: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--c, var(--text)) 55%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+.chase-prob.is-highlighted { border-color: var(--c, var(--text)); }
+.chase-prob.is-dimmed { opacity: 0.35; }
+
+/* Reduced motion: arrows stand still, fades and badges switch instead of easing. */
+@media (prefers-reduced-motion: reduce) {
+  .chase-arrow.is-live { animation: none; }
+  .chase-arrow.is-fading,
+  .chase-arrow-head.is-fading { animation: none; opacity: 0; }
+  .cam-badge { animation: cam-pulse-hold var(--badge-ms, 5000ms) steps(1, end) forwards; }
 }
 
 /* ---------- empty states ---------- */

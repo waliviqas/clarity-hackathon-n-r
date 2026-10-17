@@ -6,24 +6,12 @@ import type { LatLngTuple } from 'leaflet';
 import { Marker } from 'react-leaflet';
 import { LABELS } from '../lib';
 import type { Activity, CameraHealth } from '../lib';
+import type { CameraBadge } from './chase.ts';
+import { OPPOSITE_SIDE, sideAnchor } from './labels.ts';
 import type { LabelPlacement } from './labels.ts';
+import { ALERT_RING_R, MARKER_PX } from './sizes.ts';
 
-/** Marker dot diameter (at least 18px so it reads on video). Keep in sync with .cam-icon sizing in map.css. */
-export const MARKER_PX = 18;
-/** Outer radius of the alert ring around the dot (map.css .cam-alert-ring: inset -7px, 3px border). */
-export const ALERT_RING_R = MARKER_PX / 2 + 7;
-/**
- * Label type, mirrored from map.css .cam-label (sizes = --fs-body / --fs-small in tokens.css).
- * The label layout measures text with these, so change both together.
- */
-export const LABEL_FONT = {
-  namePx: 15,
-  nameSmallPx: 13,
-  nameWeight: 500,
-  subPx: 13,
-  subWeight: 600,
-  lineHeight: 1.15,
-} as const;
+export { ALERT_RING_R, LABEL_FONT, MARKER_PX } from './sizes.ts';
 
 const HALF = MARKER_PX / 2;
 const ALIGN = { start: 'flex-start', center: 'center', end: 'flex-end' } as const;
@@ -45,6 +33,12 @@ export interface CameraMarkerProps {
   label: LabelPlacement | null;
   /** Crowded map: 13 px name instead of 15 px. */
   small: boolean;
+  /** Chase color of the newest subject confirmed here (path step or match verdict), or null. */
+  fill: string | null;
+  /** A selected (or cited) detection / verdict happened here: ring around the dot. */
+  highlighted: boolean;
+  /** Short-lived "no match" / "uncertain" badge after this camera's agent answered a relay, or null. */
+  badge: CameraBadge | null;
 }
 
 /**
@@ -53,7 +47,7 @@ export interface CameraMarkerProps {
  * and CSS animations aren't cut short by unrelated re-renders).
  */
 export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps) {
-  const { name, lat, lon, health, pulseId, pulseCrime, crimeActivity, label, small } = props;
+  const { name, lat, lon, health, pulseId, pulseCrime, crimeActivity, label, small, fill, highlighted, badge } = props;
   const [container] = useState(() => document.createElement('div'));
   const icon = useMemo(() => divIcon({
     html: container,
@@ -64,7 +58,8 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
   const position = useMemo<LatLngTuple>(() => [lat, lon], [lat, lon]);
 
   const offline = health !== undefined && health !== 'online';
-  const cls = ['cam', offline ? 'is-offline' : '', crimeActivity ? 'is-alert' : ''].filter(Boolean).join(' ');
+  const cls = ['cam', offline ? 'is-offline' : '', crimeActivity ? 'is-alert' : '', fill ? 'is-filled' : '',
+    highlighted ? 'is-highlighted' : ''].filter(Boolean).join(' ');
   const labelCls = ['cam-label', small ? 'is-small' : ''].filter(Boolean).join(' ');
   const leader = label?.leader;
 
@@ -79,8 +74,9 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
       />
       {createPortal(
         <div className={cls}>
+          {highlighted && <span className="cam-select-ring" aria-hidden="true" />}
           {crimeActivity && <span className="cam-alert-ring" aria-hidden="true" />}
-          <span className="cam-dot" aria-hidden="true" />
+          <span className="cam-dot" aria-hidden="true" style={fill && !offline ? { background: fill } : undefined} />
           {pulseId && (
             <span key={pulseId} className={`cam-pulse${pulseCrime ? ' is-crime' : ''}`} aria-hidden="true" />
           )}
@@ -101,12 +97,25 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
             {crimeActivity && <span className="cam-activity">{LABELS.activity[crimeActivity]}</span>}
             {offline && <span className="cam-health">{LABELS.cameraHealth[health] ?? String(health)}</span>}
           </span>
+          {badge && (
+            <span key={badge.verdictId} className={`cam-badge is-${badge.kind.replace('_', '-')}`}
+              style={badgeStyle(label, crimeActivity !== null)}>
+              {LABELS.verdictBadge[badge.kind]}
+            </span>
+          )}
         </div>,
         container,
       )}
     </>
   );
 });
+
+/** The badge sits across the marker from the label (left of it before the first layout). */
+function badgeStyle(label: LabelPlacement | null, alert: boolean): CSSProperties {
+  const side = label ? OPPOSITE_SIDE[label.side] : 'w';
+  const { ax, ay, fx, fy } = sideAnchor(side, (alert ? ALERT_RING_R : HALF) + 5);
+  return { left: HALF + ax, top: HALF + ay, transform: `translate(${-fx * 100}%, ${-fy * 100}%)` };
+}
 
 /** Position the label box so its anchor point (fx, fy) sits on the placement's anchor. */
 function labelStyle(label: LabelPlacement | null, alert: boolean): CSSProperties {
