@@ -62,7 +62,9 @@ The dashboard and the real model pipeline are still in progress. Today the same 
 
 If any part runs without its model during a recording, the screen will say so (for example "coordinator: rules mode").
 
-The video's closing line: *"No video ever left this building. Only words moved between agents."*
+The video's closing line (narration): *"No video ever left this building. Only words moved between agents."*
+
+What that line means, stated precisely: it describes how Clarity is **designed to be deployed**. In a real deployment every part (models, event bus, dashboard) runs on the agency's own hardware, so video stays inside the building and the agents exchange only text. In our hackathon demo, a rented NVIDIA Brev GPU box stands in for that hardware: the staged clips are copied to it, and the bus streams a camera's clip to the operator's laptop when the operator opens a sighting. Between agents, only text moves in the demo too.
 
 ---
 
@@ -99,6 +101,7 @@ flowchart LR
 ```
 
 - Each agent sees only its own camera. Between agents, and from agents to the coordinator, **only words travel**.
+- **Deployment vs. our demo.** In a real deployment the dashboard runs inside the agency too, so video stays on its own hardware. In the demo, the Brev GPU box plays the agency's server and the dashboard runs on a laptop that reaches the bus through `brev port-forward`. Over that link the laptop receives the events and, when the operator opens a sighting, that camera's clip (`GET /clips/{camera_id}`).
 - Every message is a small JSON event defined in [`contracts/`](contracts/README.md): `detection`, `relay`, `agent_verdict`, `dispatch`, `operator_action`, `camera_status`.
 - Every decision lists the event IDs it relied on (`evidence_event_ids`). That's the receipts trail on the dashboard.
 - The bus appends every accepted event to `runs/<run_id>/events.jsonl`, so any run can be replayed into the dashboard later.
@@ -151,7 +154,7 @@ TODO: exact model IDs (Hugging Face repo names, variant and precision) for all f
 
 ### Why these models, and why vLLM
 
-- **Small enough to run on site.** The plan is for all three generative models to share one GPU server the agency owns, so footage stays in the building. TODO: measured result (GPU type and memory used with all three loaded).
+- **Small enough to run on site.** The design is for all three generative models to share one GPU server the agency owns, so footage stays in the building (for the hackathon, a Brev GPU box plays that server). TODO: measured result (GPU type and memory used with all three loaded).
 - **Right size for each job.** By design, the cheap spotter runs on every frame, the larger checker runs only when the spotter flags something, and the coordinator works with text only.
 - **vLLM to serve all three side by side.** The design puts every model behind the same OpenAI-compatible API, and vLLM batches requests that arrive together; that is how we plan to handle three incidents at once. TODO: measured result (Results section 1).
 - TODO: Michael to add the deciding reasons from serving tests (memory fit, speed, structured output support).
@@ -175,16 +178,19 @@ We looked at other public datasets (see [`data/README.md`](data/README.md)) and 
 
 ### How the staged clips were made
 
+The full method (filming, clock sync, clip conversion, ground truth) is in [`data/staged/README.md`](data/staged/README.md). This is the short version.
+
 TODO: check every line below against what we actually filmed (written from the filming plan, before filming).
 
 - **Who:** only consenting teammates on camera. No bystanders' faces. No weapons or props that look like weapons.
 - **Where:** outside the Red Hat Annex, Raleigh, with iPhones placed like fixed security cameras.
 - **What:** three incidents, one fistfight and two purse snatches. Each suspect wears a distinct outfit.
 - **Camera layout:** 12 camera spots, 4 per incident route: crime spot, junction, real exit, and a decoy exit the suspect never passes. TODO: real camera positions (planned: GPS read on the phone at each spot).
-- **Filmed separately, replayed together.** Each incident is filmed as its own take. Right after recording starts, each phone films a clock showing seconds (time.is). The converter [`data/build_site.py`](data/build_site.py) reads that clock time from the clip log and lines all clips of a take up on one run clock. Decoy clips (an empty path, filmed separately) are aligned to their route's junction camera. At replay, the three takes are offset so they overlap (+0, +10 and +20 s in `data/build_site.py`). The three incidents did not really happen at the same moment; the video says so.
+- **Filmed separately, replayed together.** Each incident is filmed as its own take. Right after recording starts, each phone films a clock showing seconds (time.is). The converter [`data/build_site.py`](data/build_site.py) reads that clock time from the clip log and lines all clips of a take up on one run clock. Decoy clips (an empty path, filmed separately) are aligned to their route's junction camera. Each take is lined up on its crime, so the three crimes replay 10 s apart, at run-clock 5, 15 and 25 s (`data/build_site.py`). The three incidents did not really happen at the same moment; the video says so.
+- **Clip format.** [`data/convert_clips.py`](data/convert_clips.py) (ffmpeg) turns each iPhone clip into a 720p, constant 10 fps, H.264 copy with the audio removed, so every clip decodes the same way and no bystander voices are kept. The originals are not changed.
 - **Ground truth:** for every take we log, per camera, when the suspect enters and leaves (template: `data/staged/clip_log_template.csv`). `data/build_site.py` turns that log into the ground truth (`data/ground_truth/take<N>.json`), the camera map (`data/sites/annex/cameras.json`) and the clip manifest (`data/manifests/annex.json`). Walking times between cameras come from the logged times; the walk to each decoy is timed with a stopwatch.
 - **Train/test split:** TODO: if the spotter is fine-tuned, list which clips were training and which were held-out test clips (never mixed); otherwise delete this line.
-- **Published:** TODO: clip dataset link, `data/staged/README.md` (full method), `data/ground_truth/`.
+- **Published:** method in [`data/staged/README.md`](data/staged/README.md). TODO: clip dataset link. TODO: commit `data/ground_truth/` and `data/sites/annex/` once built from the filled log. The filled clip log stays out of git because it names phone owners; only its outputs are published.
 
 ### Attribution
 
@@ -193,11 +199,15 @@ TODO: check every line below against what we actually filmed (written from the f
 
 ---
 
-## Quick start: run the event bus with a scripted incident (no GPU needed)
+## Quick start (no GPU needed)
 
-This runs today. It plays three overlapping scripted incidents through the real bus, with no models involved. Every scripted event is tagged `source: "fake_scenario"` so the dashboard can label it as scripted.
+These steps use only the parts that exist today: the event bus, the camera feeds, the site builder and the dashboard. No models are involved.
 
-Run everything from the repo root, on Linux or macOS (the Brev box is Linux). Quote paths if your clone path has spaces.
+Run the Python steps from the repo root, on Linux or macOS (the Brev box is Linux). Quote paths if your clone path has spaces.
+
+### 1. Event bus with a scripted incident
+
+This plays three overlapping scripted incidents through the real bus. Every scripted event is tagged `source: "fake_scenario"` so the dashboard can label it as scripted.
 
 ```bash
 git clone https://github.com/waliviqas/clarity-hackathon-n-r.git
@@ -238,7 +248,71 @@ Replay a recorded run (this is also our demo fallback). Restart the bus with a n
 python -m bus.replay runs/run_fake1/events.jsonl --speed 2
 ```
 
-Bus endpoints: `POST /events`, `GET /events?type=&since_ts=`, `WS /ws` (dashboard stream), `GET /cameras`, `GET /health`. Details in [`contracts/README.md`](contracts/README.md).
+Bus endpoints (details in [`contracts/README.md`](contracts/README.md) and [`bus/server.py`](bus/server.py)):
+
+| Endpoint | What it does |
+|---|---|
+| `POST /events` | Publish one event; checked against `contracts/schemas/` |
+| `GET /events?type=&since_ts=` | Read past events (polling) |
+| `WS /ws` | Dashboard stream: one `bus_snapshot`, then every new event |
+| `GET /cameras` | The active `cameras.json` |
+| `GET /clips/{camera_id}` | That camera's replay clip, for the dashboard's sighting pop-up. Supports seeking (HTTP Range). Serves only clips named in `cameras.json`. |
+| `GET /clips/{camera_id}/info` | Whether the clip is available, its `start_ts` (clip second = run-clock `ts` − `start_ts`), and why not if it isn't |
+| `GET /health` | Liveness and counts of valid/invalid events |
+
+### 2. Camera feeds (clips replayed as cameras)
+
+```bash
+pip install -r feeds/requirements.txt
+```
+
+No real clips yet? Make small synthetic ones (numbered frames, no people) in a folder outside the repo, and print the frames all cameras send, in run-clock order:
+
+```bash
+python -m feeds.fake_clips /tmp/clarity_fake --cameras 3 --seconds 10
+python -m feeds.base /tmp/clarity_fake/cameras.json --fps 1
+```
+
+With a real site (step 3), check every clip, then play the cameras:
+
+```bash
+python -m feeds.replay --cameras data/sites/annex/cameras.json --check   # opens every clip: resolution, fps, frames, duration; exit 1 if any is missing or unreadable
+python -m feeds.replay --cameras data/sites/annex/cameras.json           # plays all cameras on one run clock and publishes camera_status to the bus
+```
+
+`feeds.replay` options: `--fps` (frames sampled per camera per second, default 1), `--speed` (default 1; 0 = as fast as possible), `--max-width` (default 960; 0 = full size), `--no-status` (don't publish `camera_status`), `--drop-late` (skip samples that are already late). `--cameras` defaults to `$CLARITY_CAMERAS`. Perception reads frames through `feeds.base.open_feeds`; `feeds.replay` on its own prints one line per run-clock second.
+
+### 3. Site data from the staged clips
+
+Clips live in `data/raw/staged/take<N>/` on the GPU box and are never committed.
+
+```bash
+sudo apt-get install -y ffmpeg                       # convert_clips.py needs ffmpeg on PATH
+python data/convert_clips.py data/raw/staged         # 720p, constant 10 fps, H.264, no audio .mp4 copy next to each clip
+python data/build_site.py data/staged/clip_log.csv --check-clips data/raw/staged
+python contracts/validate.py data/sites/annex/cameras.json
+```
+
+- After converting, point the clip log's `clip_file` cells at the `.mp4` names. `convert_clips.py` skips copies that already exist (`--force` redoes them; `--out <folder>` writes elsewhere).
+- `build_site.py` reads the filled clip log (template: `data/staged/clip_log_template.csv`) and writes `data/sites/annex/cameras.json`, `data/ground_truth/take<N>.json` and `data/manifests/annex.json`. `--check-clips` also checks that every clip file exists with the exact upper/lower case (Linux is case-sensitive). `--takes 1` builds only some takes.
+- The filled log (`data/staged/clip_log.csv`) is not in the repo because it names phone owners.
+
+### 4. Dashboard (laptop)
+
+Status: the dashboard's app shell and bus connection are committed. The main view (map, agent graph, incident cards) is **in progress** and not committed yet.
+
+We use Node 24. In a terminal on the laptop (PowerShell works too; use `copy` instead of `cp`):
+
+```bash
+cd dashboard
+npm install
+cp .env.example .env      # VITE_BUS_URL, default http://127.0.0.1:8080
+npm run dev               # http://127.0.0.1:5173
+```
+
+- If the bus runs on the Brev box, forward it first: `brev port-forward <instance> --port 8080:8080`.
+- The dev server must stay on port 5173: the bus accepts browser requests only from that origin (`CLARITY_BUS_CORS`).
+- With the bus and `python -m bus.fake_scenario` running (step 1), the scripted incidents stream in.
 
 ---
 
@@ -253,6 +327,8 @@ Copy [`.env.example`](.env.example) to `.env` and fill it in. It contains only p
 | `CLARITY_BUS_STRICT` | `1` rejects events that break the contracts (HTTP 422); `0` accepts them with a warning |
 | `CLARITY_RUN_ID` | Names the log folder `runs/<run_id>/` |
 | `CLARITY_CAMERAS` | The site's `cameras.json` |
+| `CLARITY_CLIP_ROOT` | Folder that relative clip paths in `cameras.json` start from, for feeds and `GET /clips` (default the repo root; not in `.env.example`) |
+| `CLARITY_BUS_CORS` | Browser origins the bus accepts (default the dashboard dev server, `http://localhost:5173,http://127.0.0.1:5173`; not in `.env.example`) |
 | `DISPATCHER_*`, `SPOTTER_*`, `CHECKER_*` | Base URL and served model name for each vLLM server |
 | `EMBED_BASE_URL`, `RERANK_BASE_URL` | Lookup servers |
 | `OPENAI_API_KEY` | Must match the vLLM `--api-key`, if one is set (`EMPTY` otherwise) |
@@ -268,11 +344,11 @@ The bus binds to `127.0.0.1` on the GPU box by default. From a laptop, reach it 
 TODO: fill in once each part is merged. Planned order:
 
 1. **Get the staged clips.** TODO: download command from the dataset link into `data/raw/staged/`.
-2. **Site data.** `python data/build_site.py data/staged/clip_log.csv` builds `data/sites/annex/cameras.json`, the ground truth and the clip manifest from the filled clip log. TODO: confirm once the log is filled.
+2. **Site data.** Convert the clips and build the site as in Quick start step 3 (`data/convert_clips.py`, then `data/build_site.py data/staged/clip_log.csv --check-clips data/raw/staged`). Then `python -m feeds.replay --cameras data/sites/annex/cameras.json --check` must report every camera OK. TODO: confirm once the log is filled.
 3. **Model servers (GPU box).** TODO: exact `vllm serve` commands and flags for the spotter, checker and coordinator, plus how to start Embed and Rerank (from `infra/`).
-4. **Bus.** `python -m bus.server` with `CLARITY_CAMERAS=data/sites/annex/cameras.json`.
-5. **Pipeline.** TODO: commands for feeds replay (`python -m feeds.replay`), perception, camera agents and coordinator, in start order.
-6. **Dashboard (laptop).** TODO: `cd dashboard && npm install && npm run dev`, then open `http://localhost:5173` with the bus port-forwarded.
+4. **Bus.** `python -m bus.server` with `CLARITY_CAMERAS=data/sites/annex/cameras.json` and a fresh `CLARITY_RUN_ID`.
+5. **Pipeline.** Feeds: `python -m feeds.replay --cameras data/sites/annex/cameras.json` (plays the clips and publishes `camera_status`). TODO: commands for perception, camera agents and coordinator, in start order (perception reads frames through `feeds.base.open_feeds`).
+6. **Dashboard (laptop).** `cd dashboard && npm install && npm run dev`, then open http://127.0.0.1:5173 with the bus port-forwarded (Quick start step 4). TODO: confirm once the map view is committed.
 
 **The demo video** will be recorded from a saved run replayed through the bus. TODO: run ID and how to replay it (`python -m bus.replay runs/<run_id>/events.jsonl`).
 
@@ -349,6 +425,8 @@ TODO: Michael to write. Planned contents:
 - **No stabbing in the demo.** The label exists, but we had no safe footage to test it.
 - **Replay, not live cameras.** Feeds are recorded clips played back as cameras, not live streams.
 - **Hand-built camera map.** Walking times between cameras come from our filmed takes, not from street routing.
+- **Camera names reveal the routes.** Camera names start with "Route N:" and `cameras.json` carries a `take` field, so anything that reads the camera map can tell which cameras belong to the same incident. We kept this on purpose so the demo can lay out the three routes clearly. Names never say a camera's role (crime spot, junction, exit or decoy); `data/build_site.py` writes roles only to the ground truth and rejects a spot name that mentions one.
+- **Not on agency hardware yet.** The demo runs on a rented Brev cloud GPU box standing in for the agency's server, and the dashboard on a laptop over a port-forward.
 - **Descriptions can be wrong.** A clothing description can match an innocent person or miss a suspect who changes clothes. That's why a human confirms every recommendation, and why each recommendation shows its evidence.
 - **No login on the bus.** It has no user accounts; it binds to `127.0.0.1` on the GPU box and is reached through a port-forward. TODO: confirm how the model servers are protected (vLLM `--api-key`, localhost only, or both).
 - **Small scale.** Tested with 12 cameras on one GPU. TODO: confirm, and note anything that failed under load.
@@ -369,7 +447,7 @@ TODO: Michael to write. Planned contents:
 |---|---|
 | `contracts/` | JSON Schemas and examples for every message, plus `validate.py` |
 | `bus/` | Event server, client, scripted scenario, replay |
-| `data/` | Camera maps, clip log template, `build_site.py`, dataset notes and licenses |
+| `data/` | Camera maps, clip log template, `convert_clips.py`, `build_site.py`, dataset notes and licenses |
 | `dashboard/` | Operator map, agent graph, receipts log (in progress) |
 | `feeds/` | Plays staged clips back as synchronized cameras (in progress) |
 
