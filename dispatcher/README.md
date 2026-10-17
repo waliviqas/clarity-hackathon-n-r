@@ -46,6 +46,20 @@ Every emitted dispatch is checked in tests against the v0.1 required fields and 
 
 Severity by activity: `stabbing` 5 · `fistfight` 4 · `purse_snatch` 4 · `none` 0 → priority ≥4 high, 3 medium, else low.
 
+## Batches, parallel incidents, and the bus
+
+`Dispatcher.process(batch)` takes a batch of messages (one bus poll), then evaluates every incident it touched **once**:
+
+- Gate, path, and `predict_next` run sequentially (so Wali's `predict_next` doesn't need to be thread-safe).
+- **Model calls for different incidents run in parallel** (`max_parallel`, default 8; keep ≤ vLLM `--max-num-seqs` 16) so vLLM batches them.
+- Dispatches are emitted in arrival order, so `inc_N` numbering doesn't depend on which model call finishes first.
+- An `operator_action` first flushes pending evaluations, so it applies to the incident's latest state.
+- **Duplicate `event_id`s are skipped.** Mina's `fetch()` has an inclusive `since_ts` and is meant to be polled with a lookback, so repeats are normal; without this, each repeat would cost another model call.
+
+Measured on Mina's `fake_scenario` (3 incidents starting 10 s apart, replayed as one poll per second, live model): slowest poll 3.9 s → 2.3 s, model calls 18 → 15 (updates within a poll merge), no fallbacks. Overlap in that scenario peaks at 2 incidents; the gain grows with overlap (see the load test: 16 concurrent requests take 3.4 s, not 16 × 1.6 s).
+
+Planned bus runner (once `bus/` is on `main`): every ~0.5 s, `fetch()` `detection`, `relay`, `agent_verdict`, `operator_action` with `since_ts = newest seen − 30`, sort the merged list by `ts`, `d.process(batch)`, `publish()` each dispatch.
+
 ## Verifier (why the model can't send officers somewhere wrong)
 
 A model answer is rejected (one retry with the errors, then fallback) if it:

@@ -309,3 +309,84 @@ def test_operator_confirm_and_dismiss(graph):
 def test_rejects_wrong_schema_version(graph):
     d = Dispatcher(graph)
     assert d.ingest({**DOC[0], "schema_version": "0.2"}) == [] and d.stats["rejected"] == 1
+
+
+# --- parallel incidents + bus-style polling ---------------------------------
+
+import threading  # noqa: E402
+import time  # noqa: E402
+
+
+class SlowGrounded:
+    """Thread-safe fake model: sleeps, tracks peak concurrency, answers from the prompt so the verifier passes."""
+
+    def __init__(self, delay=0.2, delays=None):
+        self.delay, self.delays = delay, delays or {}
+        self.lock, self.in_flight, self.peak, self.calls = threading.Lock(), 0, 0, 0
+
+    def complete_json(self, system, user, schema):
+        case = json.loads(user.split("\n\n")[0].removeprefix("Case:\n"))
+        with self.lock:
+            self.in_flight += 1
+            self.calls += 1
+            self.peak = max(self.peak, self.in_flight)
+        time.sleep(self.delays.get(case["subject_id"], self.delay))
+        with self.lock:
+            self.in_flight -= 1
+        return {"status": "tracking", "priority": "high",
+                "recommendation": f"Send officers to {case['send_officers_to']}.", "reason": "Moderate evidence.",
+                "evidence_event_ids": [e["event_id"] for e in case["evidence"]]}
+
+
+def three_incidents():
+    out = []
+    for n, subj in enumerate(["subj_1", "subj_2", "subj_3"], 1):
+        out += [det(f"det_{n}", "cam_03", n, "purse_snatch", 0.7),
+                rel(f"rel_{n}", n + 0.5, "cam_03", "cam_05", subj, [f"det_{n}"], activity="purse_snatch")]
+    return out
+
+
+def test_overlapping_incidents_call_model_in_parallel(graph):
+    llm = SlowGrounded(delay=0.3)
+    d = Dispatcher(graph, llm)
+    t0 = time.perf_counter()
+    out = d.process(three_incidents())
+    elapsed = time.perf_counter() - t0
+    assert len(out) == 3 and llm.calls == 3
+    assert llm.peak == 3 and elapsed < 0.8  # sequential would be >= 0.9 s
+    assert all(a["route"] == "model" for a in d.audit)
+
+
+def test_incident_ids_follow_arrival_not_completion(graph):
+    llm = SlowGrounded(delays={"subj_1": 0.3, "subj_2": 0.1, "subj_3": 0.0})  # finish in reverse order
+    out = Dispatcher(graph, llm).process(three_incidents())
+    assert [(m["subject_id"], m["incident_id"]) for m in out] == \
+        [("subj_1", "inc_1"), ("subj_2", "inc_2"), ("subj_3", "inc_3")]
+
+
+def test_batch_evaluates_each_incident_once(graph):
+    llm = SlowGrounded(delay=0)
+    Dispatcher(graph, llm).process(DOC)  # relay + verdict for subj_7 in one batch
+    assert llm.calls == 1
+
+
+def test_repolled_events_are_skipped(graph):
+    """Mina's fetch() has an inclusive since_ts and is polled with a lookback, so events repeat."""
+    llm = SlowGrounded(delay=0)
+    d = Dispatcher(graph, llm)
+    d.process(DOC[:2])
+    calls = llm.calls
+    assert d.process(DOC[:2]) == [] and llm.calls == calls and d.stats["duplicate"] == 2
+    d.process(DOC)  # lookback window: old + new events
+    assert llm.calls == calls + 1
+
+
+def test_operator_action_in_same_batch_as_first_evidence(graph):
+    out = Dispatcher(graph, SlowGrounded(delay=0)).process(DOC + [op("op_01", 1790.0, "inc_1", "confirm")])
+    assert out[-1]["status"] == "alert" and out[-1]["requires_human_confirm"] is False
+
+
+def test_max_parallel_caps_concurrency(graph):
+    llm = SlowGrounded(delay=0.1)
+    Dispatcher(graph, llm, max_parallel=2).process(three_incidents())
+    assert llm.peak == 2

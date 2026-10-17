@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Iterable
 
 from .graph import CameraGraph
@@ -27,15 +28,18 @@ PredictNext = Callable[[str, "str | None"], list[dict]]
 class Dispatcher:
     def __init__(self, graph: CameraGraph, llm: LLMBackend | None = None,
                  cfg: RuleConfig = RuleConfig(), max_revisions: int = 1,
-                 predict_next: PredictNext | None = None):
+                 predict_next: PredictNext | None = None, max_parallel: int = 8):
         self.graph = graph
         self.llm = llm
         self.predict_next = predict_next  # Wali's graph; falls back to rules.predicted_next when absent
         self.cfg = cfg
         self.max_revisions = max_revisions
+        self.max_parallel = max_parallel  # concurrent model calls; keep <= vLLM --max-num-seqs (16)
         self.cases: dict[str, SubjectCase] = {}
         self.detections: dict[str, dict] = {}
         self._waiting: dict[str, set[str]] = {}  # detection id cited before it arrived -> subject ids
+        self._dirty: dict[str, None] = {}  # subjects to re-evaluate at the next flush (ordered set)
+        self._seen: set[str] = set()  # event_ids already taken in
         self._incident_count = 0
         self._dispatch_count = 0
         self.clock = 0.0  # latest ts seen, on the shared clock
@@ -43,27 +47,40 @@ class Dispatcher:
         self.audit: list[dict] = []  # per-dispatch route / model calls / verifier errors, for metrics
 
     def process(self, messages: Iterable[dict]) -> list[dict]:
+        """Take in a batch of messages (e.g. one bus poll), then evaluate every incident it touched once.
+
+        Model calls for different incidents run in parallel so vLLM can batch them; everything else is
+        sequential, and dispatches come out in a deterministic order. An operator_action first flushes
+        pending evaluations, so it always applies to the latest state of its incident.
+        """
         out: list[dict] = []
-        for m in messages:
-            out += self.ingest(m)
-        return out
+        for msg in messages:
+            if self._accept(msg) == "operator_action":
+                out += self._flush()
+                out += self._operator(msg)
+        return out + self._flush()
 
     def ingest(self, msg: dict) -> list[dict]:
+        return self.process([msg])
+
+    def _accept(self, msg: dict) -> str | None:
+        """Validate and store one message; mark the subjects it touches for evaluation. Returns its type."""
         if any(k not in msg for k in HEADER) or msg["schema_version"] != SCHEMA_VERSION:
             self.stats["rejected"] += 1
-            return []
+            return None
+        if msg["event_id"] in self._seen:  # the bus is polled with a lookback, so repeats are normal
+            self.stats["duplicate"] += 1
+            return None
+        self._seen.add(msg["event_id"])
         self.clock = max(self.clock, float(msg["ts"]))
         kind = msg["type"]
 
         if kind == "detection":
             self.detections[msg["event_id"]] = msg
-            out = []
             for sid in self._waiting.pop(msg["event_id"], set()):
                 self.cases[sid].events[msg["event_id"]] = msg
-                out += self._evaluate(self.cases[sid])
-            return out
-
-        if kind in ("relay", "agent_verdict"):
+                self._dirty[sid] = None
+        elif kind in ("relay", "agent_verdict"):
             case = self.cases.setdefault(msg["subject_id"], SubjectCase(msg["subject_id"]))
             case.events[msg["event_id"]] = msg
             for ref in msg.get("evidence_event_ids", []):
@@ -71,43 +88,62 @@ class Dispatcher:
                     case.events[ref] = self.detections[ref]
                 elif ref.startswith("det_"):
                     self._waiting.setdefault(ref, set()).add(case.subject_id)
-            return self._evaluate(case)
+            self._dirty[case.subject_id] = None
+        elif kind != "operator_action":
+            self.stats["ignored"] += 1
+        return kind
 
-        if kind == "operator_action":
-            case = next((c for c in self.cases.values() if c.incident_id == msg["incident_id"]), None)
-            if case is None or case.last_dispatch is None:
-                self.stats["rejected"] += 1
-                return []
-            case.operator_action = msg["action"]
-            body = {k: case.last_dispatch[k] for k in ("status", "priority", "recommendation", "reason", "evidence_event_ids")}
-            body["status"] = "resolved" if msg["action"] == "dismiss" else "alert"
-            body["evidence_event_ids"] = body["evidence_event_ids"] + [msg["event_id"]]
-            return self._emit(case, body, case.last_dispatch["path"], case.last_dispatch["predicted_next"],
-                              route="operator", calls=0, errors=[], t0=time.perf_counter())
-
-        self.stats["ignored"] += 1
-        return []
-
-    def _evaluate(self, case: SubjectCase) -> list[dict]:
-        if case.operator_action == "dismiss":
+    def _operator(self, msg: dict) -> list[dict]:
+        case = next((c for c in self.cases.values() if c.incident_id == msg["incident_id"]), None)
+        if case is None or case.last_dispatch is None:
+            self.stats["rejected"] += 1
             return []
-        verdict = gate(case, self.cfg)
-        if verdict == "ignore":
-            return []
+        case.operator_action = msg["action"]
+        body = {k: case.last_dispatch[k] for k in ("status", "priority", "recommendation", "reason", "evidence_event_ids")}
+        body["status"] = "resolved" if msg["action"] == "dismiss" else "alert"
+        body["evidence_event_ids"] = body["evidence_event_ids"] + [msg["event_id"]]
+        return self._emit(case, body, case.last_dispatch["path"], case.last_dispatch["predicted_next"],
+                          route="operator", calls=0, errors=[], t0=time.perf_counter())
 
-        t0 = time.perf_counter()
-        cam_path = path(case)
-        pred = self._predict(case, cam_path)
-        if verdict == "alert":
-            body, route, calls, errors = template(case, cam_path, pred, self.graph), "rules", 0, []
-        elif self.llm is None:
-            body, route, calls, errors = self._fallback(case, cam_path, pred), "fallback", 0, ["no model configured"]
+    def _flush(self) -> list[dict]:
+        """Evaluate every subject touched since the last flush; model calls run concurrently."""
+        subjects, self._dirty = list(self._dirty), {}
+        plans = []
+        for sid in subjects:
+            case = self.cases[sid]
+            if case.operator_action == "dismiss":
+                continue
+            verdict = gate(case, self.cfg)
+            if verdict == "ignore":
+                continue
+            cam_path = path(case)
+            plans.append({"case": case, "verdict": verdict, "path": cam_path,
+                          "pred": self._predict(case, cam_path), "t0": time.perf_counter()})
+
+        needs_model = [p for p in plans if p["verdict"] == "ambiguous" and self.llm is not None]
+        ask = lambda p: self._from_model(p["case"], p["path"], p["pred"])  # noqa: E731
+        if len(needs_model) > 1:
+            with ThreadPoolExecutor(max_workers=min(self.max_parallel, len(needs_model))) as pool:
+                results = list(pool.map(ask, needs_model))
         else:
-            body, route, calls, errors = self._from_model(case, cam_path, pred)
+            results = [ask(p) for p in needs_model]
+        for p, result in zip(needs_model, results):
+            p["result"] = result
+        self.stats["max_parallel_model_calls"] = max(self.stats["max_parallel_model_calls"], len(needs_model))
 
-        if case.operator_action == "confirm":
-            body["status"] = "alert"
-        return self._emit(case, body, cam_path, pred, route, calls, errors, t0)
+        out: list[dict] = []
+        for p in plans:
+            case, cam_path, pred = p["case"], p["path"], p["pred"]
+            if "result" in p:
+                body, route, calls, errors = p["result"]
+            elif p["verdict"] == "alert":
+                body, route, calls, errors = template(case, cam_path, pred, self.graph), "rules", 0, []
+            else:
+                body, route, calls, errors = self._fallback(case, cam_path, pred), "fallback", 0, ["no model configured"]
+            if case.operator_action == "confirm":
+                body["status"] = "alert"
+            out += self._emit(case, body, cam_path, pred, route, calls, errors, p["t0"])
+        return out
 
     def _predict(self, case: SubjectCase, cam_path: list[dict]) -> list[dict]:
         if self.predict_next and cam_path:
