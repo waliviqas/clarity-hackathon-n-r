@@ -226,6 +226,12 @@ data/raw/
 *.avi
 *.mov
 *.mkv
+*.mpg
+*.mpeg
+*.webm
+*.m4v
+*.wmv
+data/videos/
 runs/*/frames/
 # Dashboard
 node_modules/
