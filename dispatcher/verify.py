@@ -1,40 +1,51 @@
-"""Grounding check: every claim in a model proposal must be backed by the incident's events."""
+"""Grounding check: every claim in a model proposal must be backed by the subject's evidence."""
 from __future__ import annotations
 
-from .models import Incident
-from .rules import severity
+import re
 
-REQUIRED = ("decision", "priority", "incident_type", "location_camera_id", "summary", "cited_event_ids")
+from .models import PRIORITY_RANK, SubjectCase
+from .rules import activity_severity, priority_for
+
+REQUIRED = ("status", "priority", "recommendation", "reason", "evidence_event_ids")
+CAMERA_REF = re.compile(r"\bcam_\w+")
 
 
-def verify(proposal: dict, incident: Incident) -> list[str]:
+def supported_severity(cited: list[str], case: SubjectCase) -> int:
+    """Max activity severity among cited detections, including detections cited by cited relays/verdicts."""
+    seen, stack, sev = set(), list(cited), 0
+    while stack:
+        eid = stack.pop()
+        if eid in seen or eid not in case.events:
+            continue
+        seen.add(eid)
+        msg = case.events[eid]
+        if msg["type"] == "detection":
+            sev = max(sev, activity_severity(msg.get("activity")))
+        stack.extend(msg.get("evidence_event_ids", []))
+    return sev
+
+
+def verify(proposal: dict, case: SubjectCase, known_cameras: set[str]) -> list[str]:
     missing = [k for k in REQUIRED if k not in proposal]
     if missing:
         return [f"missing fields: {', '.join(missing)}"]
 
     errors: list[str] = []
-    by_id = {e.event_id: e for e in incident.events}
-    cited = proposal["cited_event_ids"]
-
-    unknown = [i for i in cited if i not in by_id]
+    cited = proposal["evidence_event_ids"]
+    unknown = [i for i in cited if i not in case.events]
     if unknown:
-        errors.append(f"cited event ids not in this incident: {unknown}")
-    if proposal["location_camera_id"] not in incident.camera_ids:
-        errors.append(
-            f"location_camera_id {proposal['location_camera_id']!r} is not one of {incident.camera_ids}"
-        )
+        errors.append(f"evidence_event_ids not in this subject's evidence: {unknown}")
+    if not [i for i in cited if i in case.events]:
+        errors.append("must cite at least one valid evidence event")
 
-    if proposal["decision"] == "dispatch":
-        cited_events = [by_id[i] for i in cited if i in by_id]
-        if not cited_events:
-            errors.append("a dispatch must cite at least one valid event")
-        else:
-            labels = {e.label for e in cited_events}
-            if proposal["incident_type"] not in labels:
-                errors.append(
-                    f"incident_type {proposal['incident_type']!r} not supported by cited events {sorted(labels)}"
-                )
-            cap = max(severity(lbl) for lbl in labels)
-            if proposal["priority"] > cap:
-                errors.append(f"priority {proposal['priority']} exceeds evidence severity {cap}")
+    mentioned = set(CAMERA_REF.findall(proposal["recommendation"] + " " + proposal["reason"]))
+    if mentioned - known_cameras:
+        errors.append(f"mentions cameras not in this case: {sorted(mentioned - known_cameras)}")
+
+    sev = supported_severity(cited, case)
+    cap = priority_for(sev)
+    if PRIORITY_RANK.get(proposal["priority"], 99) > PRIORITY_RANK[cap]:
+        errors.append(f"priority {proposal['priority']!r} exceeds what cited evidence supports ({cap!r})")
+    if proposal["status"] == "alert" and sev < 3:
+        errors.append("status 'alert' requires cited evidence of a medium-or-higher severity activity")
     return errors

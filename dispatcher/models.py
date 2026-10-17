@@ -1,87 +1,39 @@
-"""Data contracts for the dispatcher.
+"""Dispatcher-side types for the team message schema v0.1.
 
-Input comes from crime detection (#2) as `Event`s; output goes to the
-dashboard (#6) / police as `DispatchDecision`s.
+Wire messages (detection, relay, agent_verdict, operator_action in; dispatch out)
+stay plain dicts so they match the shared JSON exactly. Swap these constants for
+the shared definition module once it lands.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Literal
 
-Decision = Literal["dispatch", "monitor", "dismiss"]
-Route = Literal["rules", "model", "fallback"]
+SCHEMA_VERSION = "0.1"
+HEADER = ("type", "schema_version", "event_id", "ts")
+
+Status = Literal["tracking", "alert", "resolved"]
+Priority = Literal["low", "medium", "high"]
+PRIORITY_RANK = {"low": 1, "medium": 2, "high": 3}
 
 
 @dataclass(frozen=True)
 class Camera:
     camera_id: str
     name: str
-    lat: float | None = None
-    lon: float | None = None
-
-
-@dataclass(frozen=True)
-class Station:
-    station_id: str
-    camera_id: str  # camera node the station sits closest to
-
-
-@dataclass(frozen=True)
-class Event:
-    """One detection emitted by the crime-detection stage."""
-
-    event_id: str
-    camera_id: str
-    timestamp: float  # unix seconds
-    label: str  # e.g. "weapon", "fight", "loitering"
-    confidence: float  # 0..1
-    description: str = ""  # optional caption from the vision model
+    x: float | None = None
+    y: float | None = None
 
 
 @dataclass
-class Incident:
-    """Events grouped as one real-world situation (same time window, nearby cameras)."""
+class SubjectCase:
+    """Everything the dispatcher knows about one subject, keyed by event_id."""
 
-    incident_id: str
-    events: list[Event]
+    subject_id: str
+    incident_id: str | None = None
+    events: dict[str, dict] = field(default_factory=dict)  # detections, relays, verdicts
+    operator_action: str | None = None  # "confirm" | "dismiss"
+    last_dispatch: dict | None = None
 
-    @property
-    def camera_ids(self) -> list[str]:
-        return list(dict.fromkeys(e.camera_id for e in self.events))
-
-    @property
-    def labels(self) -> set[str]:
-        return {e.label for e in self.events}
-
-    @property
-    def start(self) -> float:
-        return min(e.timestamp for e in self.events)
-
-    @property
-    def end(self) -> float:
-        return max(e.timestamp for e in self.events)
-
-    @property
-    def last_seen_camera(self) -> str:
-        return max(self.events, key=lambda e: e.timestamp).camera_id
-
-
-@dataclass
-class DispatchDecision:
-    incident_id: str
-    decision: Decision
-    priority: int  # 1 (low) .. 5 (critical)
-    incident_type: str
-    location_camera_id: str
-    location_name: str
-    summary: str
-    cited_event_ids: list[str]
-    route: Route  # who made the call
-    needs_review: bool = False
-    station_id: str | None = None
-    verifier_errors: list[str] = field(default_factory=list)
-    model_calls: int = 0
-    latency_ms: float = 0.0
-
-    def to_dict(self) -> dict:
-        return asdict(self)
+    def of_type(self, kind: str) -> list[dict]:
+        return sorted((m for m in self.events.values() if m["type"] == kind), key=lambda m: m["ts"])

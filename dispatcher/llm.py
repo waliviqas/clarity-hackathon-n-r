@@ -1,6 +1,6 @@
 """Model layer: prompt, output schema, and an OpenAI-compatible client (vLLM).
 
-The system prompt is fixed and all per-incident data goes in the user message,
+The system prompt is fixed and all per-case data goes in the user message,
 so vLLM prefix caching reuses the system-prompt KV cache across calls.
 """
 from __future__ import annotations
@@ -10,58 +10,66 @@ import os
 from typing import Protocol
 
 from .graph import CameraGraph
-from .models import Incident
-from .rules import SEVERITY
+from .models import SubjectCase
 
-SYSTEM_PROMPT = """You are the triage agent for a city camera network. You receive one incident:
-detections from nearby cameras within a short time window. Decide what happens next.
+SYSTEM_PROMPT = """You are the dispatch agent for a city camera network. Camera agents track one subject
+across cameras and send you their evidence: detections (with activity), relays between cameras, and
+verdicts (match / no_match / uncertain). You decide what the human operator should do next.
 
-decision:
-- "dispatch": send police now. Only when the events clearly show an active threat to people.
-- "monitor": evidence is weak, conflicting, or non-urgent. A human operator keeps watching.
-- "dismiss": no meaningful threat.
+status:
+- "alert": the evidence shows an activity that needs an officer now.
+- "tracking": keep following the subject; evidence is weak, conflicting, or not urgent.
 
 Rules:
-- Use only facts present in the events. Never invent details.
-- cited_event_ids must list the event_ids that support your decision.
-- incident_type must be the label of at least one cited event.
-- location_camera_id must be the camera where the subject was most recently seen.
-- priority is 1 (low) to 5 (critical) and must not exceed what the evidence supports.
-- summary: one or two plain sentences an officer can read in 3 seconds.
-- When unsure, choose "monitor". A false dispatch sends armed officers to the wrong place."""
+- Use only facts in the evidence. Never invent details.
+- evidence_event_ids must list the event_ids that support your recommendation.
+- Mention cameras only by camera_ids that appear in the input.
+- priority (low / medium / high) must not exceed what the cited activities support.
+- recommendation: one concrete action, e.g. where to send an officer and what to secure.
+- reason: one sentence explaining why, an operator reads it in 3 seconds.
+- A human confirms every recommendation, but a wrong alert still wastes officers. When unsure, use "tracking"."""
 
 PROPOSAL_SCHEMA = {
     "type": "object",
     "properties": {
-        "decision": {"type": "string", "enum": ["dispatch", "monitor", "dismiss"]},
-        "priority": {"type": "integer", "minimum": 1, "maximum": 5},
-        "incident_type": {"type": "string", "enum": sorted(SEVERITY)},
-        "location_camera_id": {"type": "string"},
-        "summary": {"type": "string", "maxLength": 300},
-        "cited_event_ids": {"type": "array", "items": {"type": "string"}},
+        "status": {"type": "string", "enum": ["tracking", "alert"]},
+        "priority": {"type": "string", "enum": ["low", "medium", "high"]},
+        "recommendation": {"type": "string", "maxLength": 200},
+        "reason": {"type": "string", "maxLength": 200},
+        "evidence_event_ids": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["decision", "priority", "incident_type", "location_camera_id", "summary", "cited_event_ids"],
+    "required": ["status", "priority", "recommendation", "reason", "evidence_event_ids"],
     "additionalProperties": False,
 }
 
 
-def build_user_message(incident: Incident, graph: CameraGraph, errors: list[str] | None = None) -> str:
+def _evidence_view(m: dict, graph: CameraGraph, t0: float) -> dict:
+    base = {"event_id": m["event_id"], "type": m["type"], "t_offset_s": round(m["ts"] - t0, 1)}
+    if m["type"] == "detection":
+        base.update(camera_id=m["camera_id"], label=m.get("label"), activity=m.get("activity"),
+                    activity_confidence=m.get("activity_confidence"))
+    elif m["type"] == "relay":
+        base.update(from_camera=m["from_camera"], to_camera=m["to_camera"], summary=m.get("summary"),
+                    confidence=m.get("confidence"))
+    elif m["type"] == "agent_verdict":
+        base.update(camera_id=m["camera_id"], decision=m["decision"], confidence=m.get("confidence"),
+                    reason=m.get("reason"))
+    return base
+
+
+def build_user_message(case: SubjectCase, cam_path: list[dict], pred: list[dict],
+                       graph: CameraGraph, errors: list[str] | None = None) -> str:
+    events = sorted(case.events.values(), key=lambda m: m["ts"])
+    t0 = events[0]["ts"]
+    cams = {p["camera_id"] for p in cam_path} | {p["camera_id"] for p in pred}
     payload = {
-        "incident_id": incident.incident_id,
-        "events": [
-            {
-                "event_id": e.event_id,
-                "camera_id": e.camera_id,
-                "camera_name": graph.name(e.camera_id),
-                "t_offset_s": round(e.timestamp - incident.start, 1),
-                "label": e.label,
-                "confidence": round(e.confidence, 2),
-                "description": e.description,
-            }
-            for e in sorted(incident.events, key=lambda e: e.timestamp)
-        ],
+        "subject_id": case.subject_id,
+        "cameras": {c: graph.name(c) for c in sorted(cams)},
+        "path": [{"camera_id": p["camera_id"], "t_offset_s": round(p["ts"] - t0, 1)} for p in cam_path],
+        "predicted_next": pred,
+        "evidence": [_evidence_view(m, graph, t0) for m in events],
     }
-    msg = "Incident:\n" + json.dumps(payload, separators=(",", ":"))
+    msg = "Case:\n" + json.dumps(payload, separators=(",", ":"))
     if errors:
         msg += "\n\nYour previous answer failed verification:\n" + "\n".join(f"- {x}" for x in errors)
         msg += "\nFix these problems and answer again."
