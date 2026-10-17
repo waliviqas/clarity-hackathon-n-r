@@ -34,12 +34,12 @@ The footage contains no stabbing. `stabbing` is still a label the models can out
 - **The empty exit:** after each take, a phone films about 2 minutes of the other exit with nobody walking through.
 - **Clock sync:** the cameras are too far apart for one clap to be seen by all of them. Instead, after recording starts, someone holds a large seconds clock (time.is) up to each camera for about 2 s. The clip log records the clip second where the clock is visible and what it reads. That puts every clip of a take on one wall clock. The iPhone's file creation time is the backup.
 - **The unfilmed link:** nobody walks from the junction to the empty exit on camera, so a teammate timed that walk with a stopwatch.
-- **Positions:** each camera's latitude and longitude was read from the iPhone Compass app at its spot. The direction the phone faces (`heading_deg`) is optional.
+- **Positions:** each camera's latitude and longitude is read from the iPhone Compass app at its spot (TODO: confirm for the final takes). The direction the phone faces (`heading_deg`) is optional.
 - **Labels:** after filming, the clock reading and the seconds when the suspect enters and leaves each view were read off every clip and typed into the clip log (one row per camera). TODO: state whether this was done by hand or with model help, and who checked it.
 
 ## Safety and consent
 
-- **Only consenting teammates are on camera.** Everyone filmed agreed in writing (in the team chat) to publication under CC BY 4.0.
+- **Only consenting teammates are on camera.** Everyone filmed agrees in writing (in the team chat) to publication under CC BY 4.0. TODO: confirm every person on camera has posted their consent before the clips are published.
 - **No weapons and no weapon-like props.** The fight is staged shoves only.
 - **No bystanders.** We filmed outside, away from offices and other hackathon attendees. Any take where a bystander's face could be recognized was re-filmed, or the face is blurred before publishing. TODO: list any clips that needed blurring, and how they were blurred (or write "none").
 - **No audio.** The conversion step strips the audio track, because it could carry bystanders' voices.

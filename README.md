@@ -299,7 +299,7 @@ python contracts/validate.py data/sites/annex/cameras.json
 
 ### 4. Dashboard (laptop)
 
-Status: the dashboard's app shell and bus connection are committed. The main view (map, agent graph, incident cards) is **in progress** and not committed yet.
+Status: the map, agent graph and incident cards are committed. Chase arrows on the map, the receipts log and the sighting video pop-up are being finished.
 
 We use Node 24. In a terminal on the laptop (PowerShell works too; use `copy` instead of `cp`):
 
@@ -348,7 +348,7 @@ TODO: fill in once each part is merged. Planned order:
 3. **Model servers (GPU box).** TODO: exact `vllm serve` commands and flags for the spotter, checker and coordinator, plus how to start Embed and Rerank (from `infra/`).
 4. **Bus.** `python -m bus.server` with `CLARITY_CAMERAS=data/sites/annex/cameras.json` and a fresh `CLARITY_RUN_ID`.
 5. **Pipeline.** Feeds: `python -m feeds.replay --cameras data/sites/annex/cameras.json` (plays the clips and publishes `camera_status`). TODO: commands for perception, camera agents and coordinator, in start order (perception reads frames through `feeds.base.open_feeds`).
-6. **Dashboard (laptop).** `cd dashboard && npm install && npm run dev`, then open http://127.0.0.1:5173 with the bus port-forwarded (Quick start step 4). TODO: confirm once the map view is committed.
+6. **Dashboard (laptop).** `cd dashboard && npm install && npm run dev`, then open http://127.0.0.1:5173 with the bus port-forwarded (Quick start step 4).
 
 **The demo video** will be recorded from a saved run replayed through the bus. TODO: run ID and how to replay it (`python -m bus.replay runs/<run_id>/events.jsonl`).
 
@@ -365,7 +365,7 @@ Every number here comes from our own logged runs, with the source next to it. No
 | One incident alone | TODO: measure (median and worst over TODO: number of runs) | TODO: measure (requests/s, tokens/s) | TODO: run ID |
 | Three incidents at once | TODO: measure | TODO: measure | TODO: run ID |
 
-TODO: define exactly how the time is measured (wall clock, which event starts and stops the timer).
+How it's measured: `python -m bus.metrics runs/<run_id>` uses the bus's receive time for each event (`arrivals.jsonl`): wall seconds from the bus receiving the crime detection to receiving the coordinator's first dispatch, and to its first alert. Runs made with `bus.fake_scenario` are labeled SCRIPTED and are not model latency.
 
 ### 2. Spotter alone vs. spotter + checker
 
