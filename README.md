@@ -62,7 +62,7 @@ The dashboard and the real model pipeline are still in progress. Today the same 
 
 If any part runs without its model during a recording, the screen will say so (for example "coordinator: rules mode").
 
-The video's closing line (narration): *"No video ever left this building. Only words moved between agents."*
+The video's closing line (narration): *"In a real deployment, no video leaves the building. Only words move between agents."*
 
 What that line means, stated precisely: it describes how Clarity is **designed to be deployed**. In a real deployment every part (models, event bus, dashboard) runs on the agency's own hardware, so video stays inside the building and the agents exchange only text. In our hackathon demo, a rented NVIDIA Brev GPU box stands in for that hardware: the staged clips are copied to it, and the bus streams a camera's clip to the operator's laptop when the operator opens a sighting. Between agents, only text moves in the demo too.
 
