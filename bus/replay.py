@@ -46,9 +46,13 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("log", help="a recorded runs/<run_id>/events.jsonl")
     p.add_argument("--speed", type=float, default=1.0, help="2 = twice as fast as it happened")
+    p.add_argument("--max-gap", type=float, default=10.0,
+                   help="longest pause between two events, in original seconds (guards against odd ts jumps)")
     args = p.parse_args()
     if args.speed <= 0:
         p.error("--speed must be greater than 0")
+    if args.max_gap < 0:
+        p.error("--max-gap must be 0 or more")
 
     path = Path(args.log)
     if not path.is_file():
@@ -58,19 +62,24 @@ def main() -> None:
         print("no events to replay")
         return
     usable = [ts for ts in (ts_of(e, None) for e in events) if ts is not None]
-    t0 = usable[0] if usable else 0.0  # the clock starts at the first event that has a real ts
-    span = max(usable, default=t0) - t0
-    print(f"replaying {len(events)} events over ~{span / args.speed:.0f}s (speed {args.speed}x)")
+    newest = usable[0] if usable else 0.0  # the clock starts at the first event that has a real ts
+
+    # Replay clock: each gap is measured from the newest ts so far (a late event with an older ts goes
+    # out right away without stretching later gaps), capped at --max-gap, then divided by --speed.
+    schedule, clock = [], 0.0
+    for e in events:
+        ts = ts_of(e, newest)  # an event without a usable ts goes out right after the previous one
+        clock += min(max(ts - newest, 0.0), args.max_gap)
+        newest = max(newest, ts)
+        schedule.append((clock / args.speed, ts, e))
+    print(f"replaying {len(events)} events over ~{schedule[-1][0]:.0f}s (speed {args.speed}x)")
 
     start = time.monotonic()
-    last_ts = t0
-    for e in events:
-        ts = ts_of(e, last_ts)  # an event without a usable ts goes out right after the previous one
-        wait = (ts - t0) / args.speed - (time.monotonic() - start)
+    for at, ts, e in schedule:
+        wait = at - (time.monotonic() - start)
         if wait > 0:
             time.sleep(wait)
         publish(e)
-        last_ts = ts
         print(f"{ts:9.1f}  {e.get('type', '?'):<14} {e.get('event_id', '?')}")
 
 

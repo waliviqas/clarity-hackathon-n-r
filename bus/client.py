@@ -59,10 +59,18 @@ def _error_body(e: urllib.error.HTTPError) -> str:
         return ""
 
 
+def _plain(value):
+    """Let numpy numbers (common in vision code) through: np.float32(0.9) -> 0.9."""
+    if hasattr(value, "item"):
+        return value.item()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
 def publish(event: dict) -> None:
-    """POST one event to the bus. Times out fast and never raises into the caller."""
+    """POST one event to the bus. Times out fast and never raises into the caller.
+    NaN/Infinity are refused (the bus would reject them anyway)."""
     try:
-        body = json.dumps(event).encode("utf-8")
+        body = json.dumps(event, allow_nan=False, default=_plain).encode("utf-8")
     except Exception as e:  # TypeError/ValueError, or RecursionError for absurdly deep events
         log.warning("could not publish %s: not JSON-serializable (%s)", _label(event), e)
         return
@@ -82,8 +90,9 @@ def publish(event: dict) -> None:
 
 
 def fetch(type: str, since_ts: float = 0) -> list[dict]:
-    """Past events of one type with ts >= since_ts, oldest first. Returns [] if the bus is unreachable.
-    since_ts is inclusive, so de-duplicate by event_id when polling."""
+    """Past events of one type with ts >= since_ts, in arrival order. Returns [] if the bus is unreachable.
+    since_ts is inclusive and events can arrive late with a lower ts, so poll with a lookback
+    (since_ts = newest ts seen - 30) and de-duplicate by event_id."""
     if _skipping():
         return []
     try:

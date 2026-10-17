@@ -1,5 +1,5 @@
 fastapi>=0.110
 uvicorn>=0.29
 jsonschema>=4.18
-httpx>=0.27
-websockets>=12
+httpx>=0.27        # tests only (FastAPI TestClient)
+websockets>=12     # WebSocket support for uvicorn
