@@ -21,6 +21,7 @@ Accepted cell formats:
                          (spaces work instead of the symbols: 35 46 31 N)
     clip seconds         23.5, or m:ss like 0:23.5
     clock_reading        HH:MM:SS (or HHMMSS); one clock per take, 12 h or 24 h
+    file encoding        UTF-8 (with or without BOM), or Windows-1252 (Excel "CSV (Comma delimited)")
 phone_owner, spot_description and the decoy rows' clock cells are optional (spot_description goes into the camera name;
 phone_owner is never copied into the outputs). Every other blank cell is an error.
 
@@ -33,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import math
 import re
@@ -76,8 +78,13 @@ class Problems(list):
         try:
             return parse(raw)
         except ValueError as e:
-            self.append(f"{where(row)}, column '{col}': {e} (got {raw!r})")
+            self.append(f"{where(row)}, column '{col}': {e}{got(raw, e)}")
             return None
+
+
+def got(raw: str, error: ValueError) -> str:
+    """' (got 'x')' unless the message already quotes the value."""
+    return "" if repr(raw) in str(error) else f" (got {raw!r})"
 
 
 def where(row: dict) -> str:
@@ -86,9 +93,12 @@ def where(row: dict) -> str:
 
 def parse_seconds(text: str) -> float:
     parts = text.split(":")
-    if len(parts) > 2:
-        raise ValueError("expected seconds like 23.5 or m:ss like 0:23.5")
-    value = float(parts[-1]) + (60 * int(parts[0]) if len(parts) == 2 else 0)
+    try:
+        if len(parts) > 2:
+            raise ValueError
+        value = float(parts[-1]) + (60 * int(parts[0]) if len(parts) == 2 else 0)
+    except ValueError:
+        raise ValueError(f"{text!r} is not a time; use seconds like 23 or 0:23") from None
     if not math.isfinite(value) or value < 0:
         raise ValueError("must be a number >= 0")
     return value
@@ -142,20 +152,32 @@ def compass(a: dict, b: dict) -> str:
     return COMPASS[int((bearing + 22.5) // 45) % 8]
 
 
+def read_text(path: Path) -> str:
+    data = path.read_bytes()
+    try:
+        return data.decode("utf-8-sig")  # Excel "CSV UTF-8" and Numbers add a byte-order mark
+    except UnicodeDecodeError:
+        pass
+    try:
+        text = data.decode("cp1252")  # Excel "CSV (Comma delimited)" on Windows, e.g. a ° in a lat
+    except UnicodeDecodeError:
+        raise SystemExit(f"ERROR {path}: not UTF-8 or Windows-1252 text; re-save it as CSV UTF-8") from None
+    print(f"note: {path} is not UTF-8; read it as Windows-1252 (Excel 'CSV (Comma delimited)')")
+    return text
+
+
 def read_rows(path: Path) -> list[dict]:
-    # utf-8-sig: Excel and Numbers often save CSVs with a byte-order mark
-    with path.open(encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        missing = [c for c in COLUMNS if c not in (reader.fieldnames or [])]
-        if missing:
-            raise SystemExit(f"ERROR {path}: missing columns {', '.join(missing)} "
-                             "(header must match data/staged/clip_log_template.csv)")
-        rows = []
-        for line, raw in enumerate(reader, 2):
-            row = {k: (v or "").strip() for k, v in raw.items() if k}
-            if any(row.values()):
-                rows.append({**row, "_line": line})
-        return rows
+    reader = csv.DictReader(io.StringIO(read_text(path), newline=""))
+    missing = [c for c in COLUMNS if c not in (reader.fieldnames or [])]
+    if missing:
+        raise SystemExit(f"ERROR {path}: missing columns {', '.join(missing)} "
+                         "(header must match data/staged/clip_log_template.csv)")
+    rows = []
+    for line, raw in enumerate(reader, 2):
+        row = {k: (v or "").strip() for k, v in raw.items() if k}
+        if any(row.values()):
+            rows.append({**row, "_line": line})
+    return rows
 
 
 def parse_row(row: dict, problems: Problems) -> dict:
@@ -198,7 +220,7 @@ def parse_row(row: dict, problems: Problems) -> dict:
             try:
                 out["stopwatch"] = _positive(parse_seconds(m.group(1)))
             except ValueError as e:
-                problems.append(f"{where(row)}, column 'notes': stopwatch {e} (got {m.group(1)!r})")
+                problems.append(f"{where(row)}, column 'notes': stopwatch {e}{got(m.group(1), e)}")
     return out
 
 
@@ -289,10 +311,16 @@ def check_positions(rows: list[dict], problems: Problems) -> None:
     for r in rows:
         if r["lat"] is None or r["lon"] is None:
             continue
-        km = math.hypot(*offset_m(ANNEX_REF, r)) / 1000
-        if km > MAX_FROM_ANNEX_M / 1000:
-            problems.append(f"{r['where']}: {r['camera_id']} is {km:,.1f} km from the Red Hat Annex; check "
-                            "the lat/lon sign and format (Raleigh lon is negative, e.g. -78.637)")
+        east, north = offset_m(ANNEX_REF, r)
+        km = math.hypot(east, north) / 1000
+        if km <= MAX_FROM_ANNEX_M / 1000:
+            continue
+        cols = [col for col, off in (("lat", north), ("lon", east)) if abs(off) > MAX_FROM_ANNEX_M] or ["lat", "lon"]
+        hint = {"lat": "Raleigh lat is positive, e.g. 35.775 (or N, not S)",
+                "lon": "Raleigh lon is negative, e.g. -78.637 (or W, not E)"}
+        named = f"column{'s' * (len(cols) > 1)} {' and '.join(repr(c) for c in cols)}"
+        problems.append(f"{r['where']}, {named}: {r['camera_id']} is {km:,.1f} km from the Red Hat Annex; "
+                        f"check the sign and format: {'; '.join(hint[c] for c in cols)}")
 
 
 def check_links(takes: list[dict], cams: dict[str, dict], problems: Problems) -> None:
