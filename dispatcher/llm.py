@@ -12,7 +12,10 @@ from typing import Protocol
 from .graph import CameraGraph
 from .models import SubjectCase
 
-SYSTEM_PROMPT = """You are the dispatch agent for a city camera network. Camera agents track one subject
+# "/no_think" turns off Nemotron Nano v2's default reasoning: the schema keeps answers short and
+# reasoning tokens would add seconds per call. It sits in the fixed prefix, so prefix caching still applies.
+SYSTEM_PROMPT = """/no_think
+You are the dispatch agent for a city camera network. Camera agents track one subject
 across cameras and send you their evidence: detections (with activity), relays between cameras, and
 verdicts (match / no_match / uncertain). You decide what the human operator should do next.
 
@@ -25,17 +28,24 @@ Rules:
 - evidence_event_ids must list the event_ids that support your recommendation.
 - Mention cameras only by camera_ids that appear in the input.
 - priority (low / medium / high) must not exceed what the cited activities support.
-- recommendation: one concrete action, e.g. where to send an officer and what to secure.
+- Refer to cameras only by camera_id. Don't write camera names, and don't copy field names from the
+  input into your text.
+- recommendation: one concrete action. Send officers to the send_officers_to camera (where the subject
+  is heading), not back to where the crime happened. You may add one short instruction about the
+  crime_scene_camera, such as checking on a victim there.
 - reason: one sentence explaining why, an operator reads it in 3 seconds.
+- Confidence below 0.85 is moderate, not high. Say so honestly.
 - A human confirms every recommendation, but a wrong alert still wastes officers. When unsure, use "tracking"."""
 
+# No maxLength on strings: on vLLM 0.11 it made constrained decoding ~8x slower (13 s vs 1.6 s per call).
+# Lengths are enforced by the verifier instead (contract limits: recommendation 300, reason 500).
 PROPOSAL_SCHEMA = {
     "type": "object",
     "properties": {
         "status": {"type": "string", "enum": ["tracking", "alert"]},
         "priority": {"type": "string", "enum": ["low", "medium", "high"]},
-        "recommendation": {"type": "string", "maxLength": 200},
-        "reason": {"type": "string", "maxLength": 200},
+        "recommendation": {"type": "string"},
+        "reason": {"type": "string"},
         "evidence_event_ids": {"type": "array", "items": {"type": "string"}},
     },
     "required": ["status", "priority", "recommendation", "reason", "evidence_event_ids"],
@@ -46,11 +56,12 @@ PROPOSAL_SCHEMA = {
 def _evidence_view(m: dict, graph: CameraGraph, t0: float) -> dict:
     base = {"event_id": m["event_id"], "type": m["type"], "t_offset_s": round(m["ts"] - t0, 1)}
     if m["type"] == "detection":
-        base.update(camera_id=m["camera_id"], label=m.get("label"), activity=m.get("activity"),
-                    activity_confidence=m.get("activity_confidence"))
+        base.update(camera_id=m["camera_id"], activity=m.get("activity"),
+                    activity_confidence=m.get("activity_confidence"), appearance=m.get("appearance"),
+                    direction=m.get("direction"))
     elif m["type"] == "relay":
         base.update(from_camera=m["from_camera"], to_camera=m["to_camera"], summary=m.get("summary"),
-                    confidence=m.get("confidence"))
+                    appearance=m.get("appearance"), direction=m.get("direction"), confidence=m.get("confidence"))
     elif m["type"] == "agent_verdict":
         base.update(camera_id=m["camera_id"], decision=m["decision"], confidence=m.get("confidence"),
                     reason=m.get("reason"))
@@ -61,12 +72,13 @@ def build_user_message(case: SubjectCase, cam_path: list[dict], pred: list[dict]
                        graph: CameraGraph, errors: list[str] | None = None) -> str:
     events = sorted(case.events.values(), key=lambda m: m["ts"])
     t0 = events[0]["ts"]
-    cams = {p["camera_id"] for p in cam_path} | {p["camera_id"] for p in pred}
     payload = {
         "subject_id": case.subject_id,
-        "cameras": {c: graph.name(c) for c in sorted(cams)},
         "path": [{"camera_id": p["camera_id"], "t_offset_s": round(p["ts"] - t0, 1)} for p in cam_path],
+        "crime_scene_camera": cam_path[0]["camera_id"] if cam_path else None,
+        "last_seen_camera": cam_path[-1]["camera_id"] if cam_path else None,
         "predicted_next": pred,
+        "send_officers_to": intercept_camera(cam_path, pred),
         "evidence": [_evidence_view(m, graph, t0) for m in events],
     }
     msg = "Case:\n" + json.dumps(payload, separators=(",", ":"))
@@ -74,6 +86,13 @@ def build_user_message(case: SubjectCase, cam_path: list[dict], pred: list[dict]
         msg += "\n\nYour previous answer failed verification:\n" + "\n".join(f"- {x}" for x in errors)
         msg += "\nFix these problems and answer again."
     return msg
+
+
+def intercept_camera(cam_path: list[dict], pred: list[dict]) -> str | None:
+    """Where officers should head: the likeliest next camera, else where the subject was last seen."""
+    if pred:
+        return pred[0]["camera_id"]
+    return cam_path[-1]["camera_id"] if cam_path else None
 
 
 class LLMBackend(Protocol):

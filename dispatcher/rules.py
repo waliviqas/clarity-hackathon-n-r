@@ -10,29 +10,21 @@ from typing import Literal
 from .graph import CameraGraph
 from .models import SubjectCase
 
-# Keyed on detection.activity. Vocabulary to be confirmed with the detector owner.
+# Keyed on detection.activity, the closed enum from contracts v0.1 (what Wali's vision model detects).
 ACTIVITY_SEVERITY = {
-    "weapon": 5,
-    "shooting": 5,
-    "assault": 4,
-    "fight": 4,
-    "abandon_package": 4,
-    "vehicle_crash": 4,
-    "fire": 4,
-    "break_in": 3,
-    "theft": 3,
-    "fall": 3,
-    "vandalism": 2,
-    "trespass": 2,
-    "loitering": 1,
+    "stabbing": 5,
+    "fistfight": 4,
+    "purse_snatch": 4,
+    "none": 0,
 }
-UNKNOWN_SEVERITY = 2
+NO_ACTIVITY = (None, "", "none")
+UNKNOWN_SEVERITY = 2  # an activity outside the enum: not trusted for auto-alert, not ignored either
 
 Gate = Literal["alert", "ignore", "ambiguous"]
 
 
 def activity_severity(activity: str | None) -> int:
-    if not activity:
+    if activity in NO_ACTIVITY:
         return 0
     return ACTIVITY_SEVERITY.get(activity, UNKNOWN_SEVERITY)
 
@@ -49,25 +41,57 @@ class RuleConfig:
     ignore_max_confidence: float = 0.40
     max_predictions: int = 3
     pending_relay_weight: float = 3.0  # a camera we already relayed to is the likeliest next stop
+    heading_weight: float = 3.0  # a neighbor in the subject's direction of travel (exit vs decoy)
 
 
 def concerning(case: SubjectCase) -> list[dict]:
-    return [d for d in case.of_type("detection") if d.get("activity")]
+    return [d for d in case.of_type("detection") if d.get("activity") not in NO_ACTIVITY]
 
 
 def path(case: SubjectCase) -> list[dict]:
-    """Cameras the subject was confirmed at: relay origins + `match` verdicts, earliest ts per camera."""
-    first: dict[str, float] = {}
+    """Cameras the subject was confirmed at: relay origins + `match` verdicts, earliest sighting per camera.
+
+    Each point carries the event_id that proves it (the origin detection, or the verdict).
+    """
+    first: dict[str, tuple[float, str]] = {}
+
+    def see(cam: str, ts: float, eid: str) -> None:
+        if cam not in first or ts < first[cam][0]:
+            first[cam] = (ts, eid)
+
     for r in case.of_type("relay"):
-        seen = [case.events[i]["ts"] for i in r.get("evidence_event_ids", [])
-                if i in case.events and case.events[i]["type"] == "detection"
-                and case.events[i]["camera_id"] == r["from_camera"]]
-        ts = min(seen, default=r["ts"])
-        first[r["from_camera"]] = min(ts, first.get(r["from_camera"], ts))
+        origin = [case.events[i] for i in r.get("evidence_event_ids", [])
+                  if i in case.events and case.events[i]["type"] == "detection"
+                  and case.events[i]["camera_id"] == r["from_camera"]]
+        first_seen = min(origin, key=lambda d: d["ts"], default=r)
+        see(r["from_camera"], first_seen["ts"], first_seen["event_id"])
     for v in case.of_type("agent_verdict"):
         if v["decision"] == "match":
-            first[v["camera_id"]] = min(v["ts"], first.get(v["camera_id"], v["ts"]))
-    return [{"camera_id": c, "ts": t} for c, t in sorted(first.items(), key=lambda kv: kv[1])]
+            see(v["camera_id"], v["ts"], v["event_id"])
+    return [{"camera_id": c, "ts": ts, "event_id": eid}
+            for c, (ts, eid) in sorted(first.items(), key=lambda kv: kv[1][0])]
+
+
+def incident_type(case: SubjectCase) -> str:
+    """Most severe activity seen for the subject; a relay's `activity` covers a detection not received yet."""
+    dets = concerning(case)
+    if dets:
+        return max(dets, key=lambda d: (activity_severity(d["activity"]), d.get("activity_confidence") or 0))["activity"]
+    acts = [r["activity"] for r in case.of_type("relay") if r.get("activity") not in NO_ACTIVITY]
+    return max(acts, key=activity_severity, default="none")
+
+
+def _latest(case: SubjectCase, field: str, skip: tuple = (None, "")) -> str | None:
+    msgs = [m for m in case.events.values() if m["type"] in ("relay", "detection") and m.get(field) not in skip]
+    return max(msgs, key=lambda m: m["ts"])[field] if msgs else None
+
+
+def subject_appearance(case: SubjectCase) -> str | None:
+    return _latest(case, "appearance")
+
+
+def subject_direction(case: SubjectCase) -> str | None:
+    return _latest(case, "direction", (None, "", "unknown"))
 
 
 def predicted_next(case: SubjectCase, cam_path: list[dict], graph: CameraGraph, cfg: RuleConfig) -> list[dict]:
@@ -77,9 +101,11 @@ def predicted_next(case: SubjectCase, cam_path: list[dict], graph: CameraGraph, 
     answered = {v["camera_id"] for v in case.of_type("agent_verdict")}
     pending = {r["to_camera"] for r in case.of_type("relay")} - answered - visited
 
-    weights = {c: 1.0 for c in graph.neighbors(cam_path[-1]["camera_id"]) if c not in visited}
+    last, heading = cam_path[-1]["camera_id"], subject_direction(case)
+    weights = {c: cfg.heading_weight if heading and graph.direction(last, c) == heading else 1.0
+               for c in graph.neighbors(last) if c not in visited}
     for c in pending:
-        weights[c] = cfg.pending_relay_weight
+        weights[c] = max(weights.get(c, 1.0), cfg.pending_relay_weight)
     total = sum(weights.values())
     ranked = sorted(weights.items(), key=lambda kv: (-kv[1], kv[0]))[: cfg.max_predictions]
     return [{"camera_id": c, "probability": round(w / total, 2)} for c, w in ranked]

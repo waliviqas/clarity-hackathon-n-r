@@ -8,23 +8,29 @@ from __future__ import annotations
 
 import time
 from collections import Counter
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .graph import CameraGraph
-from .llm import PROPOSAL_SCHEMA, SYSTEM_PROMPT, LLMBackend, build_user_message
+from .llm import PROPOSAL_SCHEMA, SYSTEM_PROMPT, LLMBackend, build_user_message, intercept_camera
 from .models import HEADER, SCHEMA_VERSION, SubjectCase
-from .rules import RuleConfig, gate, path, predicted_next, template
+from .rules import (RuleConfig, gate, incident_type, path, predicted_next, subject_appearance,
+                    subject_direction, template)
 from .verify import verify
 
 # Fields that identify a message instance rather than its content.
 _INSTANCE_FIELDS = {"event_id", "ts"}
 
+# Wali's graph interface (contracts v0.1): predict_next(camera_id, direction) -> [{"camera_id", "probability"}]
+PredictNext = Callable[[str, "str | None"], list[dict]]
+
 
 class Dispatcher:
     def __init__(self, graph: CameraGraph, llm: LLMBackend | None = None,
-                 cfg: RuleConfig = RuleConfig(), max_revisions: int = 1):
+                 cfg: RuleConfig = RuleConfig(), max_revisions: int = 1,
+                 predict_next: PredictNext | None = None):
         self.graph = graph
         self.llm = llm
+        self.predict_next = predict_next  # Wali's graph; falls back to rules.predicted_next when absent
         self.cfg = cfg
         self.max_revisions = max_revisions
         self.cases: dict[str, SubjectCase] = {}
@@ -91,7 +97,7 @@ class Dispatcher:
 
         t0 = time.perf_counter()
         cam_path = path(case)
-        pred = predicted_next(case, cam_path, self.graph, self.cfg)
+        pred = self._predict(case, cam_path)
         if verdict == "alert":
             body, route, calls, errors = template(case, cam_path, pred, self.graph), "rules", 0, []
         elif self.llm is None:
@@ -102,6 +108,17 @@ class Dispatcher:
         if case.operator_action == "confirm":
             body["status"] = "alert"
         return self._emit(case, body, cam_path, pred, route, calls, errors, t0)
+
+    def _predict(self, case: SubjectCase, cam_path: list[dict]) -> list[dict]:
+        if self.predict_next and cam_path:
+            try:
+                pred = self.predict_next(cam_path[-1]["camera_id"], subject_direction(case))
+                valid = [{"camera_id": p["camera_id"], "probability": float(p["probability"])}
+                         for p in pred if p.get("camera_id") in self.graph.cameras]
+                return valid[: self.cfg.max_predictions]
+            except Exception:  # graph bug must not stop dispatching
+                self.stats["predict_next_errors"] += 1
+        return predicted_next(case, cam_path, self.graph, self.cfg)
 
     def _from_model(self, case: SubjectCase, cam_path: list[dict], pred: list[dict]):
         known = ({p["camera_id"] for p in cam_path} | {p["camera_id"] for p in pred}
@@ -118,7 +135,7 @@ class Dispatcher:
             except Exception as exc:  # timeout, bad JSON, server down: fail safe
                 errors = [f"model call failed: {type(exc).__name__}: {exc}"]
                 break
-            errors = verify(proposal, case, known)
+            errors = verify(proposal, case, known, intercept_camera(cam_path, pred))
             if not errors:
                 return {k: proposal[k] for k in ("status", "priority", "recommendation", "reason", "evidence_event_ids")}, "model", calls, []
         return self._fallback(case, cam_path, pred), "fallback", calls, errors
@@ -140,8 +157,11 @@ class Dispatcher:
             "schema_version": SCHEMA_VERSION,
             "event_id": f"dsp_{self._dispatch_count + 1:02d}",
             "ts": self.clock,
+            "source": "dispatcher",
             "incident_id": case.incident_id,
             "subject_id": case.subject_id,
+            "incident_type": incident_type(case),
+            "subject_appearance": subject_appearance(case),
             "status": body["status"],
             "priority": body["priority"],
             "path": cam_path,

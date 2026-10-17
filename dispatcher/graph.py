@@ -12,19 +12,27 @@ class CameraGraph:
     def __init__(self, cameras: Iterable[Camera], edges: Iterable[tuple[str, str, float]]):
         self.cameras = {c.camera_id: c for c in cameras}
         self._adj: dict[str, dict[str, float]] = {cid: {} for cid in self.cameras}
+        self._dir: dict[tuple[str, str], str] = {}  # (from, to) -> compass direction walked
         for a, b, travel_s in edges:
             self._adj.setdefault(a, {})[b] = travel_s
             self._adj.setdefault(b, {})[a] = travel_s
 
     @classmethod
-    def from_config(cls, entries: list[dict]) -> "CameraGraph":
-        """Build from the list of camera objects in cameras.json."""
+    def from_config(cls, config: dict | list[dict]) -> "CameraGraph":
+        """Build from cameras.json (contract v0.1: {"site_id", "cameras": [...]}); a bare camera list also works."""
+        entries = config["cameras"] if isinstance(config, dict) else config
         cameras, edges = [], []
+        directions = {}
         for c in entries:
-            pos = c.get("position") or {}
-            cameras.append(Camera(c["camera_id"], c.get("name", c["camera_id"]), pos.get("x"), pos.get("y")))
-            edges += [(c["camera_id"], n["camera_id"], float(n.get("travel_time_s", 0))) for n in c.get("neighbors", [])]
-        return cls(cameras, edges)
+            xy = c.get("site_xy") or {}
+            cameras.append(Camera(c["camera_id"], c.get("name", c["camera_id"]), xy.get("x"), xy.get("y")))
+            for n in c.get("neighbors", []):
+                edges.append((c["camera_id"], n["camera_id"], float(n.get("travel_time_s", 0))))
+                if n.get("direction"):
+                    directions[(c["camera_id"], n["camera_id"])] = n["direction"]
+        graph = cls(cameras, edges)
+        graph._dir = directions
+        return graph
 
     @classmethod
     def load(cls, path: str | Path) -> "CameraGraph":
@@ -33,6 +41,10 @@ class CameraGraph:
     def name(self, camera_id: str) -> str:
         cam = self.cameras.get(camera_id)
         return cam.name if cam else camera_id
+
+    def direction(self, a: str, b: str) -> str | None:
+        """Compass direction walked from camera a to neighbor b, if cameras.json says."""
+        return self._dir.get((a, b))
 
     def neighbors(self, camera_id: str) -> dict[str, float]:
         """neighbor camera_id -> travel_time_s"""

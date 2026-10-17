@@ -224,3 +224,7 @@ __marimo__/
 *hackathon_plan*.md
 friction-log*.txt
 notes/
+
+# Procedure-lookup data (parked on local branch lookup-rag); never commit the source PDF or extracted text
+data/raw/
+data/procedures/
