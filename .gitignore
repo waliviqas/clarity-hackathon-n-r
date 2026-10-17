@@ -244,3 +244,6 @@ dashboard/dist/
 *.key
 *.p12
 *.pfx
+
+# The filled clip log names phone owners: keep it local (outputs never include them; the template stays tracked)
+data/staged/clip_log.csv
