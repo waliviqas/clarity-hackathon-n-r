@@ -1,7 +1,8 @@
 """Model layer: prompt, output schema, and an OpenAI-compatible client (vLLM).
 
-The system prompt is fixed and all per-case data goes in the user message,
-so vLLM prefix caching reuses the system-prompt KV cache across calls.
+The system prompt is fixed and all per-case data goes in the user message, so prefix caching can reuse
+the system prompt across calls. Note: on vLLM 0.11 with this hybrid Mamba model, vLLM's
+prefix_cache_queries_total metric stayed at 0, i.e. prefix caching was not active.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from .graph import CameraGraph
 from .models import SubjectCase
 
 # "/no_think" turns off Nemotron Nano v2's default reasoning: the schema keeps answers short and
-# reasoning tokens would add seconds per call. It sits in the fixed prefix, so prefix caching still applies.
+# reasoning tokens would add seconds per call.
 SYSTEM_PROMPT = """/no_think
 You are the dispatch agent for a city camera network. Camera agents track one subject
 across cameras and send you their evidence: detections (with activity), relays between cameras, and

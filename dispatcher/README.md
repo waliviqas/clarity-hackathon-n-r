@@ -67,7 +67,30 @@ vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --po
 
 - `/no_think` at the top of the fixed system prompt turns off Nano v2's default reasoning.
 - **No `maxLength` in the JSON schema.** On vLLM 0.11, string length limits made schema-constrained decoding ~8× slower (13.3 s → 1.6 s per call, 8 → ~65 tokens/s, same output). Lengths are enforced by the verifier instead.
-- Measured on the A100 (0.30 slice), demo scenario: ~1.6–1.9 s per model call, verifier pass on first try, rules-path dispatches <1 ms.
+- **Prefix caching is not active.** `--enable-prefix-caching` is set, but vLLM's `prefix_cache_queries_total` metric stayed at 0: vLLM 0.11 doesn't apply it to this hybrid Mamba model. Don't claim it.
+- **Throughput from continuous batching** (`scripts/bench_dispatcher.py`; A100, 0.30 slice, shared with the team's other models; real dispatcher prompt + JSON schema; 16 requests per level):
+
+  | concurrent requests | p50 latency | p95 latency | requests/s | output tokens/s | passed verifier |
+  |---|---|---|---|---|---|
+  | 1 | 1.55 s | 1.56 s | 0.65 | 68 | 16/16 |
+  | 2 | 1.66 s | 1.68 s | 1.20 | 126 | 16/16 |
+  | 4 | 1.85–1.9 s | 1.9 s | 2.1 | 221–225 | 32/32 |
+  | 8 | 3.13 s | 4.04 s | 2.53 | 266 | 16/16 |
+  | 16 | 3.40 s | 3.42 s | 4.61 | 484 | 16/16 |
+
+  7× the output throughput at 16 concurrent incidents for 2.2× the latency. One run at concurrency 4 had a single 27 s outlier that didn't reproduce in two reruns (likely GPU contention on the shared box).
+- Rules-path dispatches (clear cases) take <1 ms and no GPU.
+
+## Models and the 33B cap (exact counts from the published safetensors)
+
+| Role | Model | Parameters |
+|---|---|---|
+| Dispatcher | `nvidia/NVIDIA-Nemotron-Nano-9B-v2` | 8,888,227,328 |
+| Spotter | `Qwen/Qwen3-VL-2B-Instruct` | 2,127,532,032 |
+| Checker | `nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16` | 13,181,860,358 |
+| **Total generative** | | **24.20B ≤ 33B** |
+
+The verifier is plain code, not a model, so it adds nothing to the budget. Spotter and checker checkpoints: confirm these are the exact ones on the Brev box.
 
 ## Running
 
@@ -80,6 +103,7 @@ python -m dispatcher.demo                                   # built-in scenario,
 CLARITY_LLM_BASE_URL=http://localhost:8003/v1 CLARITY_LLM_MODEL=dispatcher python -m dispatcher.demo --live
 
 python -m dispatcher.demo --cameras cameras.json --messages events.jsonl --live   # replay a recorded run
+python scripts/bench_dispatcher.py --levels 1 4 8 16                              # vLLM load test
 ```
 
 ## Not done yet (waiting on others)

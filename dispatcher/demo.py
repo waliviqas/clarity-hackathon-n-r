@@ -70,10 +70,11 @@ MESSAGES = [
     _det("det_9e11", 30.5, "cam_02", "none", None, GREY, "north"),
     _ver("ver_44b0", 31.0, "cam_02", "subj_7", "match", 0.88, "Grey hoodie and dark pants match; arrived 30s later.",
          ["rel_1c9d", "det_9e11"]),
-    # subj_2, route 2: stabbing at 0.95 -> clear -> rules alert, no model call.
-    _det("det_a100", 40.0, "cam_05", "stabbing", 0.95, RED, "east"),
-    _rel("rel_a101", 41.0, "cam_05", "cam_06", "subj_2", "Stabbed a person and walked east.",
-         RED, "east", "stabbing", ["det_a100"]),
+    # subj_2, route 2: fistfight at 0.93 -> clear -> rules alert, no model call.
+    # (No stabbing in the demo: no open dataset has it, and we don't stage one. See data/README.md.)
+    _det("det_a100", 40.0, "cam_05", "fistfight", 0.93, RED, "east"),
+    _rel("rel_a101", 41.0, "cam_05", "cam_06", "subj_2", "Punched a person repeatedly, then walked east.",
+         RED, "east", "fistfight", ["det_a100"]),
     # Someone just walking -> activity "none" -> no dispatch.
     _det("det_b200", 50.0, "cam_03", "none", None, "male, blue shirt", "south"),
     _rel("rel_b201", 51.0, "cam_03", "cam_02", "subj_4", "Person walking south.", "male, blue shirt", "south",
