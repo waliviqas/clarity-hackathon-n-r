@@ -3,9 +3,8 @@ import type { ComponentType } from 'react';
 import { startBus } from './lib';
 import { ConnectionBanner } from './shell/ConnectionBanner.tsx';
 import { Header } from './shell/Header.tsx';
-import {
-  GraphPlaceholder, IncidentsPlaceholder, MapPlaceholder, RawEventsPlaceholder,
-} from './shell/placeholders.tsx';
+import MapView from './map/MapView.tsx';
+import { GraphPlaceholder, IncidentsPlaceholder, RawEventsPlaceholder } from './shell/placeholders.tsx';
 
 // Slots filled by the other builders, picked up automatically when the file exists
 // (an eager glob of a missing file is just {}). Each file default-exports a component with no props:
@@ -30,7 +29,7 @@ export default function App() {
       <ConnectionBanner />
       <main className="layout">
         <section className="slot slot-map" aria-label="Map">
-          <MapPlaceholder />
+          <MapView />
         </section>
         <aside className="right">
           <section className="slot slot-graph" aria-label="Agent graph">

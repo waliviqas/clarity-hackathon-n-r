@@ -1,9 +1,10 @@
 // React hooks over the store. Each returns a slice that keeps its reference until it changes,
 // so components re-render only when their slice does.
 
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import type { CameraStatus, ClarityEvent } from './types.ts';
-import type { CamerasView, Connection, IncidentView, StoreState } from './state.ts';
+import type { CamerasView, Connection, IncidentView, LiveDetection, StoreState } from './state.ts';
+import { liveDetectionsByCamera } from './state.ts';
 import { getState, select, subscribe } from './store.ts';
 
 /**
@@ -63,6 +64,16 @@ export function useDetectionSubjects(): Readonly<Record<string, string>> {
 /** event_id -> Date.now() ms, for events that arrived live in the last TIMING.recentWindowMs. */
 export function useRecent(): ReadonlyMap<string, number> {
   return useStore((s) => s.recent);
+}
+
+/**
+ * camera_id -> { latest, crime } for detections that arrived live in the last TIMING.recentWindowMs.
+ * Empty right after a bus_snapshot. Map markers pulse from this; the graph can light camera nodes from it.
+ */
+export function useLiveDetections(): ReadonlyMap<string, LiveDetection> {
+  const recent = useRecent();
+  const byId = useEventsById();
+  return useMemo(() => liveDetectionsByCamera(recent, byId), [recent, byId]);
 }
 
 /** Newest event ts seen (run clock), or null. */

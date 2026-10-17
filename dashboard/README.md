@@ -15,6 +15,8 @@ npm run dev                 # http://localhost:5173 (must stay on 5173: the bus 
 npm run build                                                   # tsc --noEmit + vite build
 npm run check:store                                             # store logic, no bus needed
 npm run check:store -- --live --expect-incidents 3 --confirm inc_1   # against a running bus + bus.fake_scenario
+npm run check:labels                                            # map labels don't collide (placeholder site)
+npm run check:labels -- ..\data\sites\<site>\cameras.json       # same for another site
 ```
 
 Shared code for the other dashboard parts: `src/lib/README.md`.

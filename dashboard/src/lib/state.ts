@@ -3,7 +3,8 @@
 // change keep their old reference (so React components that read them don't re-render).
 
 import type {
-  BusSnapshot, Camera, CamerasConfig, CameraStatus, ClarityEvent, Dispatch, OperatorAction, OperatorDecision,
+  Activity, BusSnapshot, Camera, CamerasConfig, CameraStatus, ClarityEvent, Detection, Dispatch, OperatorAction,
+  OperatorDecision,
 } from './types.ts';
 import { EVENT_TYPES } from './types.ts';
 import { CHASE_COLORS, COLORS, DASHBOARD_SOURCE, SCHEMA_VERSION, SCRIPTED_SOURCE } from './constants.ts';
@@ -16,6 +17,7 @@ export interface Connection {
   retries: number;
   /** Date.now() ms of the next reconnect attempt while closed; null otherwise. */
   nextRetryAt: number | null;
+  /** Technical reason for the last drop (e.g. close code). For logs/debugging, not operator copy. */
   lastError: string | null;
 }
 
@@ -125,6 +127,15 @@ export function evidenceOf(e: ClarityEvent | undefined | null): readonly string[
   return e.evidence_event_ids.filter((id): id is string => typeof id === 'string');
 }
 
+/**
+ * On-screen name of a camera: its cameras.json `name`, or the camera_id when the name is empty or
+ * missing. Usage: `cameraName(byId[id], id)` (works when the camera isn't in cameras.json too).
+ */
+export function cameraName(camera: Camera | null | undefined, cameraId?: string): string {
+  const name = typeof camera?.name === 'string' ? camera.name.trim() : '';
+  return name || camera?.camera_id || cameraId || '';
+}
+
 /** True for events from bus/fake_scenario (show a "Scripted run" tag). */
 export function isScripted(e: { source?: string } | undefined | null): boolean {
   return e?.source === SCRIPTED_SOURCE;
@@ -158,6 +169,38 @@ export function subjectOfEvent(e: ClarityEvent, detectionSubjects: Readonly<Reco
     default:
       return null;
   }
+}
+
+const CRIMES = new Set<string>(['stabbing', 'fistfight', 'purse_snatch']);
+
+/** True for a crime activity (anything in the enum but "none"); false for "none" or a malformed value. */
+export function isCrimeActivity(a: unknown): a is Exclude<Activity, 'none'> {
+  return typeof a === 'string' && CRIMES.has(a);
+}
+
+/** What a camera saw live in the last TIMING.recentWindowMs (from useLiveDetections). */
+export interface LiveDetection {
+  /** Newest live detection at this camera. Key the ring pulse by its event_id so each one restarts it. */
+  latest: Detection;
+  /** Newest live detection at this camera whose activity is a crime (alert ring + label), or null. */
+  crime: Detection | null;
+}
+
+/**
+ * camera_id -> its live detections. Only events in `recent` count, so snapshot history never
+ * shows up here (after a reconnect this is empty: draw the final state, no animation).
+ */
+export function liveDetectionsByCamera(
+  recent: ReadonlyMap<string, number>, byId: ReadonlyMap<string, ClarityEvent>,
+): ReadonlyMap<string, LiveDetection> {
+  const out = new Map<string, LiveDetection>();
+  for (const id of recent.keys()) { // insertion = arrival order, so later entries are newer
+    const e = byId.get(id);
+    if (!e || e.type !== 'detection' || typeof e.camera_id !== 'string') continue;
+    const crime = isCrimeActivity(e.activity) ? e : out.get(e.camera_id)?.crime ?? null;
+    out.set(e.camera_id, { latest: e, crime });
+  }
+  return out;
 }
 
 export function colorOf(state: StoreState, subjectId: string | null | undefined): string {

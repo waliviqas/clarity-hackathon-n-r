@@ -4,8 +4,8 @@
 export * from './types.ts';
 export * from './constants.ts';
 export { BUS_URL, BUS_WS_URL } from './config.ts';
-export type { CamerasView, Connection, ConnectionState, IncidentView, StoreState } from './state.ts';
-export { cameraOf, evidenceOf, isScripted } from './state.ts';
+export type { CamerasView, Connection, ConnectionState, IncidentView, LiveDetection, StoreState } from './state.ts';
+export { cameraName, cameraOf, evidenceOf, isCrimeActivity, isScripted } from './state.ts';
 export { chaseVar, colorFor, getEvent, getState, select, subjectOf, subscribe } from './store.ts';
 export { refreshCameras, sendOperatorAction, startBus } from './bus.ts';
 export type { SendResult } from './bus.ts';

@@ -77,7 +77,6 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
   border-bottom: 1px solid var(--alert);
   font-weight: 600;
 }
-.banner-detail { color: var(--muted); font-weight: 400; font-size: var(--fs-small); }
 
 /* ---------- layout ---------- */
 .layout {
@@ -88,24 +87,33 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
 }
 .slot { min-height: 0; min-width: 0; overflow: hidden; position: relative; }
 .slot-map { background: var(--ink); }
+/* Right column: the incident cards get the height first, so three cards with their Confirm buttons
+   stay on screen without scrolling. Flex column, sizes in priority order:
+     graph     300 px wanted, shrinks first (to 200 px min)
+     cards     490 px wanted: 3 compact cards (<= ~135 px each) + 2 x 8 px gaps + title (45) +
+               bottom padding (12). Grows with any spare height; barely shrinks (flex-shrink .02)
+               until the graph and receipts hit their minimums
+     receipts  220 px wanted, shrinks with the graph (to 140 px min), takes a third of spare height
+   1920x1080 full screen (1032 px column): graph 300, cards ~505, receipts ~227.
+   1920x1080 in a browser window (~944 px viewport, 896 px column): 114 px short, so graph ~237,
+   cards ~488, receipts ~174. The disconnected banner (~38 px) comes out of graph and receipts too. */
 .right {
-  display: grid;
-  grid-template-rows: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  display: flex;
+  flex-direction: column;
   background: var(--panel);
   border-left: 1px solid var(--rule);
   min-height: 0;
 }
 .right > .slot + .slot { border-top: 1px solid var(--rule); }
+.slot-graph { flex: 0 1 300px; min-height: 200px; }
+.slot-cards { flex: 1 0.02 490px; }
+.slot-receipts { flex: 0.5 1 220px; min-height: 140px; }
 
-/* ---------- placeholders (temporary until map / graph / panels land) ---------- */
+/* ---------- placeholders (temporary until graph / panels land) ---------- */
 .placeholder { height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .panel-title { font-size: var(--fs-title); font-weight: 600; margin: 0; padding: 12px 16px 8px; }
 .placeholder-note { color: var(--muted); font-size: var(--fs-small); padding: 0 16px 8px; margin: 0; }
 .placeholder-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-
-.cam-list { list-style: none; margin: 0; padding: 0 16px 12px; columns: 2; column-gap: 24px; }
-.cam-list li { font-family: var(--font-sign); font-weight: 500; padding: 2px 0; break-inside: avoid; }
-.cam-list .cam-status { color: var(--muted); }
 
 .raw-row {
   display: grid;

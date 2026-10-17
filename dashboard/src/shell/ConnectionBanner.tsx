@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { BUS_URL, useConnection } from '../lib';
+import { useConnection } from '../lib';
 
-/** Shown while the bus WebSocket is down. The rest of the screen keeps the last state. */
+/**
+ * Shown while the bus WebSocket is down. The rest of the screen keeps the last state.
+ * Operator words only; the technical reason (close code, URL) goes to the browser console (lib/bus.ts).
+ */
 export function ConnectionBanner() {
   const connection = useConnection();
   const down = connection.state === 'closed' || (connection.state === 'connecting' && connection.retries > 0);
@@ -21,9 +24,6 @@ export function ConnectionBanner() {
   return (
     <div className="banner" role="status" aria-live="polite">
       <span>Lost connection to the event bus. {retry}</span>
-      <span className="banner-detail">
-        {BUS_URL}{connection.lastError ? `, ${connection.lastError}` : ''}
-      </span>
     </div>
   );
 }

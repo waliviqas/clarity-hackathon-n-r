@@ -1,0 +1,146 @@
+/* Map column: tiles, controls, camera markers and labels. Loaded after leaflet.css. */
+
+.clarity-map {
+  position: absolute;
+  inset: 0;
+}
+.clarity-map.leaflet-container {
+  background: var(--ink); /* shows while tiles load, and if the tile server is unreachable */
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+}
+.clarity-map.leaflet-container:focus-visible { outline: 2px solid var(--chase-2); outline-offset: -2px; }
+
+/* OSM tiles darkened to match the dark theme. Only the tile layer: markers and attribution stay true. */
+.map-tiles {
+  filter: grayscale(1) invert(1) brightness(.8) contrast(.9) hue-rotate(180deg);
+}
+
+/* ---------- controls: quiet, no shadows ---------- */
+.clarity-map .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--ink) 85%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+  padding: 0 6px;
+}
+.clarity-map .leaflet-control-attribution a { color: var(--text); text-decoration: none; }
+.clarity-map .leaflet-control-attribution a:hover { text-decoration: underline; }
+
+.clarity-map .leaflet-bar,
+.clarity-map.leaflet-touch .leaflet-bar {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-button);
+  box-shadow: none;
+  background-clip: padding-box;
+}
+.clarity-map .leaflet-bar a,
+.clarity-map.leaflet-touch .leaflet-bar a {
+  width: 28px;
+  height: 28px;
+  font: 600 16px/28px var(--font-ui);
+  background: var(--ink);
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+}
+.clarity-map .leaflet-bar a:last-child { border-bottom: 0; }
+.clarity-map .leaflet-bar a:hover,
+.clarity-map .leaflet-bar a:focus-visible { background: var(--panel); color: var(--text); }
+.clarity-map .leaflet-bar a.leaflet-disabled { background: var(--ink); color: var(--rule); }
+
+/* ---------- camera markers ---------- */
+/* .cam-icon is the Leaflet icon box (MARKER_PX square, anchored at its center). */
+.cam-icon { background: none; border: 0; }
+.cam-icon > div { width: 100%; height: 100%; }
+
+.cam { position: relative; width: 100%; height: 100%; }
+
+.cam-dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--rule);
+  border: 2px solid var(--text);
+}
+/* offline / degraded: hollow --muted (the label also says so: never color alone) */
+.cam.is-offline .cam-dot { background: transparent; border-color: var(--muted); }
+
+/* crime seen here recently: a steady --alert ring around the dot */
+.cam-alert-ring {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 3px solid var(--alert);
+}
+
+/* detection: one 1.5 s ring pulse (TIMING.detectionPulseMs via --pulse-ms), --alert for a crime.
+   Remounted per detection (React key), so each new detection restarts it. */
+.cam-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  opacity: 0;
+  pointer-events: none;
+  animation: cam-pulse var(--pulse-ms, 1500ms) ease-out forwards;
+}
+.cam-pulse.is-crime { border-color: var(--alert); }
+@keyframes cam-pulse {
+  from { inset: 0; opacity: 1; }
+  to { inset: -22px; opacity: 0; }
+}
+
+/* Barlow (signage) label beside the marker. CameraLayer/labels.ts pick the side (inline left/top/
+   transform) so labels never cover other markers or labels; sizes mirror LABEL_FONT in CameraMarker.tsx.
+   The text-shadow is a zero-offset halo for legibility over the tiles, not a drop shadow. */
+.cam-label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-sign);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  line-height: 1.15;
+  color: var(--text);
+  text-shadow: 0 0 2px var(--ink), 0 0 3px var(--ink), 0 0 6px var(--ink);
+}
+/* crowded map: smaller names (the activity / health lines are already --fs-small) */
+.cam-label.is-small { font-size: var(--fs-small); }
+
+/* short leader line from the marker to a label that had to sit farther out */
+.cam-leader {
+  position: absolute;
+  height: 1px;
+  margin-top: -0.5px;
+  transform-origin: 0 50%;
+  background: var(--muted);
+  pointer-events: none;
+}
+.cam-activity { font-weight: 600; font-size: var(--fs-small); color: var(--alert); }
+.cam-health { font-size: var(--fs-small); color: var(--muted); }
+.cam.is-offline .cam-name { color: var(--muted); }
+
+/* Reduced motion: no pulse, just a steady ring for the same 1.5 s. */
+@media (prefers-reduced-motion: reduce) {
+  .cam-pulse {
+    inset: -7px;
+    animation: cam-pulse-hold var(--pulse-ms, 1500ms) steps(1, end) forwards;
+  }
+}
+@keyframes cam-pulse-hold {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ---------- empty states ---------- */
+.map-note {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.map-note p { margin: 0; color: var(--muted); }

@@ -109,6 +109,8 @@ function scheduleRetry(reason: string): void {
   attempt++;
   const backoff = Math.min(TIMING.reconnectMaxMs, TIMING.reconnectMinMs * 2 ** (attempt - 1));
   const delay = Math.round(backoff * (0.8 + Math.random() * 0.4));
+  // Technical detail for developers; the banner shows operator words only.
+  console.warn(`[clarity bus] ${BUS_WS_URL}: ${reason}; retry ${attempt} in ${delay} ms`);
   updateConnection({ state: 'closed', retries: attempt, lastError: reason, nextRetryAt: Date.now() + delay });
   retryTimer = setTimeout(connect, delay);
 }
@@ -144,6 +146,8 @@ export interface SendResult {
   event: OperatorAction;
   /** Why it failed (bus validation errors, HTTP status, network error). */
   error?: string;
+  /** Set when ok is false: 'network' = the bus was unreachable / timed out, 'rejected' = the bus answered with an HTTP error (e.g. 422). */
+  kind?: 'network' | 'rejected';
 }
 
 /**
@@ -167,12 +171,12 @@ export async function sendOperatorAction(
         const body = (await res.json()) as { errors?: unknown };
         if (Array.isArray(body.errors) && body.errors.length) detail += `: ${body.errors.join('; ')}`;
       } catch { /* not JSON */ }
-      return { ok: false, event, error: detail };
+      return { ok: false, event, error: detail, kind: 'rejected' };
     }
     addLocalEvent(event);
     return { ok: true, event };
   } catch (err) {
-    return { ok: false, event, error: `can't reach the bus at ${BUS_URL}: ${String(err)}` };
+    return { ok: false, event, error: `can't reach the bus at ${BUS_URL}: ${String(err)}`, kind: 'network' };
   }
 }
 

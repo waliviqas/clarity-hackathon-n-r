@@ -1,36 +1,12 @@
-// Temporary stand-ins shown until the real map (dashboard-map), agent graph (src/graph/) and
-// panels (src/panels/) exist. They double as a quick visual check of the store.
+// Temporary stand-ins shown until the agent graph (src/graph/) and panels (src/panels/) exist.
+// They double as a quick visual check of the store.
 
 import { useMemo, useState } from 'react';
 import {
-  cameraOf, chaseVar, isScripted, LABELS, sendOperatorAction, subjectOf, useCameras, useCameraStatus,
-  useDetectionSubjects, useEvents, useIncidents, useSelection, useSubjectColors,
+  cameraOf, chaseVar, isScripted, LABELS, sendOperatorAction, subjectOf, useDetectionSubjects, useEvents,
+  useIncidents, useSelection, useSubjectColors,
 } from '../lib';
 import type { OperatorDecision } from '../lib';
-
-export function MapPlaceholder() {
-  const { site, list } = useCameras();
-  const status = useCameraStatus();
-  return (
-    <div className="placeholder">
-      <h2 className="panel-title">Map</h2>
-      <p className="placeholder-note">
-        {site
-          ? `${list.length} cameras at ${site.site_name ?? site.site_id}. The map comes in the next build step.`
-          : 'Waiting for the camera list from the event bus.'}
-      </p>
-      <div className="placeholder-scroll">
-        <ul className="cam-list">
-          {list.map((c) => (
-            <li key={c.camera_id}>
-              {c.name} <span className="cam-status">{status[c.camera_id]?.status ?? 'no status yet'}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
 
 export function GraphPlaceholder() {
   return (

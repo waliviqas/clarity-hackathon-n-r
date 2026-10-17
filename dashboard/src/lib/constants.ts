@@ -43,11 +43,26 @@ export const LABELS = {
   status: {
     tracking: 'Tracking',
     alert: 'Needs your decision',
+    /** dispatch.status "alert" with requires_human_confirm false (no Confirm/Dismiss needed). */
+    alertNoConfirm: 'Alert',
     resolved: 'Resolved',
     confirm: 'Confirmed',
     dismiss: 'Dismissed',
   },
   noIncidents: 'No incidents yet.',
+  /** detection.activity / dispatch.incident_type as words. */
+  activity: {
+    stabbing: 'Stabbing',
+    fistfight: 'Fistfight',
+    purse_snatch: 'Purse snatch',
+    none: 'No crime seen',
+  },
+  /** camera_status.status as words. */
+  cameraHealth: {
+    online: 'Online',
+    offline: 'Offline',
+    degraded: 'Degraded',
+  },
 } as const;
 
 /** `source` value that marks a scripted (fake) event. */

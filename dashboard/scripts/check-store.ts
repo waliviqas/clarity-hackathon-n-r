@@ -17,7 +17,8 @@ import camerasEx from '../../contracts/examples/cameras.json' with { type: 'json
 import type { BusSnapshot, ClarityEvent } from '../src/lib/types.ts';
 import { CHASE_COLORS } from '../src/lib/constants.ts';
 import {
-  applyEvents, applySnapshot, buildOperatorAction, computeHighlight, evidenceOf, initialState,
+  applyEvents, applySnapshot, buildOperatorAction, cameraName, computeHighlight, evidenceOf, initialState, isCrimeActivity,
+  liveDetectionsByCamera, pruneRecent,
 } from '../src/lib/state.ts';
 import type { StoreState } from '../src/lib/state.ts';
 import { getState, select, subscribe } from '../src/lib/store.ts';
@@ -79,6 +80,28 @@ function offline(): void {
   check(replaced.highlighted.has('det_8f2a'), 'selection survives a snapshot and re-highlights');
   const noCams = applySnapshot(replaced, { ...snap, cameras: null }, 2001);
   check(noCams.cameras.list.length === 3, 'a snapshot with cameras=null keeps the map we had');
+
+  // live detections per camera (map pulses / alert rings)
+  check(liveDetectionsByCamera(replaced.recent, replaced.eventsById).size === 0,
+    'snapshot detections never pulse (no live detections after a snapshot)');
+  const det = (id: string, cam: string, activity: string) => ({ ...(detectionEx as object), event_id: id, camera_id: cam, activity });
+  let ls = applyEvents(replaced, [det('det_a', 'cam_01', 'fistfight')], true, 3000);
+  ls = applyEvents(ls, [det('det_b', 'cam_01', 'none'), det('det_c', 'cam_02', 'none'), relayEx], true, 3001);
+  const liveDets = liveDetectionsByCamera(ls.recent, ls.eventsById);
+  check(liveDets.get('cam_01')?.latest.event_id === 'det_b' && liveDets.get('cam_01')?.crime?.event_id === 'det_a',
+    'live detections: newest pulses, an earlier crime keeps the alert');
+  check(liveDets.get('cam_02')?.crime === null && liveDets.size === 2, 'live detections: activity "none" is not a crime; non-detections skipped');
+  check(isCrimeActivity('purse_snatch') && !isCrimeActivity('none') && !isCrimeActivity(undefined), 'isCrimeActivity');
+  {
+    const cam = camerasEx.cameras[0] as unknown as Parameters<typeof cameraName>[0] & object;
+    check(cameraName({ ...cam, name: 'Front door' }) === 'Front door'
+      && cameraName({ ...cam, name: '  ' }) === cam.camera_id
+      && cameraName({ ...cam, name: undefined as unknown as string }) === cam.camera_id
+      && cameraName(undefined, 'cam_99') === 'cam_99', 'cameraName falls back to camera_id');
+  }
+  const expired = pruneRecent(ls, 3000 + 6000, 6000);
+  check(liveDetectionsByCamera(expired.recent, expired.eventsById).get('cam_01')?.crime === null,
+    'live detections: the crime drops out with the recent window');
 }
 
 // ---------------------------------------------------------------- live checks against the bus

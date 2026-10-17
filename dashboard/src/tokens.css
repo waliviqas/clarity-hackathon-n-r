@@ -1,6 +1,6 @@
-/* Design tokens: the only place colors, type and shape are defined (docs/briefs/dashboard-spec.md,
-   "Visual design"). The chase/alert/ok hex values are mirrored in src/lib/constants.ts for SVG and
-   canvas: change both together. */
+/* Design tokens for the operator dashboard: the only place colors, type and shape are defined.
+   The chase/alert/ok hex values are mirrored in src/lib/constants.ts for SVG and canvas:
+   change both together. */
 :root {
   /* surfaces and text */
   --ink: #0E1A24;      /* page background */
