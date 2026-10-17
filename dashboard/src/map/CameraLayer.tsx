@@ -4,13 +4,14 @@ import { useMap, useMapEvents } from 'react-leaflet';
 import { cameraName, getState, isCrimeActivity, LABELS, select, useCameraStatus, useLiveDetections } from '../lib';
 import type { Camera, CameraHealth } from '../lib';
 import { ALERT_RING_R, CameraMarker, LABEL_FONT, MARKER_PX } from './CameraMarker.tsx';
+import { BADGE } from './sizes.ts';
 import type { ChaseView } from './chase.ts';
 import type { Circle } from './chaseGeometry.ts';
 import { ChaseLayer } from './ChaseLayer.tsx';
 import type { ChaseAvoid } from './ChaseLayer.tsx';
 import type { PlacedCamera } from './geo.ts';
-import { awayFromNeighbors, chooseSmall, layoutLabels } from './labels.ts';
-import type { LabelInput, LabelLayout, Rect, Vec } from './labels.ts';
+import { awayFromNeighbors, chooseSmall, layoutLabels, placeBadges } from './labels.ts';
+import type { LabelBox, LabelInput, LabelLayout, LabelSide, Rect, Vec } from './labels.ts';
 
 interface CamLabelSpec {
   camera: Camera;
@@ -93,6 +94,7 @@ export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
           pulseCrime={c.pulseCrime}
           crimeActivity={c.crimeActivity}
           label={layout?.layout.byId.get(c.camera.camera_id) ?? null}
+          badgeSide={layout?.badges.get(c.camera.camera_id) ?? null}
           small={layout?.layout.small ?? false}
           fill={chase.cameras.get(c.camera.camera_id)?.fill ?? null}
           highlighted={chase.cameras.get(c.camera.camera_id)?.highlighted ?? false}
@@ -109,8 +111,15 @@ function healthWord(health: CameraHealth | undefined): string {
 
 // ---------- layout ----------
 
-/** Label layout, plus what the chase labels must avoid (label boxes, marker dots, map controls). */
-function computeLayout(map: LeafletMap, specs: readonly CamLabelSpec[]): { layout: LabelLayout; avoid: ChaseAvoid } | null {
+interface CameraLayout {
+  layout: LabelLayout;
+  /** camera_id -> side of its verdict badge (away from its label, clear of other labels and markers). */
+  badges: Map<string, LabelSide>;
+  avoid: ChaseAvoid;
+}
+
+/** Label layout and badge sides, plus what the chase labels must avoid (label boxes, marker dots, map controls). */
+function computeLayout(map: LeafletMap, specs: readonly CamLabelSpec[]): CameraLayout | null {
   const size = map.getSize();
   if (!specs.length || size.x === 0 || size.y === 0) return null;
 
@@ -141,6 +150,8 @@ function computeLayout(map: LeafletMap, specs: readonly CamLabelSpec[]): { layou
   const small = chooseSmall(inputs(false), opts);
   const items = inputs(true);
   const layout = layoutLabels(items, small, opts);
+  const neighbors = new Map(specs.map((s) => [s.camera.camera_id, (s.camera.neighbors ?? []).map((n) => n.camera_id)]));
+  const badges = placeBadges(items, layout, badgeBox(), opts, neighbors);
 
   const rects: Rect[] = [...blocked];
   const circles: Circle[] = [];
@@ -152,7 +163,7 @@ function computeLayout(map: LeafletMap, specs: readonly CamLabelSpec[]): { layou
     const x0 = it.x + p.ax - p.fx * box.w, y0 = it.y + p.ay - p.fy * box.h;
     rects.push({ x0: x0 - 3, y0: y0 - 3, x1: x0 + box.w + 3, y1: y0 + box.h + 3 });
   }
-  return { layout, avoid: { rects, circles } };
+  return { layout, badges, avoid: { rects, circles } };
 }
 
 /** Map controls (zoom buttons, attribution) in container pixels: labels stay off them. */
@@ -199,6 +210,12 @@ function measureLabel(name: string, sub: readonly string[], small: boolean) {
     h += f.subPx * f.lineHeight;
   }
   return { w: Math.ceil(w) + 2, h: Math.ceil(h) };
+}
+
+/** The widest verdict badge (both kinds share one box, so a badge never changes the layout). */
+function badgeBox(): LabelBox {
+  const w = Math.max(...Object.values(LABELS.verdictBadge).map((t) => textWidth(t, BADGE.fontWeight, BADGE.fontPx)));
+  return { w: Math.ceil(w) + 2 * (BADGE.padX + BADGE.border) + 2, h: BADGE.height };
 }
 
 // ---------- re-layout triggers ----------

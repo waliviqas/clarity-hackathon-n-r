@@ -53,8 +53,13 @@ export const LABEL_TUNING = {
   gapDiagonal: 4,
   /** Extra distance for a candidate drawn with a leader line. */
   leaderExtra: 22,
-  /** Label boxes are grown by this much before overlap tests (the text halo, plus breathing room). */
+  /** Label boxes are grown by this much before overlap tests with markers and controls (the text halo). */
   halo: 3,
+  /**
+   * Minimum clear space between two labels' text boxes. Closer than this counts as a collision, so two
+   * neighbors' names never read as one line (e.g. two labels side by side above their markers).
+   */
+  labelGap: 12,
   /** Extra clearance kept around other markers. */
   markerMargin: 3,
   /** Two markers this close count toward "crowded" when ordering. */
@@ -116,7 +121,7 @@ export interface LabelLayout {
   /** true = names at 13 px (crowded). */
   small: boolean;
   byId: Map<string, LabelPlacement>;
-  /** Overlaps left over (label-marker, label-label, label-control). 0 is the goal. */
+  /** Overlaps left over (label-marker, label-control, and label-label closer than labelGap). 0 is the goal. */
   collisions: number;
   leaders: number;
   /** Labels without a leader that reach closer to another camera than to their own. 0 is the goal. */
@@ -286,7 +291,7 @@ function baseCost(item: LabelInput, c: Omit<Candidate, 'base'>, all: readonly La
 }
 
 function labelCost(rect: Rect, others: Iterable<Rect>): number {
-  const r = grow(rect, LABEL_TUNING.halo);
+  const r = grow(rect, LABEL_TUNING.labelGap);
   let cost = 0;
   for (const o of others) {
     const a = overlapArea(r, o);
@@ -337,7 +342,8 @@ export function layoutLabels(inputs: readonly LabelInput[], small: boolean, opts
       if (other !== item && circleIntrusion(r, other.x, other.y, other.markerR + t.markerMargin) > 0) collisions++;
     }
     for (const b of opts.blocked ?? []) if (overlapArea(r, b) > 0) collisions++;
-    for (let j = i + 1; j < list.length; j++) if (overlapArea(r, list[j].c.rect) > 0) collisions++;
+    const spaced = grow(c.rect, t.labelGap);
+    for (let j = i + 1; j < list.length; j++) if (overlapArea(spaced, list[j].c.rect) > 0) collisions++;
   });
 
   const byId = new Map<string, LabelPlacement>();
@@ -378,4 +384,81 @@ export function sideAnchor(side: LabelSide, dist: number): { ax: number; ay: num
   const [vx, vy] = SIDE_VEC[side];
   const [fx, fy] = SIDE_FRAC[side];
   return { ax: vx * dist, ay: vy * dist, fx, fy };
+}
+
+/** Gap between the marker (or its alert ring) and the verdict badge. Mirrors CameraMarker's badgeStyle. */
+export const BADGE_GAP = 5;
+
+/** Sides in compass order, for "the next side over" (index +-1 = 45 degrees). */
+const RING: readonly LabelSide[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+
+/** Badge on top of a chase line (path / relay arrow / prediction toward a neighbor): costs this. */
+const BADGE_ON_LINE = 40;
+
+/**
+ * Where each camera's verdict badge ("no match" / "uncertain") goes: on the side away from its own
+ * label (the opposite side first, then 45 and 90 degrees off it, never toward the label), skipping
+ * sides where it would cover another marker or label, a map control, or leave the view, and if it
+ * can, the lines to its neighbors (`neighbors`: camera_id -> neighbor camera_ids, where chase lines
+ * run). Computed for every camera (badges come and go faster than the layout should), so `box` is the
+ * widest badge.
+ */
+export function placeBadges(
+  inputs: readonly LabelInput[], layout: LabelLayout, box: LabelBox, opts: LayoutOptions = {},
+  neighbors: ReadonlyMap<string, readonly string[]> = new Map(),
+): Map<string, LabelSide> {
+  const byId = new Map(inputs.map((it) => [it.id, it]));
+  const t = LABEL_TUNING;
+  const labelRects = new Map<string, Rect>();
+  for (const item of inputs) {
+    const p = layout.byId.get(item.id);
+    if (!p) continue;
+    const b = layout.small ? item.small : item.big;
+    const x0 = item.x + p.ax - p.fx * b.w, y0 = item.y + p.ay - p.fy * b.h;
+    labelRects.set(item.id, { x0, y0, x1: x0 + b.w, y1: y0 + b.h });
+  }
+
+  const out = new Map<string, LabelSide>();
+  for (const item of inputs) {
+    const labelSide = layout.byId.get(item.id)?.side ?? 'e';
+    const away = RING.indexOf(OPPOSITE_SIDE[labelSide]);
+    const order = [0, 1, -1, 2, -2].map((k) => RING[(away + k + 8) % 8]);
+    let best: LabelSide = order[0], bestCost = Infinity;
+    order.forEach((side, rank) => {
+      const rect = badgeRect(item, side, box);
+      const r = grow(rect, t.halo);
+      let cost = rank * 15;
+      for (const other of inputs) {
+        if (other === item) continue;
+        const hit = circleIntrusion(r, other.x, other.y, other.markerR + t.markerMargin);
+        if (hit > 0) cost += t.cost.marker + hit * 20;
+      }
+      for (const id of neighbors.get(item.id) ?? []) {
+        const n = byId.get(id);
+        if (n && segmentHitsRect(item.x, item.y, n.x, n.y, r)) cost += BADGE_ON_LINE;
+      }
+      for (const lr of labelRects.values()) {
+        const a = overlapArea(r, lr);
+        if (a > 0) cost += t.cost.label + a;
+      }
+      for (const b of opts.blocked ?? []) {
+        const a = overlapArea(r, b);
+        if (a > 0) cost += t.cost.blocked + a;
+      }
+      if (opts.view) {
+        const o = outsideArea(rect, opts.view);
+        if (o > 0) cost += t.cost.outOfView + o;
+      }
+      if (cost < bestCost) { best = side; bestCost = cost; }
+    });
+    out.set(item.id, best);
+  }
+  return out;
+}
+
+/** The badge box for `side` (screen px), same geometry as placeBadges and CameraMarker. */
+export function badgeRect(item: LabelInput, side: LabelSide, box: LabelBox): Rect {
+  const { ax, ay, fx, fy } = sideAnchor(side, item.markerR + BADGE_GAP);
+  const x0 = item.x + ax - fx * box.w, y0 = item.y + ay - fy * box.h;
+  return { x0, y0, x1: x0 + box.w, y1: y0 + box.h };
 }

@@ -13,8 +13,11 @@ export const COLORS = {
   muted: '#8EA3B3',
   alert: '#FF6B5A',
   ok: '#46C38A',
-  /** agent_verdict "uncertain" (amber; always paired with a "?" so it never relies on color). */
-  uncertain: '#FFB020',
+  /**
+   * agent_verdict "uncertain": warm sand, a hue distinct from every chase color (never CHASE_COLORS[0]).
+   * Always paired with a "?" and a dotted line/border, so it never relies on color alone.
+   */
+  uncertain: '#CFC1A6',
   /** Returned by colorFor() for a subject that has no color yet (e.g. a bare detection). */
   unassigned: '#E6EDF2',
 } as const;

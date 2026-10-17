@@ -54,3 +54,13 @@ export const PROB_LABEL = {
   /** Lines shorter than this get no label. */
   minLine: 48,
 } as const;
+
+/** Verdict badge ("✕ no match" / "? uncertain") pill, screen px. Mirrors .cam-badge in map.css. */
+export const BADGE = {
+  fontPx: 14,
+  fontWeight: 600,
+  padX: 8,
+  /** 18px line + 1px padding top and bottom + 1px border top and bottom. */
+  height: 22,
+  border: 1,
+} as const;

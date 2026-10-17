@@ -12,6 +12,9 @@ Need something that isn't here? Ask the owner; don't edit `lib/` yourself.
 `App.tsx` picks these up automatically when the file exists (default export, no props):
 `src/graph/AgentGraph.tsx`, `src/panels/IncidentCards.tsx`, `src/panels/ReceiptsLog.tsx`.
 Each fills its slot (`height: 100%`, scroll inside yourself). Until then a placeholder shows.
+- The **cards slot is content-sized**: as tall as the cards (never squeezed), capped at column - 340 px; the receipts slot gets the rest. Keep the IncidentCards root at `height: 100%` with an inner `flex: 1; min-height: 0; overflow-y: auto` scroller so this works.
+- Slots clip (`overflow: hidden`): a pop-up should be `position: fixed` or portaled to `document.body`.
+- Each slot is wrapped in an error boundary (`src/shell/SlotBoundary.tsx`): if your component throws, only your slot shows "This panel hit an error. Reload to retry." and the error is logged to the console.
 
 ## Hooks (React)
 | Hook | Returns |
@@ -41,7 +44,7 @@ Each fills its slot (`height: 100%`, scroll inside yourself). Until then a place
 - `cameraName(byId[id], id)` → the camera's `name`, or its camera_id when the name is empty/missing. Use it wherever a camera is named on screen.
 
 ## Constants (`constants.ts`)
-`CHASE_COLORS`, `COLORS` (hex mirrors of `src/tokens.css`; `COLORS.uncertain` = `--uncertain`, amber for "uncertain" verdicts), `TIMING` (all animation/connection timings, incl. `relayGraceS`, `relayDefaultArrivalS`, `relayFadeMs`, `relayDashMs`, `verdictBadgeMs`), `LABELS` (`verdictBadge.no_match` "✕ no match" / `.uncertain` "? uncertain", on-screen words: "coordinator", "Scripted run", status words "Tracking" / "Needs your decision" / "Confirmed" / "Dismissed", `status.alertNoConfirm` "Alert" for an alert dispatch with `requires_human_confirm: false`, `activity.*` e.g. "Purse snatch", `cameraHealth.*` "Online" / "Offline" / "Degraded"). Style with the CSS variables in `src/tokens.css`.
+`CHASE_COLORS`, `COLORS` (hex mirrors of `src/tokens.css`; `COLORS.uncertain` = `--uncertain`, warm sand `#CFC1A6` for "uncertain" verdicts: use it (never `CHASE_COLORS[0]`, which is chase 1's amber) for uncertain lines, marks and legend swatches, dotted), `TIMING` (all animation/connection timings, incl. `relayGraceS`, `relayDefaultArrivalS`, `relayFadeMs`, `relayDashMs`, `verdictBadgeMs`), `LABELS` (`verdictBadge.no_match` "✕ no match" / `.uncertain` "? uncertain", on-screen words: "coordinator", "Scripted run", status words "Tracking" / "Needs your decision" / "Confirmed" / "Dismissed", `status.alertNoConfirm` "Alert" for an alert dispatch with `requires_human_confirm: false`, `activity.*` e.g. "Purse snatch", `cameraHealth.*` "Online" / "Offline" / "Degraded"). Style with the CSS variables in `src/tokens.css`.
 
 ## Files
 `types.ts` (mirrors `contracts/schemas/`; no invented fields) · `state.ts` (pure reducers) · `store.ts` (the instance) · `bus.ts` (WS + reconnect, GET /cameras, POST /events) · `hooks.ts` · `config.ts` (`VITE_BUS_URL`). Lib files import each other with `.ts` extensions so plain Node can run them (`npm run check:store`).

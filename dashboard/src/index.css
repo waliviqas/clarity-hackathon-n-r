@@ -87,16 +87,20 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
 }
 .slot { min-height: 0; min-width: 0; overflow: hidden; position: relative; }
 .slot-map { background: var(--ink); }
-/* Right column: the incident cards get the height first, so three cards with their Confirm buttons
-   stay on screen without scrolling. Flex column, sizes in priority order:
-     graph     300 px wanted, shrinks first (to 200 px min)
-     cards     490 px wanted: 3 compact cards (<= ~135 px each) + 2 x 8 px gaps + title (45) +
-               bottom padding (12). Grows with any spare height; barely shrinks (flex-shrink .02)
-               until the graph and receipts hit their minimums
-     receipts  220 px wanted, shrinks with the graph (to 140 px min), takes a third of spare height
-   1920x1080 full screen (1032 px column): graph 300, cards ~505, receipts ~227.
-   1920x1080 in a browser window (~944 px viewport, 896 px column): 114 px short, so graph ~237,
-   cards ~488, receipts ~174. The disconnected banner (~38 px) comes out of graph and receipts too. */
+/* Right column: the incident cards get the height they need first, so three cards with their Confirm
+   buttons stay on screen without scrolling; the receipts log gets whatever is left. Flex column:
+     graph     300 px, never grows; shrinks (to 200 px min) only when the cards need the room
+     cards     exactly as tall as the cards (flex-basis auto = content height; IncidentCards keeps
+               height:100% + its own scroll, which resolves to content height here), never shrinks,
+               capped at column - 340 px (graph and receipts minimums); past that it scrolls inside
+     receipts  everything left over (flex-grow), never below 140 px
+   Card heights (src/panels/IncidentCards.css): title 41, needs-decision card 107 (128 with an error
+   line), gaps 6, bottom padding 8. Three needs-decision cards = 41 + 3*107 + 2*6 + 8 = 382 px
+   (445 with three error lines), + 1 px slot border.
+   1920x1080 full screen (1032 px column): graph 300, cards 383, receipts 349 (no incidents: cards
+   ~71, receipts ~661). In a browser window (~944 px viewport, 896 px column): graph 300, cards 383,
+   receipts 213; worst case cards 446 -> receipts 150. With the disconnected banner (~858 px): 3 cards
+   -> receipts 175; worst case -> receipts 140, graph 272. */
 .right {
   display: flex;
   flex-direction: column;
@@ -106,8 +110,21 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
 }
 .right > .slot + .slot { border-top: 1px solid var(--rule); }
 .slot-graph { flex: 0 1 300px; min-height: 200px; }
-.slot-cards { flex: 1 0.02 490px; }
-.slot-receipts { flex: 0.5 1 220px; min-height: 140px; }
+.slot-cards { flex: 0 0 auto; max-height: calc(100% - 340px); }
+.slot-receipts { flex: 1 1 140px; min-height: 140px; }
+
+/* ---------- a panel that crashed (SlotBoundary): quiet note in its slot ---------- */
+.slot-error {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+.slot-error p { margin: 0; }
 
 /* ---------- placeholders (temporary until graph / panels land) ---------- */
 .placeholder { height: 100%; display: flex; flex-direction: column; min-height: 0; }

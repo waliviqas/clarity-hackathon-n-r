@@ -146,24 +146,36 @@
 }
 
 /* ---------- verdict badge (5 s after a camera's agent answers without a match) ---------- */
-/* Sits across the marker from the label; text + glyph, never color alone. Holds, then fades out at the
-   end of TIMING.verdictBadgeMs (the component unmounts it soon after). */
+/* A solid pill on the side away from the camera's label, clear of other labels and markers (labels.ts
+   placeBadges); opaque so it reads over street names on the tiles. Text + glyph, never color alone.
+   Sizes mirror BADGE in sizes.ts (14px, 18px line, 1px padding + 1px border = 22px tall). Holds, then
+   fades out at the end of TIMING.verdictBadgeMs (the component unmounts it soon after). */
 .cam-badge {
   position: absolute;
   white-space: nowrap;
   pointer-events: none;
   font-family: var(--font-sign);
   font-weight: 600;
-  font-size: var(--fs-small);
-  line-height: 1;
-  padding: 3px 6px 4px;
-  border-radius: 3px;
-  background: var(--ink);
-  border: 1px solid currentColor;
+  font-size: 14px;
+  line-height: 18px;
+  padding: 1px 8px;
+  border-radius: 11px;
+  border: 1px solid;
   animation: cam-badge var(--badge-ms, 5000ms) linear forwards;
 }
-.cam-badge.is-no-match { color: var(--muted); }
-.cam-badge.is-uncertain { color: var(--uncertain); }
+/* no match: near-white on a grey pill with a --muted border (the graph draws it grey dashed) */
+.cam-badge.is-no-match {
+  color: var(--text);
+  background: color-mix(in srgb, var(--muted) 30%, var(--ink));
+  border-color: var(--muted);
+}
+/* uncertain: --uncertain (sand, distinct from every chase color) with a dotted border, like the graph's dotted line */
+.cam-badge.is-uncertain {
+  color: var(--uncertain);
+  background: color-mix(in srgb, var(--uncertain) 16%, var(--ink));
+  border-color: var(--uncertain);
+  border-style: dotted;
+}
 @keyframes cam-badge {
   0%, 90% { opacity: 1; }
   100% { opacity: 0; }

@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { startBus } from './lib';
 import { ConnectionBanner } from './shell/ConnectionBanner.tsx';
 import { Header } from './shell/Header.tsx';
+import { SlotBoundary } from './shell/SlotBoundary.tsx';
 import MapView from './map/MapView.tsx';
 import { GraphPlaceholder, IncidentsPlaceholder, RawEventsPlaceholder } from './shell/placeholders.tsx';
 
@@ -28,18 +29,19 @@ export default function App() {
       <Header />
       <ConnectionBanner />
       <main className="layout">
+        {/* Each slot has its own error boundary: one panel throwing never blanks the whole screen. */}
         <section className="slot slot-map" aria-label="Map">
-          <MapView />
+          <SlotBoundary name="map"><MapView /></SlotBoundary>
         </section>
         <aside className="right">
           <section className="slot slot-graph" aria-label="Agent graph">
-            <AgentGraph />
+            <SlotBoundary name="agent graph"><AgentGraph /></SlotBoundary>
           </section>
           <section className="slot slot-cards" aria-label="Incidents">
-            <IncidentCards />
+            <SlotBoundary name="incident cards"><IncidentCards /></SlotBoundary>
           </section>
           <section className="slot slot-receipts" aria-label="Receipts">
-            <ReceiptsLog />
+            <SlotBoundary name="receipts"><ReceiptsLog /></SlotBoundary>
           </section>
         </aside>
       </main>

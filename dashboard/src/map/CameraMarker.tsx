@@ -7,8 +7,8 @@ import { Marker } from 'react-leaflet';
 import { LABELS } from '../lib';
 import type { Activity, CameraHealth } from '../lib';
 import type { CameraBadge } from './chase.ts';
-import { OPPOSITE_SIDE, sideAnchor } from './labels.ts';
-import type { LabelPlacement } from './labels.ts';
+import { BADGE_GAP, OPPOSITE_SIDE, sideAnchor } from './labels.ts';
+import type { LabelPlacement, LabelSide } from './labels.ts';
 import { ALERT_RING_R, MARKER_PX } from './sizes.ts';
 
 export { ALERT_RING_R, LABEL_FONT, MARKER_PX } from './sizes.ts';
@@ -39,6 +39,8 @@ export interface CameraMarkerProps {
   highlighted: boolean;
   /** Short-lived "no match" / "uncertain" badge after this camera's agent answered a relay, or null. */
   badge: CameraBadge | null;
+  /** Where the badge goes (from the layout: away from the label, clear of others); null = across from the label. */
+  badgeSide: LabelSide | null;
 }
 
 /**
@@ -47,7 +49,7 @@ export interface CameraMarkerProps {
  * and CSS animations aren't cut short by unrelated re-renders).
  */
 export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps) {
-  const { name, lat, lon, health, pulseId, pulseCrime, crimeActivity, label, small, fill, highlighted, badge } = props;
+  const { name, lat, lon, health, pulseId, pulseCrime, crimeActivity, label, small, fill, highlighted, badge, badgeSide } = props;
   const [container] = useState(() => document.createElement('div'));
   const icon = useMemo(() => divIcon({
     html: container,
@@ -99,7 +101,7 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
           </span>
           {badge && (
             <span key={badge.verdictId} className={`cam-badge is-${badge.kind.replace('_', '-')}`}
-              style={badgeStyle(label, crimeActivity !== null)}>
+              style={badgeStyle(badgeSide, label, crimeActivity !== null)}>
               {LABELS.verdictBadge[badge.kind]}
             </span>
           )}
@@ -110,10 +112,10 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
   );
 });
 
-/** The badge sits across the marker from the label (left of it before the first layout). */
-function badgeStyle(label: LabelPlacement | null, alert: boolean): CSSProperties {
-  const side = label ? OPPOSITE_SIDE[label.side] : 'w';
-  const { ax, ay, fx, fy } = sideAnchor(side, (alert ? ALERT_RING_R : HALF) + 5);
+/** The badge goes on the layout's side for it (else across the marker from the label; left before the first layout). */
+function badgeStyle(badgeSide: LabelSide | null, label: LabelPlacement | null, alert: boolean): CSSProperties {
+  const side = badgeSide ?? (label ? OPPOSITE_SIDE[label.side] : 'w');
+  const { ax, ay, fx, fy } = sideAnchor(side, (alert ? ALERT_RING_R : HALF) + BADGE_GAP);
   return { left: HALF + ax, top: HALF + ay, transform: `translate(${-fx * 100}%, ${-fy * 100}%)` };
 }
 

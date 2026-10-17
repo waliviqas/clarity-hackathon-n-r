@@ -11,7 +11,7 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import {
-  CHASE_COLORS, COLORS, LABELS, TIMING, isCrimeActivity, useCameras, useCameraStatus, useDetectionSubjects,
+  COLORS, LABELS, TIMING, isCrimeActivity, useCameras, useCameraStatus, useDetectionSubjects,
   useEvents, useEventsById, useIncidents, useLiveDetections, useRecent, useSelection, useSubjectColors,
 } from '../lib';
 import type { Activity, ClarityEvent, VerdictDecision } from '../lib';
@@ -20,8 +20,8 @@ import type { GraphLayout } from './layout.ts';
 import { deriveGraphState, groupSubject } from './derive.ts';
 import './AgentGraph.css';
 
-/** "Uncertain" is amber in the spec; always paired with a dotted line and a "?" so it never relies on color. */
-const UNCERTAIN = CHASE_COLORS[0];
+/** "Uncertain" uses its own token (distinct from every chase color); always paired with a dotted line and a "?". */
+const UNCERTAIN = COLORS.uncertain;
 const DECISION_WORDS: Record<VerdictDecision, string> = {
   match: 'match', no_match: 'no match', uncertain: 'uncertain',
 };
