@@ -13,13 +13,14 @@ Settings (environment variables):
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from contracts.validate import check
@@ -31,8 +32,14 @@ RUN_ID = os.environ.get("CLARITY_RUN_ID", "run_dev")
 LOG_PATH = Path(os.environ.get("CLARITY_RUNS_DIR", "runs")) / RUN_ID / "events.jsonl"
 CAMERAS_PATH = Path(os.environ.get("CLARITY_CAMERAS", "data/cameras.json"))
 
+SNAPSHOT_EVENTS = 500  # how many recent events a new dashboard connection gets
+
 counts = {"valid": 0, "invalid": 0}
 events: list[dict] = []  # every accepted event this run, in arrival order
+clients: set[WebSocket] = set()  # open dashboard connections
+# Held while logging + broadcasting one event (and while a client joins), so every client
+# sees events in the same order as the log, and nobody misses an event between snapshot and stream.
+order_lock = asyncio.Lock()
 
 app = FastAPI(title="Clarity bus")
 
@@ -64,6 +71,23 @@ def append_to_log(event: dict) -> None:
         f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
 
+def read_cameras():
+    """The active cameras.json as a dict, or None if it's missing or broken."""
+    try:
+        return json.loads(CAMERAS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+async def broadcast(event: dict) -> None:
+    for ws in list(clients):
+        try:
+            # A frozen browser tab must not stall the bus for everyone: give each client 2 s.
+            await asyncio.wait_for(ws.send_json(event), timeout=2)
+        except Exception:  # client went away or stopped reading; drop it, keep the rest going
+            clients.discard(ws)
+
+
 @app.post("/events")
 async def post_event(request: Request):
     try:
@@ -83,9 +107,28 @@ async def post_event(request: Request):
     else:
         counts["valid"] += 1
 
-    append_to_log(event)
-    events.append(event)
+    async with order_lock:
+        append_to_log(event)
+        events.append(event)
+        await broadcast(event)
     return {"ok": True, "event_id": event.get("event_id"), "warnings": errors}
+
+
+@app.websocket("/ws")
+async def ws_stream(websocket: WebSocket):
+    """Dashboard stream: one bus_snapshot (cameras + recent events), then every new event as it arrives."""
+    await websocket.accept()
+    async with order_lock:
+        await websocket.send_json({"type": "bus_snapshot", "run_id": RUN_ID,
+                                   "cameras": read_cameras(), "events": events[-SNAPSHOT_EVENTS:]})
+        clients.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # the dashboard doesn't send anything; this just notices it leaving
+    except WebSocketDisconnect:
+        pass
+    finally:
+        clients.discard(websocket)
 
 
 @app.get("/events")
@@ -111,7 +154,7 @@ async def get_cameras():
 @app.get("/health")
 async def health():
     return {"ok": True, "run_id": RUN_ID, "strict": STRICT, "log": str(LOG_PATH),
-            "events": len(events), **counts}
+            "events": len(events), "clients": len(clients), **counts}
 
 
 def main() -> None:
