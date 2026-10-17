@@ -1,0 +1,18 @@
+{
+  "type": "detection",
+  "schema_version": "0.1",
+  "event_id": "det_8f2a",
+  "ts": 1734.2,
+  "run_id": "run_demo1",
+  "source": "perception",
+  "camera_id": "cam_03",
+  "track_id": "trk_cam03_12",
+  "label": "person",
+  "confidence": 0.91,
+  "bbox": null,
+  "activity": "purse_snatch",
+  "activity_confidence": 0.74,
+  "appearance": "male, grey hoodie, dark pants",
+  "direction": "north",
+  "frame_idx": 34
+}

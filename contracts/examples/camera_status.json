@@ -1,0 +1,12 @@
+{
+  "type": "camera_status",
+  "schema_version": "0.1",
+  "event_id": "cst_01",
+  "ts": 1700.0,
+  "run_id": "run_demo1",
+  "source": "feeds",
+  "camera_id": "cam_03",
+  "status": "online",
+  "fps": 1.0,
+  "source_kind": "replay"
+}

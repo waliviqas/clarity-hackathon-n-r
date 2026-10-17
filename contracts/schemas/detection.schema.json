@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarity/detection.schema.json",
+  "title": "Detection event",
+  "description": "One person/action observation from one camera. Producer/owner: Wali (perception). Contract v0.1.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "detection"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^det_[A-Za-z0-9_-]+$",
+      "description": "Unique ID, prefix 'det_'."
+    },
+    "ts": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds on the run clock (replay: video time; live: unix epoch)."
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Optional: groups events from one replay/live run."
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional: component that emitted it, e.g. 'perception'."
+    },
+    "camera_id": {
+      "type": "string",
+      "pattern": "^cam_[a-z0-9_]+$",
+      "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+    },
+    "track_id": {
+      "type": "string",
+      "description": "One per detection (not a true tracker yet)."
+    },
+    "label": {
+      "type": "string",
+      "default": "person"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "bbox": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "[x, y, w, h] as fractions of the frame; null if the VLM gives no box."
+    },
+    "activity": {
+      "enum": [
+        "stabbing",
+        "fistfight",
+        "purse_snatch",
+        "none"
+      ]
+    },
+    "activity_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "appearance": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "VLM text description, e.g. 'male, grey hoodie, dark pants'."
+    },
+    "direction": {
+      "enum": [
+        "north",
+        "northeast",
+        "east",
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northwest",
+        "unknown",
+        null
+      ],
+      "description": "Compass direction of movement; null if not observed."
+    },
+    "frame_idx": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Optional: last frame index used."
+    }
+  },
+  "required": [
+    "type",
+    "schema_version",
+    "event_id",
+    "ts",
+    "camera_id",
+    "track_id",
+    "confidence",
+    "activity",
+    "appearance",
+    "direction"
+  ],
+  "additionalProperties": true
+}

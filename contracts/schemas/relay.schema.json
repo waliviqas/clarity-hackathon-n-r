@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarity/relay.schema.json",
+  "title": "Relay message",
+  "description": "A camera agent hands a subject off to a neighboring camera agent. Producer/owner: Wali (agents). Contract v0.1.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "relay"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^rel_[A-Za-z0-9_-]+$",
+      "description": "Unique ID, prefix 'rel_'."
+    },
+    "ts": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds on the run clock (replay: video time; live: unix epoch)."
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Optional: groups events from one replay/live run."
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional: component that emitted it, e.g. 'perception'."
+    },
+    "from_camera": {
+      "type": "string",
+      "pattern": "^cam_[a-z0-9_]+$",
+      "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+    },
+    "to_camera": {
+      "type": "string",
+      "pattern": "^cam_[a-z0-9_]+$",
+      "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+    },
+    "subject_id": {
+      "type": "string",
+      "pattern": "^subj_[A-Za-z0-9_-]+$"
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 400
+    },
+    "appearance": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "direction": {
+      "enum": [
+        "north",
+        "northeast",
+        "east",
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northwest",
+        "unknown",
+        null
+      ],
+      "description": "Compass direction of movement; null if not observed."
+    },
+    "activity": {
+      "enum": [
+        "stabbing",
+        "fistfight",
+        "purse_snatch",
+        "none"
+      ],
+      "description": "Optional: the incident type being tracked."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "expected_arrival_s": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "evidence_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "event_ids of earlier events that justify this one (the receipts trail)."
+    }
+  },
+  "required": [
+    "type",
+    "schema_version",
+    "event_id",
+    "ts",
+    "from_camera",
+    "to_camera",
+    "subject_id",
+    "summary",
+    "appearance",
+    "direction",
+    "confidence",
+    "evidence_event_ids"
+  ],
+  "additionalProperties": true
+}

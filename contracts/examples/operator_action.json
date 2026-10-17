@@ -1,0 +1,11 @@
+{
+  "type": "operator_action",
+  "schema_version": "0.1",
+  "event_id": "op_01",
+  "ts": 1790.0,
+  "run_id": "run_demo1",
+  "source": "dashboard",
+  "incident_id": "inc_1",
+  "action": "confirm",
+  "note": null
+}

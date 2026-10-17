@@ -1,0 +1,18 @@
+{
+  "type": "agent_verdict",
+  "schema_version": "0.1",
+  "event_id": "ver_44b0",
+  "ts": 1776.5,
+  "run_id": "run_demo1",
+  "source": "agents",
+  "agent_id": "agent_cam05",
+  "camera_id": "cam_05",
+  "subject_id": "subj_7",
+  "decision": "match",
+  "confidence": 0.88,
+  "reason": "Grey hoodie and dark pants match; arrived 41s after the cam_03 relay, moving north.",
+  "evidence_event_ids": [
+    "rel_1c9d",
+    "det_9e11"
+  ]
+}

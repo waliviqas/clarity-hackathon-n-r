@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarity/cameras.schema.json",
+  "title": "Camera config (cameras.json)",
+  "description": "Static camera graph config. Wali builds the graph from it; the dashboard draws the map from it. Producer/owner: Mina (data). Contract v0.1.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "site_id": {
+      "type": "string",
+      "description": "e.g. 'meva_kf1' or 'annex_live'."
+    },
+    "site_name": {
+      "type": "string"
+    },
+    "map": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "center": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "lat": {
+              "type": "number"
+            },
+            "lon": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "lat",
+            "lon"
+          ],
+          "description": "Map center; null in site_xy (schematic) mode."
+        },
+        "zoom": {
+          "type": "number"
+        },
+        "site_image": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional schematic image path for site_xy mode."
+        }
+      }
+    },
+    "cameras": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "camera_id": {
+            "type": "string",
+            "pattern": "^cam_[a-z0-9_]+$",
+            "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ],
+            "description": "Real-world location for the map; null if only site_xy is known."
+          },
+          "site_xy": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "description": "0-1 position on a schematic site-map image (fallback when no lat/lon)."
+          },
+          "heading_deg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 360,
+            "description": "Optional: direction the camera faces, for drawing a view cone."
+          },
+          "neighbors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "camera_id": {
+                  "type": "string",
+                  "pattern": "^cam_[a-z0-9_]+$",
+                  "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+                },
+                "travel_time_s": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Typical walking time between the two cameras."
+                },
+                "direction": {
+                  "enum": [
+                    "north",
+                    "northeast",
+                    "east",
+                    "southeast",
+                    "south",
+                    "southwest",
+                    "west",
+                    "northwest",
+                    "unknown"
+                  ],
+                  "description": "Which way you walk from this camera to reach the neighbor."
+                }
+              },
+              "required": [
+                "camera_id",
+                "travel_time_s",
+                "direction"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "replay",
+                  "live"
+                ]
+              },
+              "uri": {
+                "type": "string",
+                "description": "Clip path (replay) or stream URL (live)."
+              },
+              "start_ts": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Replay only: run-clock time of the clip's first frame."
+              }
+            },
+            "required": [
+              "kind",
+              "uri"
+            ]
+          }
+        },
+        "required": [
+          "camera_id",
+          "name",
+          "neighbors",
+          "source"
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "site_id",
+    "cameras"
+  ],
+  "additionalProperties": true
+}

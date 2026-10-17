@@ -1,1 +1,1 @@
-# clarity-hackathon-n-r
+# clarity-nvidia-redhat

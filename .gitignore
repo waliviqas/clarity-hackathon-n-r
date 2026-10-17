@@ -218,3 +218,40 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Confidential hackathon reference (do not commit)
+small_models_hack_reference*.md
+
+# --- Clarity ---
+# Personal Claude Code instructions and private notes (confidential hackathon material lives in private/)
+CLAUDE.local.md
+private/
+# Friction-log notes (see tools/friction-log.txt)
+.agent-logs/
+# Raw datasets and video (commit only small derived files under data/)
+data/raw/
+*.mp4
+*.avi
+*.mov
+*.mkv
+runs/*/frames/
+# Dashboard
+node_modules/
+dashboard/dist/
+.env.local
+# The Python template above ignores any lib/ folder; allow the dashboard's
+!dashboard/src/lib/
+# Mina's personal Claude Code setup (agents, hooks wiring); hook scripts in .claude/hooks/ are shared
+.claude/settings.local.json
+.claude/agents/local/
+
+# Clarity: never commit env files or keys (keep the example)
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
