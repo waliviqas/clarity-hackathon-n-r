@@ -62,6 +62,11 @@ export function formatTs(ts: number): string {
   return `${ts.toFixed(1)} s`;
 }
 
+/** A label table's own entry, never an inherited one (a junk value like "constructor" gets undefined). */
+function own(table: Readonly<Record<string, string>>, key: string): string | undefined {
+  return Object.hasOwn(table, key) ? table[key] : undefined;
+}
+
 function capitalize(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
@@ -117,7 +122,7 @@ function withCameraNames(text: string, ctx: ReceiptContext): string {
 
 function activityWord(a: unknown, ctx: ReceiptContext): string {
   const key = str(a);
-  const known = ctx.labels.activity[key];
+  const known = own(ctx.labels.activity, key);
   return (known ?? key.replace(/_/g, ' ')).toLowerCase();
 }
 
@@ -150,7 +155,7 @@ interface StatusGroup {
 const HEALTH_ORDER = ['online', 'degraded', 'offline'];
 
 function statusRow(g: StatusGroup, ctx: ReceiptContext): ReceiptRow {
-  const word = (s: string) => (ctx.labels.cameraHealth[s] ?? s).toLowerCase();
+  const word = (s: string) => (own(ctx.labels.cameraHealth, s) ?? s).toLowerCase();
   let parts: Part[];
   if (g.cams.size === 1) {
     const [camId, { status, prev }] = [...g.cams][0];
@@ -246,9 +251,9 @@ export function buildRows(events: readonly ClarityEvent[], ctx: ReceiptContext, 
 
     switch (e.type) {
       case 'detection': {
-        subjectId = ctx.detectionSubjects[e.event_id] ?? null;
+        subjectId = own(ctx.detectionSubjects, e.event_id) ?? null;
         const look = str(e.appearance);
-        const isCrime = typeof e.activity === 'string' && e.activity !== 'none' && e.activity in ctx.labels.activity;
+        const isCrime = typeof e.activity === 'string' && e.activity !== 'none' && Object.hasOwn(ctx.labels.activity, e.activity);
         const what = str(e.label) && str(e.label) !== 'person' ? `a ${str(e.label)}` : 'a person';
         parts = isCrime
           ? [cam(e.camera_id), { text: ' saw a ' }, { text: activityWord(e.activity, ctx), tone: 'alert' }]
@@ -297,7 +302,9 @@ export function buildRows(events: readonly ClarityEvent[], ctx: ReceiptContext, 
         const d = incidents.get(e.incident_id);
         subjectId = d?.subject_id ?? null;
         const verb = e.action === 'confirm' ? 'confirmed' : e.action === 'dismiss' ? 'dismissed' : `answered (${str(e.action)})`;
-        const start = d && Array.isArray(d.path) && d.path.length ? d.path[0].camera_id : null;
+        const first: unknown = d && Array.isArray(d.path) ? d.path[0] : null;
+        const start = first && typeof first === 'object' && typeof (first as { camera_id?: unknown }).camera_id === 'string'
+          ? (first as { camera_id: string }).camera_id : null;
         const what = d ? `the ${activityWord(d.incident_type, ctx)}` : 'an incident';
         parts = start
           ? [{ text: `Operator ${verb} ${what} at ` }, cam(start)]

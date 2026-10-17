@@ -57,6 +57,17 @@
 .ic-status.tone-resolved { color: var(--muted); }
 .ic-sending { flex: none; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
 .ic-top .tag { flex: none; margin-left: auto; }
+/* "Watch last sighting": a quiet secondary button at the right of row 1 (before the scripted tag). */
+.ic-watch {
+  flex: none;
+  margin-left: auto;
+  padding: 0 8px;
+  line-height: 20px;
+  border-color: color-mix(in srgb, var(--muted) 55%, transparent);
+  white-space: nowrap;
+}
+.ic-watch:hover { background: color-mix(in srgb, var(--rule) 45%, transparent); }
+.ic-top .ic-watch + .tag { margin-left: 0; }
 .ic-reco-inline {
   flex: 1 1 0;
   min-width: 0;

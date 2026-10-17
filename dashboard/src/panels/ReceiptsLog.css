@@ -1,7 +1,9 @@
 /* Receipts log (src/panels/ReceiptsLog.tsx). Colors, type and shape come from src/tokens.css only.
    Quiet by design: one 22 px line per event, times in the signage face with tabular numerals,
-   a small chase-color dot for incident events, camera-status lines muted. The selected line wraps
-   and shows why (reason / summary); the lines it cites get a bar and a tint; the rest dim.
+   a small chase-color dot for incident events, camera-status lines muted. The selected line grows to
+   two lines at most: the sentence, then why (reason / summary), each cut with an ellipsis (a sentence
+   with nothing more to say may wrap onto both); the full text is in the row's tooltip. The lines it
+   cites get a bar and a tint; the rest dim.
    ~220 px slot at 1920x1080: head ~34 px + 7 lines. Nothing animates. */
 
 .rc { height: 100%; display: flex; flex-direction: column; min-height: 0; }
@@ -18,7 +20,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rc-newer { flex: none; padding: 1px 10px; line-height: 18px; }
+.rc-head > .rc-newer { align-self: center; }
+/* "Show N newer events": a real button (border, tint, focus ring), so it reads as clickable. */
+.rc-newer {
+  flex: none;
+  padding: 1px 10px;
+  line-height: 18px;
+  border-color: var(--muted);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  white-space: nowrap;
+}
+.rc-newer:hover { background: color-mix(in srgb, var(--text) 16%, transparent); }
 
 .rc-scroll {
   flex: 1;
@@ -81,19 +93,32 @@ button.rc-row:focus-visible { outline: 2px solid var(--chase-2); outline-offset:
   border-left-color: var(--muted);
   background: color-mix(in srgb, var(--text) 7%, transparent);
 }
-/* The selected line: brighter tint, white bar, full sentence wrapped, plus the reason under it. */
+/* The selected line: brighter tint, white bar, two lines at most. */
 .rc-item.is-selected .rc-row {
   border-left-color: var(--text);
   background: color-mix(in srgb, var(--text) 14%, transparent);
   padding-bottom: 4px;
 }
-.rc-item.is-selected .rc-text { white-space: normal; overflow-wrap: anywhere; }
+/* No reason to show: the sentence may wrap onto a second line, then stops with an ellipsis. */
+.rc-item.is-selected .rc-text {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+/* With a reason: sentence on line 1, reason on line 2, each one line. */
+.rc-item.is-selected.has-detail .rc-text { display: block; white-space: nowrap; }
 .rc-detail {
   grid-column: 3;
+  min-width: 0;
   color: var(--muted);
   font-size: var(--fs-small);
   line-height: 18px;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Everything unrelated to the selection steps back. */
 .rc-list.has-selection .rc-item:not(.is-selected):not(.is-linked) .rc-row { opacity: 0.55; }

@@ -1,6 +1,7 @@
 // Receipts log: every bus event as one readable sentence, newest first (sentences built in receipts.ts).
 // Click a line to select its event: it and every event it cites (evidence_event_ids) light up here,
 // and the map and graph follow the shared selection. Click again or press Escape to clear.
+// A selected line stays at most two lines tall (sentence, then the reason); the full text is in its tooltip.
 // Live events: while the list is at the top it follows the newest line; once the operator scrolls
 // down it holds still (the line they're reading stays put) and offers a "newer events" button.
 
@@ -129,7 +130,7 @@ export default function ReceiptsLog() {
         <span className="rc-hint" aria-live="polite">{hint}</span>
         {newer > 0 && (
           <button type="button" className="rc-newer" onClick={toTop}>
-            {newer} newer {newer === 1 ? 'event' : 'events'}
+            Show {newer} newer {newer === 1 ? 'event' : 'events'}
           </button>
         )}
       </div>
@@ -143,6 +144,7 @@ export default function ReceiptsLog() {
               const isLinked = row.eventId !== null && highlighted.has(row.eventId);
               const cls = [
                 'rc-item', `is-${row.kind}`, isSelected ? 'is-selected' : '', isLinked && !isSelected ? 'is-linked' : '',
+                isSelected && row.detail ? 'has-detail' : '',
               ].filter(Boolean).join(' ');
               const body = (
                 <>

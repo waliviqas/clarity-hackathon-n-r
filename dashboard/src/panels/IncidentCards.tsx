@@ -5,6 +5,7 @@
 // Compact so three "needs your decision" cards fit at once (~110 px each, buttons beside the
 // recommendation); tracking cards ~85 px; resolved cards collapse to one ~44 px line. Clamped text
 // stays in the DOM (screen readers get all of it) and is repeated in a title attribute for hover.
+// "Watch last sighting" opens SightingModal: the camera clip of the newest path step.
 
 import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
@@ -12,6 +13,7 @@ import {
   LABELS, cameraName, select, sendOperatorAction, useCameras, useConnection, useIncidents, useStore,
 } from '../lib';
 import type { Camera, IncidentView, OperatorDecision } from '../lib';
+import SightingModal from './SightingModal.tsx';
 import './IncidentCards.css';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -43,8 +45,13 @@ interface SendError {
   network: boolean;
 }
 
+/** A table's own entry, never an inherited one (a junk value like "constructor" gets undefined). */
+function own<T>(table: Readonly<Record<string, T>>, key: unknown): T | undefined {
+  return typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : undefined;
+}
+
 function sentenceType(t: string): string {
-  const known = TYPE_LABEL[t];
+  const known = own(TYPE_LABEL, t);
   if (known) return known;
   const words = String(t ?? '').replace(/_/g, ' ').trim();
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : TYPE_LABEL.none;
@@ -61,7 +68,7 @@ function phaseOf(inc: IncidentView): Phase {
 function statusOf(inc: IncidentView): { word: string; tone: Tone } {
   if (inc.action) {
     const a = inc.action.action;
-    return { word: LABELS.status[a] ?? String(a), tone: a === 'confirm' ? 'confirm' : 'dismiss' };
+    return { word: own<string>(LABELS.status, a) ?? String(a), tone: a === 'confirm' ? 'confirm' : 'dismiss' };
   }
   const d = inc.dispatch;
   if (d.status === 'alert') {
@@ -78,7 +85,15 @@ function whereOf(inc: IncidentView, byId: Readonly<Record<string, Camera>>): str
   const path = inc.dispatch.path;
   const first = Array.isArray(path) && path.length ? path[0] : null;
   if (!first || typeof first.camera_id !== 'string') return null;
-  return cameraName(byId[first.camera_id], first.camera_id);
+  return cameraName(own(byId, first.camera_id), first.camera_id);
+}
+
+/** True when the path has a step with a camera and a time (something to watch). */
+function hasSighting(inc: IncidentView): boolean {
+  const path: unknown = inc.dispatch.path;
+  return Array.isArray(path) && path.some((s: unknown) => !!s && typeof s === 'object'
+    && typeof (s as { camera_id?: unknown }).camera_id === 'string'
+    && typeof (s as { ts?: unknown }).ts === 'number' && Number.isFinite((s as { ts: number }).ts));
 }
 
 /** Ends a fragment with a full stop unless it already ends a sentence. */
@@ -91,7 +106,7 @@ function sentence(s: string): string {
 function metaLine(inc: IncidentView): string {
   const d = inc.dispatch;
   const parts: string[] = [];
-  const priority = PRIORITY_LABEL[d.priority];
+  const priority = own(PRIORITY_LABEL, d.priority);
   if (priority) parts.push(sentence(priority));
   const look = typeof d.subject_appearance === 'string' ? d.subject_appearance.trim().replace(/\.+$/, '') : '';
   if (look) parts.push(sentence(`Suspect: ${look}`));
@@ -108,6 +123,14 @@ export default function IncidentCards() {
   const selectedEvent = useStore((s) => (s.selection ? s.eventsById.get(s.selection) : undefined));
   const [sending, setSending] = useState<Readonly<Record<string, OperatorDecision>>>({});
   const [errors, setErrors] = useState<Readonly<Record<string, SendError>>>({});
+  /** incident_id whose last sighting is playing in the pop-up, or null. */
+  const [watching, setWatching] = useState<string | null>(null);
+  const watched = watching ? incidents.find((inc) => inc.incident_id === watching) : undefined;
+
+  // The incident went away (a new bus snapshot replaced the state): close the pop-up for good.
+  useEffect(() => {
+    if (watching && !watched) setWatching(null);
+  }, [watching, watched]);
 
   // "Couldn't reach the event bus" goes away by itself once the socket is back.
   useEffect(() => {
@@ -133,10 +156,10 @@ export default function IncidentCards() {
     : null;
 
   const decide = async (incidentId: string, action: OperatorDecision) => {
-    if (sending[incidentId]) return;
+    if (own(sending, incidentId)) return;
     setSending((s) => ({ ...s, [incidentId]: action }));
     setErrors((prev) => {
-      if (!(incidentId in prev)) return prev;
+      if (!Object.hasOwn(prev, incidentId)) return prev;
       const next = { ...prev };
       delete next[incidentId];
       return next;
@@ -182,8 +205,8 @@ export default function IncidentCards() {
               const title = where ? `${type} at ${where}` : type;
               const spoken = where ? `${type.toLowerCase()} at ${where}` : `${type.toLowerCase()} ${inc.incident_id}`;
               const showButtons = d.requires_human_confirm === true && !inc.action;
-              const busy = sending[inc.incident_id];
-              const error = inc.action ? undefined : errors[inc.incident_id];
+              const busy = own(sending, inc.incident_id);
+              const error = inc.action ? undefined : own(errors, inc.incident_id);
               const meta = metaLine(inc);
               const reco = typeof d.recommendation === 'string' ? d.recommendation : '';
               // Resolved cards collapse to one line, unless they somehow still ask for a decision.
@@ -195,6 +218,10 @@ export default function IncidentCards() {
               const onButton = (action: OperatorDecision) => (ev: MouseEvent<HTMLButtonElement>) => {
                 ev.stopPropagation();
                 void decide(inc.incident_id, action);
+              };
+              const onWatch = (ev: MouseEvent<HTMLButtonElement>) => {
+                ev.stopPropagation(); // opening the video doesn't toggle the card's selection
+                setWatching(inc.incident_id);
               };
 
               return (
@@ -214,6 +241,15 @@ export default function IncidentCards() {
                     {busy && <span className="ic-sending" role="status">Sending…</span>}
                     {/* Resolved cards are one line: the recommendation shrinks into what's left of it. */}
                     {oneLine && reco && <span className="ic-reco-inline" title={reco}>{reco}</span>}
+                    {hasSighting(inc) && (
+                      <button
+                        type="button"
+                        className="ic-watch"
+                        aria-haspopup="dialog"
+                        aria-label={`Watch last sighting, ${spoken}`}
+                        onClick={onWatch}
+                      >Watch last sighting</button>
+                    )}
                     {inc.scripted && <span className="tag">{LABELS.scripted}</span>}
                   </div>
                   {!oneLine && (
@@ -247,6 +283,14 @@ export default function IncidentCards() {
           </ul>
         )}
       </div>
+      {/* Outside the cards, so clicks inside the pop-up never reach a card's click handler. */}
+      {watched && (
+        <SightingModal
+          incident={watched}
+          typeWord={watched.dispatch.incident_type === 'none' ? '' : sentenceType(watched.dispatch.incident_type).toLowerCase()}
+          onClose={() => setWatching(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,86 @@
+/* "Watch last sighting" pop-up (src/panels/SightingModal.tsx). Colors, type and shape come from src/tokens.css.
+   A native <dialog> in the top layer: 6px radius, 4px left bar in the incident's chase color (like its card),
+   no shadow, no gradient, nothing animates. The only dimming is the flat backdrop behind it.
+   At 1920x1080: ~1040 px wide, 16:9 video (~585 px tall), title row above, sighting buttons below. */
+
+.sm {
+  width: min(1040px, calc(100vw - 64px));
+  max-width: none;
+  max-height: calc(100vh - 48px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-left: var(--card-bar) solid var(--rule); /* color set inline: var(--chase-N) */
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  overflow: hidden auto;
+}
+/* Flat dimming, --ink (#0E1A24) at 78%. Literal because ::backdrop can't read the page's variables everywhere. */
+.sm::backdrop { background: rgb(14 26 36 / 0.78); }
+
+.sm-box { display: flex; flex-direction: column; min-height: 0; }
+
+.sm-head { display: flex; align-items: flex-start; gap: 16px; padding: 12px 16px 10px; }
+.sm-heading { flex: 1; min-width: 0; }
+.sm-title {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sm-sub { margin: 2px 0 0; color: var(--muted); font-size: var(--fs-small); line-height: 18px; }
+.sm-close { flex: none; font-size: var(--fs-body); padding: 5px 14px; border-color: var(--muted); }
+
+/* The video, or a sentence in its place. Same 16:9 box either way, so the layout doesn't jump. */
+.sm-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 220px);
+  background: var(--ink);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.sm-video { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--ink); }
+.sm-msg {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-body);
+}
+.sm-note { margin: 8px 16px 0; color: var(--muted); font-size: var(--fs-small); line-height: 18px; }
+
+/* One button per path step, oldest first; the one on screen is pressed. */
+.sm-steps { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 14px; }
+.sm-step {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 10px;
+  border-color: color-mix(in srgb, var(--muted) 55%, transparent);
+  font-size: var(--fs-body);
+  font-weight: 400;
+}
+.sm-step:hover { background: color-mix(in srgb, var(--rule) 45%, transparent); }
+.sm-step[aria-pressed='true'] {
+  border-color: var(--text);
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.sm-step-time {
+  font-family: var(--font-sign);
+  font-weight: 500;
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
