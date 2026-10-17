@@ -12,6 +12,19 @@ Settings (environment variables):
     CLARITY_CAMERAS     the active cameras.json served at GET /cameras, default data/cameras.json
     CLARITY_BUS_CORS    browser origins allowed to call the bus (comma-separated),
                         default http://localhost:5173,http://127.0.0.1:5173 (the dashboard dev server)
+    CLARITY_CLIP_ROOT   folder that relative source.uri clip paths start from, default the repo root
+                        (same rule as feeds/base.py)
+
+Endpoints:
+    POST /events                 publish one event (validated against contracts/schemas)
+    GET  /events?type=&since_ts= past events (polling)
+    WS   /ws                     dashboard stream: one bus_snapshot, then every new event
+    GET  /cameras                the active cameras.json (re-read on every request)
+    GET  /clips/{camera_id}      that camera's replay clip (source.uri), with Range support so <video> can seek.
+                                 Only files named in cameras.json, only .mp4/.mov/.webm; anything else is 404.
+    GET  /clips/{camera_id}/info {"camera_id", "start_ts", "available", "content_type", "reason"}:
+                                 clip second = run-clock ts - start_ts; reason says why available is false
+    GET  /health                 liveness + counts of valid/invalid events
 
 Polling (GET /events, bus.client.fetch): since_ts is inclusive and results come in arrival order,
 not ts order. Poll with a lookback (e.g. since_ts = newest ts seen - 30) and de-duplicate by event_id.
@@ -28,11 +41,14 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from contracts.validate import check
 
 log = logging.getLogger("bus")
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CLIP_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"}
 
 STRICT = os.environ.get("CLARITY_BUS_STRICT", "1") != "0"
 RUN_ID = os.environ.get("CLARITY_RUN_ID", "run_dev")
@@ -56,7 +72,7 @@ order_lock = asyncio.Lock()
 
 app = FastAPI(title="Clarity bus")
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["GET", "POST"],
-                   allow_headers=["Content-Type"])
+                   allow_headers=["Content-Type", "Range"])
 
 
 def _finite_float(text: str) -> float:
@@ -208,6 +224,74 @@ async def get_cameras():
         return JSONResponse({"ok": False, "errors": [f"{CAMERAS_PATH} is not valid JSON: {e}"]}, status_code=500)
 
 
+def clip_root() -> Path:
+    # Same rule as feeds/base.py (not imported, so the bus doesn't need OpenCV).
+    return Path(os.environ.get("CLARITY_CLIP_ROOT") or REPO_ROOT)
+
+
+def find_camera(camera_id: str):
+    """The camera's entry in the active cameras.json, or None. camera_id is only ever a lookup key."""
+    cameras = read_cameras()
+    entries = cameras.get("cameras") if isinstance(cameras, dict) else None
+    for cam in entries if isinstance(entries, list) else []:
+        if isinstance(cam, dict) and cam.get("camera_id") == camera_id:
+            return cam
+    return None
+
+
+def resolve_clip(cam: dict):
+    """(path, content_type, None) for a playable clip, else (None, content_type or None, why not)."""
+    source = cam.get("source") if isinstance(cam.get("source"), dict) else {}
+    uri = source.get("uri")
+    if source.get("kind") != "replay" or not isinstance(uri, str) or not uri.strip():
+        return None, None, f"{cam.get('camera_id')} has no replay clip in cameras.json"
+    root = clip_root().resolve()
+    path = (root / uri).resolve()
+    if not path.is_relative_to(root):  # a uri like ../x.mp4 or an absolute path must not escape the clip folder
+        return None, None, f"{cam.get('camera_id')}: source.uri points outside CLARITY_CLIP_ROOT"
+    content_type = CLIP_TYPES.get(path.suffix.lower())
+    if content_type is None:  # also stops a typo in cameras.json from serving a non-video file
+        return None, None, (f"{cam.get('camera_id')}: {path.suffix or 'no extension'} is not a served video type "
+                            f"({', '.join(CLIP_TYPES)})")
+    if not path.is_file():
+        return None, content_type, f"{cam.get('camera_id')}: clip not found (check source.uri and CLARITY_CLIP_ROOT)"
+    return path, content_type, None
+
+
+def start_ts_of(cam: dict):
+    source = cam.get("source") if isinstance(cam.get("source"), dict) else {}
+    value = source.get("start_ts")
+    ok = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    return value if ok else None
+
+
+def unknown_camera(camera_id: str) -> JSONResponse:
+    return JSONResponse({"ok": False, "errors": [f"no camera {camera_id!r} in {CAMERAS_PATH}"]}, status_code=404)
+
+
+@app.get("/clips/{camera_id}/info")
+async def get_clip_info(camera_id: str):
+    """What the dashboard needs to open the clip: clip second = run-clock ts - start_ts."""
+    cam = find_camera(camera_id)
+    if cam is None:
+        return unknown_camera(camera_id)
+    path, content_type, why_not = resolve_clip(cam)
+    return {"camera_id": camera_id, "start_ts": start_ts_of(cam), "available": path is not None,
+            "content_type": content_type, "reason": why_not}
+
+
+@app.get("/clips/{camera_id}")
+async def get_clip(camera_id: str):
+    """The camera's replay clip. FileResponse answers Range requests with 206, so <video> can seek."""
+    cam = find_camera(camera_id)
+    if cam is None:
+        return unknown_camera(camera_id)
+    path, content_type, why_not = resolve_clip(cam)
+    if path is None:
+        return JSONResponse({"ok": False, "errors": [why_not]}, status_code=404)
+    return FileResponse(path, media_type=content_type)
+
+
 @app.get("/health")
 async def health():
     return {"ok": True, "run_id": RUN_ID, "strict": STRICT, "log": str(LOG_PATH),
@@ -224,6 +308,9 @@ def main() -> None:
     if read_cameras() is None:
         log.warning("no readable cameras file at %s: the dashboard map will be empty (set CLARITY_CAMERAS)",
                     CAMERAS_PATH)
+    if not hasattr(FileResponse, "_parse_range_header"):  # older Starlette serves whole files only
+        log.warning("this Starlette ignores Range requests: clip seeking in the dashboard won't work "
+                    "(pip install -U fastapi starlette)")
     load_existing_log()
     uvicorn.run(app, host=host, port=port)
 
