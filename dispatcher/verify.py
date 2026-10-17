@@ -55,6 +55,6 @@ def verify(proposal: dict, case: SubjectCase, known_cameras: set[str], intercept
     cap = priority_for(sev)
     if PRIORITY_RANK.get(proposal["priority"], 99) > PRIORITY_RANK[cap]:
         errors.append(f"priority {proposal['priority']!r} exceeds what cited evidence supports ({cap!r})")
-    if proposal["status"] == "alert" and sev < 3:
-        errors.append("status 'alert' requires cited evidence of a medium-or-higher severity activity")
+    if proposal["status"] == "alert" and sev == 0:
+        errors.append("status 'alert' requires citing evidence of an actual activity (not 'none')")
     return errors

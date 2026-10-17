@@ -11,10 +11,11 @@ from .graph import CameraGraph
 from .models import SubjectCase
 
 # Keyed on detection.activity, the closed enum from contracts v0.1 (what Wali's vision model detects).
+# Priorities agreed by the team (Sat Oct 17 evening): stabbing high, fistfight (assault) medium, purse_snatch low.
 ACTIVITY_SEVERITY = {
-    "stabbing": 5,
-    "fistfight": 4,
-    "purse_snatch": 4,
+    "stabbing": 5,      # -> high; the only activity rules can auto-alert on (alert_min_severity = 4)
+    "fistfight": 3,     # -> medium
+    "purse_snatch": 2,  # -> low
     "none": 0,
 }
 NO_ACTIVITY = (None, "", "none")

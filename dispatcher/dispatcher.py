@@ -168,7 +168,10 @@ class Dispatcher:
                 proposal = self.llm.complete_json(
                     SYSTEM_PROMPT, build_user_message(case, cam_path, pred, self.graph, errors), PROPOSAL_SCHEMA
                 )
-            except Exception as exc:  # timeout, bad JSON, server down: fail safe
+            except ValueError as exc:  # unparseable answer (e.g. cut off at max_tokens): worth one more try
+                errors = [f"your previous answer was not valid JSON ({exc}); answer with compact JSON only"]
+                continue
+            except Exception as exc:  # timeout, server down: fail safe
                 errors = [f"model call failed: {type(exc).__name__}: {exc}"]
                 break
             errors = verify(proposal, case, known, intercept_camera(cam_path, pred))

@@ -69,7 +69,7 @@ DOC = [
     ver("ver_44b0", 1776.5, "cam_05", "subj_7", "match", ["rel_1c9d", "det_9e11"]),
 ]
 
-GOOD = {"status": "tracking", "priority": "high",
+GOOD = {"status": "tracking", "priority": "low",
         "recommendation": "Send a guard toward cam_08; check on the victim near cam_03.",
         "reason": "Purse snatch at cam_03, subject confirmed moving north at cam_05.",
         "evidence_event_ids": ["det_8f2a", "rel_1c9d", "ver_44b0"]}
@@ -223,8 +223,8 @@ def test_verify_accepts_grounded():
     ({"evidence_event_ids": ["det_8f2a", "det_ghost"]}, "not in this subject"),
     ({"evidence_event_ids": []}, "at least one"),
     ({"recommendation": "Send officer to cam_99"}, "cameras not in this case"),
-    ({"evidence_event_ids": ["det_9e11"]}, "exceeds"),
-    ({"status": "alert", "priority": "low", "evidence_event_ids": ["det_9e11"]}, "requires cited evidence"),
+    ({"evidence_event_ids": ["det_8f2a"], "priority": "medium"}, "exceeds"),  # purse_snatch caps at low
+    ({"status": "alert", "evidence_event_ids": ["det_9e11"]}, "actual activity"),
 ])
 def test_verify_rejects(patch, needle):
     errs = verify({**GOOD, **patch}, case_from(DOC), KNOWN)
@@ -254,6 +254,16 @@ def test_verify_follows_relay_to_detection_for_severity():
 
 # --- dispatcher flow --------------------------------------------------------
 
+def test_team_priorities():
+    from dispatcher.rules import activity_severity, priority_for
+    assert [priority_for(activity_severity(a)) for a in ("stabbing", "fistfight", "purse_snatch", "none")] ==         ["high", "medium", "low", "low"]
+
+
+def test_only_stabbing_auto_alerts_by_rules():
+    assert gate(case_from([det("det_1", "cam_03", 0, "fistfight", 0.99)]), CFG) == "ambiguous"
+    assert gate(case_from([det("det_1", "cam_03", 0, "purse_snatch", 0.99)]), CFG) == "ambiguous"
+
+
 def test_clear_alert_skips_model(graph):
     llm = Fake(GOOD)
     out = Dispatcher(graph, llm).process([det("det_1", "cam_03", 0, "stabbing", 0.95),
@@ -274,6 +284,13 @@ def test_persistent_hallucination_falls_back(graph):
     out = d.process(DOC[:2])
     assert out[0]["status"] == "tracking" and out[0]["recommendation"].startswith("Operator review")
     assert d.audit[0]["route"] == "fallback" and d.audit[0]["verifier_errors"]
+
+
+def test_invalid_json_is_retried(graph):
+    early = {**GOOD, "recommendation": "Send a guard to cam_05.", "evidence_event_ids": ["det_8f2a", "rel_1c9d"]}
+    d = Dispatcher(graph, Fake(ValueError("Expecting ',' delimiter"), early))
+    d.process(DOC[:2])
+    assert d.audit[0]["route"] == "model" and d.audit[0]["model_calls"] == 2
 
 
 def test_model_exception_falls_back(graph):
@@ -333,7 +350,7 @@ class SlowGrounded:
         time.sleep(self.delays.get(case["subject_id"], self.delay))
         with self.lock:
             self.in_flight -= 1
-        return {"status": "tracking", "priority": "high",
+        return {"status": "tracking", "priority": "low",
                 "recommendation": f"Send officers to {case['send_officers_to']}.", "reason": "Moderate evidence.",
                 "evidence_event_ids": [e["event_id"] for e in case["evidence"]]}
 

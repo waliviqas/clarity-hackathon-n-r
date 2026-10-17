@@ -44,7 +44,7 @@ Every emitted dispatch is checked in tests against the v0.1 required fields and 
 | `status`, `priority`, `recommendation`, `reason`, `evidence_event_ids` | rules template (clear cases) or the model (ambiguous), always verified |
 | `requires_human_confirm` | `true` until an `operator_action` arrives |
 
-Severity by activity: `stabbing` 5 · `fistfight` 4 · `purse_snatch` 4 · `none` 0 → priority ≥4 high, 3 medium, else low.
+Priorities (team decision): `stabbing` → high · `fistfight` (assault) → medium · `purse_snatch` → low · `none` → no incident. Only stabbing can be auto-alerted by rules; the others always get the model, capped at their priority.
 
 ## Batches, parallel incidents, and the bus
 
@@ -79,20 +79,20 @@ vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --po
   --mamba_ssm_cache_dtype float32 --enable-prefix-caching --trust-remote-code
 ```
 
-- `/no_think` at the top of the fixed system prompt turns off Nano v2's default reasoning.
+- No `/no_think`: the JSON schema forces the first token to be `{`, so no reasoning block can start. With `/no_think` the model trailed into whitespace until `max_tokens` (0/5 valid vs 5/5 without).
 - **No `maxLength` in the JSON schema.** On vLLM 0.11, string length limits made schema-constrained decoding ~8× slower (13.3 s → 1.6 s per call, 8 → ~65 tokens/s, same output). Lengths are enforced by the verifier instead.
 - **Prefix caching is not active.** `--enable-prefix-caching` is set, but vLLM's `prefix_cache_queries_total` metric stayed at 0: vLLM 0.11 doesn't apply it to this hybrid Mamba model. Don't claim it.
-- **Throughput from continuous batching** (`scripts/bench_dispatcher.py`; A100, 0.30 slice, shared with the team's other models; real dispatcher prompt + JSON schema; 16 requests per level):
+- **Change-by-change measurements: see [IMPROVEMENTS.md](IMPROVEMENTS.md).**
+- **Throughput from continuous batching** (`scripts/bench_dispatcher.py`; A100, 0.30 slice, shared with the team's other models; real dispatcher prompt + JSON schema; 16 requests per level; final config):
 
   | concurrent requests | p50 latency | p95 latency | requests/s | output tokens/s | passed verifier |
   |---|---|---|---|---|---|
-  | 1 | 1.55 s | 1.56 s | 0.65 | 68 | 16/16 |
-  | 2 | 1.66 s | 1.68 s | 1.20 | 126 | 16/16 |
-  | 4 | 1.85–1.9 s | 1.9 s | 2.1 | 221–225 | 32/32 |
-  | 8 | 3.13 s | 4.04 s | 2.53 | 266 | 16/16 |
-  | 16 | 3.40 s | 3.42 s | 4.61 | 484 | 16/16 |
+  | 1 | 1.53 s | 1.54 s | 0.65 | 68 | 16/16 |
+  | 4 | 1.85 s | 1.86 s | 2.16 | 223 | 16/16 |
+  | 8 | 2.25 s | 2.34 s | 3.51 | 362 | 16/16 |
+  | 16 | 3.14 s | 3.16 s | 4.99 | 514 | 16/16 |
 
-  7× the output throughput at 16 concurrent incidents for 2.2× the latency. One run at concurrency 4 had a single 27 s outlier that didn't reproduce in two reruns (likely GPU contention on the shared box).
+  7.6x the output throughput at 16 concurrent incidents for 2x the latency.
 - Rules-path dispatches (clear cases) take <1 ms and no GPU.
 
 ## Models and the 33B cap (exact counts from the published safetensors)

@@ -98,7 +98,7 @@ class ScriptedBackend:
                     "reason": "Weapon seen", "evidence_event_ids": ["det_zzzz"]}
         nxt = case["predicted_next"][0]["camera_id"] if case["predicted_next"] else case["path"][-1]["camera_id"]
         origin = case["path"][0]["camera_id"]
-        return {"status": "tracking", "priority": "high",
+        return {"status": "tracking", "priority": "low",
                 "recommendation": f"Send an officer toward {nxt}; check on the victim near {origin}.",
                 "reason": f"Purse snatch at {origin}; subject confirmed across {len(case['path'])} camera(s).",
                 "evidence_event_ids": [e["event_id"] for e in case["evidence"]]}

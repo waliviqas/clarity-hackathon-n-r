@@ -12,11 +12,12 @@ from typing import Protocol
 
 from .graph import CameraGraph
 from .models import SubjectCase
+from .rules import activity_severity, incident_type, priority_for
 
-# "/no_think" turns off Nemotron Nano v2's default reasoning: the schema keeps answers short and
-# reasoning tokens would add seconds per call.
-SYSTEM_PROMPT = """/no_think
-You are the dispatch agent for a city camera network. Camera agents track one subject
+# No "/no_think": the JSON schema already forces the answer to start with "{", so Nano v2 can't emit a
+# reasoning block. With "/no_think" the model trailed into whitespace until max_tokens (0/5 valid vs 5/5
+# without, 5.6 s vs 1.5 s). See dispatcher/IMPROVEMENTS.md.
+SYSTEM_PROMPT = """You are the dispatch agent for a city camera network. Camera agents track one subject
 across cameras and send you their evidence: detections (with activity), relays between cameras, and
 verdicts (match / no_match / uncertain). You decide what the human operator should do next.
 
@@ -28,7 +29,7 @@ Rules:
 - Use only facts in the evidence. Never invent details.
 - evidence_event_ids must list the event_ids that support your recommendation.
 - Mention cameras only by camera_ids that appear in the input.
-- priority (low / medium / high) must not exceed what the cited activities support.
+- priority (low / medium / high) must not exceed max_priority. Lower it if the evidence is weak.
 - Refer to cameras only by camera_id. Don't write camera names, and don't copy field names from the
   input into your text.
 - recommendation: one concrete action. Send officers to the send_officers_to camera (where the subject
@@ -80,6 +81,7 @@ def build_user_message(case: SubjectCase, cam_path: list[dict], pred: list[dict]
         "last_seen_camera": cam_path[-1]["camera_id"] if cam_path else None,
         "predicted_next": pred,
         "send_officers_to": intercept_camera(cam_path, pred),
+        "max_priority": priority_for(activity_severity(incident_type(case))),
         "evidence": [_evidence_view(m, graph, t0) for m in events],
     }
     msg = "Case:\n" + json.dumps(payload, separators=(",", ":"))
