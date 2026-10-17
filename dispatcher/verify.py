@@ -28,7 +28,8 @@ def supported_severity(cited: list[str], case: SubjectCase) -> int:
 MAX_RECOMMENDATION, MAX_REASON = 300, 500  # dispatch contract v0.1
 
 
-def verify(proposal: dict, case: SubjectCase, known_cameras: set[str], intercept: str | None = None) -> list[str]:
+def verify(proposal: dict, case: SubjectCase, known_cameras: set[str], intercept: str | None = None,
+           max_recommendation: int = MAX_RECOMMENDATION) -> list[str]:
     missing = [k for k in REQUIRED if k not in proposal]
     if missing:
         return [f"missing fields: {', '.join(missing)}"]
@@ -46,8 +47,8 @@ def verify(proposal: dict, case: SubjectCase, known_cameras: set[str], intercept
         errors.append(f"mentions cameras not in this case: {sorted(mentioned - known_cameras)}")
     if intercept and intercept not in CAMERA_REF.findall(proposal["recommendation"]):
         errors.append(f"recommendation must send officers to {intercept} (send_officers_to)")
-    if len(proposal["recommendation"]) > MAX_RECOMMENDATION:
-        errors.append(f"recommendation longer than {MAX_RECOMMENDATION} characters")
+    if len(proposal["recommendation"]) > max_recommendation:
+        errors.append(f"recommendation longer than {max_recommendation} characters")
     if len(proposal["reason"]) > MAX_REASON:
         errors.append(f"reason longer than {MAX_REASON} characters")
 

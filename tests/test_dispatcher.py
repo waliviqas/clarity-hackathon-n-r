@@ -407,3 +407,37 @@ def test_max_parallel_caps_concurrency(graph):
     llm = SlowGrounded(delay=0.1)
     Dispatcher(graph, llm, max_parallel=2).process(three_incidents())
     assert llm.peak == 2
+
+
+# --- hard-coded procedure guidance ------------------------------------------
+
+from dispatcher.guidance import GUIDANCE  # noqa: E402
+
+
+def test_guidance_appended_by_code_per_incident_type(graph):
+    out = Dispatcher(graph, Fake(GOOD)).process(DOC)
+    assert out[-1]["recommendation"].endswith(GUIDANCE["purse_snatch"])
+    alert = Dispatcher(graph).process([det("det_s1", "cam_03", 10, "stabbing", 0.95),
+                                       rel("rel_s1", 11, "cam_03", "cam_05", "subj_2", ["det_s1"])])[0]
+    assert alert["recommendation"].endswith(GUIDANCE["stabbing"])
+
+
+def test_guidance_not_doubled_by_operator_action(graph):
+    d = Dispatcher(graph, Fake(GOOD))
+    d.process(DOC)
+    conf = d.ingest(op("op_01", 1790.0, "inc_1", "confirm"))[0]
+    assert conf["recommendation"].count("Procedure:") == 1
+
+
+def test_guidance_can_be_turned_off(graph):
+    out = Dispatcher(graph, Fake(GOOD), guidance=False).process(DOC)
+    assert "Procedure:" not in out[-1]["recommendation"]
+
+
+def test_guidance_fits_contract_length(graph):
+    long_rec = {**GOOD, "recommendation": "Send a guard toward cam_08. " + "x" * 260}  # fits 300 alone, not with guidance
+    d = Dispatcher(graph, Fake(long_rec))
+    out = d.process(DOC)
+    assert d.audit[-1]["route"] == "fallback"  # rejected for length, so no over-long dispatch
+    assert all(len(m["recommendation"]) <= 300 for m in out)
+    assert all(len(line) <= 90 for line in GUIDANCE.values())

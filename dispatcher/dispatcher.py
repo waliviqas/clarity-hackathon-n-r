@@ -12,11 +12,12 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Iterable
 
 from .graph import CameraGraph
+from .guidance import guidance_for, with_guidance
 from .llm import PROPOSAL_SCHEMA, SYSTEM_PROMPT, LLMBackend, build_user_message, intercept_camera
 from .models import HEADER, SCHEMA_VERSION, SubjectCase
 from .rules import (RuleConfig, gate, incident_type, path, predicted_next, subject_appearance,
                     subject_direction, template)
-from .verify import verify
+from .verify import MAX_RECOMMENDATION, verify
 
 # Fields that identify a message instance rather than its content.
 _INSTANCE_FIELDS = {"event_id", "ts"}
@@ -28,9 +29,10 @@ PredictNext = Callable[[str, "str | None"], list[dict]]
 class Dispatcher:
     def __init__(self, graph: CameraGraph, llm: LLMBackend | None = None,
                  cfg: RuleConfig = RuleConfig(), max_revisions: int = 1,
-                 predict_next: PredictNext | None = None, max_parallel: int = 8):
+                 predict_next: PredictNext | None = None, max_parallel: int = 8, guidance: bool = True):
         self.graph = graph
         self.llm = llm
+        self.guidance = guidance  # append fixed procedure lines (dispatcher/guidance.py)
         self.predict_next = predict_next  # Wali's graph; falls back to rules.predicted_next when absent
         self.cfg = cfg
         self.max_revisions = max_revisions
@@ -174,7 +176,8 @@ class Dispatcher:
             except Exception as exc:  # timeout, server down: fail safe
                 errors = [f"model call failed: {type(exc).__name__}: {exc}"]
                 break
-            errors = verify(proposal, case, known, intercept_camera(cam_path, pred))
+            room = MAX_RECOMMENDATION - (len(guidance_for(incident_type(case))) + 1 if self.guidance else 0)
+            errors = verify(proposal, case, known, intercept_camera(cam_path, pred), max_recommendation=room)
             if not errors:
                 return {k: proposal[k] for k in ("status", "priority", "recommendation", "reason", "evidence_event_ids")}, "model", calls, []
         return self._fallback(case, cam_path, pred), "fallback", calls, errors
@@ -191,6 +194,9 @@ class Dispatcher:
         if case.incident_id is None:
             self._incident_count += 1
             case.incident_id = f"inc_{self._incident_count}"
+        recommendation = body["recommendation"]
+        if self.guidance and route != "operator":  # operator updates reuse the already-guided text
+            recommendation = with_guidance(recommendation, incident_type(case))
         msg = {
             "type": "dispatch",
             "schema_version": SCHEMA_VERSION,
@@ -205,7 +211,7 @@ class Dispatcher:
             "priority": body["priority"],
             "path": cam_path,
             "predicted_next": pred,
-            "recommendation": body["recommendation"],
+            "recommendation": recommendation,
             "reason": body["reason"],
             "evidence_event_ids": body["evidence_event_ids"],
             "requires_human_confirm": case.operator_action is None,

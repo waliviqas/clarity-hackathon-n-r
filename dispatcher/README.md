@@ -46,6 +46,18 @@ Every emitted dispatch is checked in tests against the v0.1 required fields and 
 
 Priorities (team decision): `stabbing` → high · `fistfight` (assault) → medium · `purse_snatch` → low · `none` → no incident. Only stabbing can be auto-alerted by rules; the others always get the model, capped at their priority.
 
+## Procedure guidance (hard-coded)
+
+Every recommendation ends with a fixed procedure line for its incident type, appended by code after verification (never written by the model), from `dispatcher/guidance.py`:
+
+| incident_type | appended line |
+|---|---|
+| stabbing | Procedure: armed suspect, approach with backup; request EMS for the victim. |
+| fistfight | Procedure: separate the parties, check for injuries, request EMS if needed. |
+| purse_snatch | Procedure: take the victim's statement and broadcast the suspect description. |
+
+The model's part is limited to 300 minus the guidance length, so the total stays within the contract's 300 characters. Turn it off with `Dispatcher(guidance=False)`. This replaces the earlier RAG idea (dropped).
+
 ## Batches, parallel incidents, and the bus
 
 `Dispatcher.process(batch)` takes a batch of messages (one bus poll), then evaluates every incident it touched **once**:
