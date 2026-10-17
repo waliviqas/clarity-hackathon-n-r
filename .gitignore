@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Hackathon: confidential reference notes (NVIDIA slides) and local planning docs
+*hack_reference*.md
+*hackathon_plan*.md
+friction-log*.txt
+notes/
