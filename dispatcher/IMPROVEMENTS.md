@@ -16,6 +16,7 @@ Every change to the dispatcher's model path, the problem it fixed, and what we m
 | 6 | Priority cap given to the model as `max_priority` (team priorities: stabbing high, fistfight medium, purse snatch low) | Model chose "high" for purse snatches; verifier would reject | — | model never exceeded the cap; 0 priority rejections | 36 calls | this commit |
 | 7 | Retry once on unparseable JSON (was: straight to fallback) | Occasional runaway whitespace until `max_tokens` → cut-off JSON | 1 fallback in 15 dispatches | **0 fallbacks** in 36 calls; 6/36 first attempts needed the retry | 2 runs | this commit |
 | 8 | Removed `/no_think` from the system prompt | With the current prompt, `/no_think` made the model trail into whitespace until `max_tokens` | **0/5** valid, 5.6 s, 400 tokens | **5/5** valid, 1.5 s, 103 tokens | 5 + 5 calls | this commit |
+| 9 | Fallback prediction: combine heading × relay signals (was: relay weight replaced heading); only count relays from the subject's last confirmed camera; take heading from detections before relays | Running Mina's `fake_scenario` through her real bus, the dispatcher once sent officers to a **decoy** exit: a stale relay from the junction outranked the exit the subject had already reached | 1/13 dispatches → decoy; real exit vs decoy tied 50/50 at the junction | **0/14** → decoy; exit 0.75 vs decoy 0.25 at the junction | 1 end-to-end run, 3 incidents | this commit |
 
 The schema forces the first output token to be `{`, so Nano v2 can't start a reasoning block anyway; dropping `/no_think` costs nothing.
 

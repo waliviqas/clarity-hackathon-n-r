@@ -441,3 +441,91 @@ def test_guidance_fits_contract_length(graph):
     assert d.audit[-1]["route"] == "fallback"  # rejected for length, so no over-long dispatch
     assert all(len(m["recommendation"]) <= 300 for m in out)
     assert all(len(line) <= 90 for line in GUIDANCE.values())
+
+
+# --- bus runner (dispatcher/run.py) against a fake bus with Mina's fetch() semantics ---
+
+from dispatcher.run import Runner  # noqa: E402
+
+
+class FakeBus:
+    """fetch(type, since_ts): inclusive since_ts, arrival order (not ts order). publish(): collects."""
+
+    def __init__(self):
+        self.log, self.published = [], []
+
+    def post(self, *events):
+        self.log += events
+
+    def fetch(self, kind, since_ts):
+        return [e for e in self.log if e["type"] == kind and e["ts"] >= since_ts]
+
+    def publish(self, event):
+        self.published.append(event)
+
+
+def test_runner_publishes_and_skips_lookback_repeats(graph):
+    bus, llm = FakeBus(), SlowGrounded(delay=0)
+    runner = Runner(Dispatcher(graph, llm, run_tag="rt"), bus.fetch, bus.publish)
+    bus.post(DOC[1], DOC[0])  # arrival order != ts order
+    runner.poll_once()
+    assert len(bus.published) == 1 and llm.calls == 1
+    runner.poll_once()  # same events come back inside the lookback window
+    assert len(bus.published) == 1 and llm.calls == 1
+    bus.post(DOC[2], DOC[3])
+    runner.poll_once()
+    assert len(bus.published) == 2 and llm.calls == 2
+    assert all(m["incident_id"] == "inc_rt_1" and m["event_id"].startswith("dsp_rt_") for m in bus.published)
+
+
+def test_runner_handles_operator_action_from_dashboard(graph):
+    bus = FakeBus()
+    runner = Runner(Dispatcher(graph, SlowGrounded(delay=0), run_tag="rt"), bus.fetch, bus.publish)
+    bus.post(*DOC)
+    runner.poll_once()
+    bus.post(op("op_01", 1790.0, "inc_rt_1", "confirm"))
+    runner.poll_once()
+    assert bus.published[-1]["status"] == "alert" and bus.published[-1]["requires_human_confirm"] is False
+
+
+def test_runner_ignores_other_producers_dispatches(graph):
+    """fake_scenario publishes stand-in dispatches; the runner doesn't fetch 'dispatch', and tagged ids can't collide."""
+    bus = FakeBus()
+    bus.post({**hdr("dispatch", "dsp_01", 1.0), "incident_id": "inc_1"})
+    bus.post(*DOC)
+    Runner(Dispatcher(graph, SlowGrounded(delay=0), run_tag="rt"), bus.fetch, bus.publish).poll_once()
+    assert [m["incident_id"] for m in bus.published] == ["inc_rt_1"]
+
+
+def test_run_id_is_copied_into_dispatches(graph):
+    out = Dispatcher(graph, Fake(GOOD), run_tag="rt", run_id="run_demo1").process(DOC)
+    assert all(m["run_id"] == "run_demo1" for m in out)
+    for m in out:
+        assert_dispatch_contract(m)
+
+
+# --- regressions found running Mina's fake_scenario through her real bus ----
+
+def junction_case():
+    """Subject heading north reaches junction cam_05; the agent relays to BOTH the north exit and the east decoy."""
+    return DOC + [rel("rel_ex", 1777.0, "cam_05", "cam_08", "subj_7", ["det_9e11"], direction="north"),
+                  rel("rel_dc", 1777.0, "cam_05", "cam_06", "subj_7", ["det_9e11"], direction="east")]
+
+
+def test_relay_to_decoy_does_not_erase_heading(graph):
+    c = case_from(junction_case())
+    pred = predicted_next(c, path(c), graph, CFG)
+    assert pred[0] == {"camera_id": "cam_08", "probability": 0.75}  # was a 50/50 tie
+
+
+def test_stale_relay_to_decoy_ignored_after_subject_reaches_exit(graph):
+    msgs = junction_case() + [det("det_ex", "cam_08", 1800.0), ver("ver_ex", 1801.0, "cam_08", "subj_7", "match",
+                                                                     ["rel_ex", "det_ex"])]
+    c = case_from(msgs)
+    assert path(c)[-1]["camera_id"] == "cam_08"
+    assert predicted_next(c, path(c), graph, CFG) == []  # was [cam_06 (decoy) 1.0]
+
+
+def test_heading_comes_from_detections_not_relay_edges():
+    from dispatcher.rules import subject_direction
+    assert subject_direction(case_from(junction_case())) == "north"

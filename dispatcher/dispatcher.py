@@ -29,9 +29,14 @@ PredictNext = Callable[[str, "str | None"], list[dict]]
 class Dispatcher:
     def __init__(self, graph: CameraGraph, llm: LLMBackend | None = None,
                  cfg: RuleConfig = RuleConfig(), max_revisions: int = 1,
-                 predict_next: PredictNext | None = None, max_parallel: int = 8, guidance: bool = True):
+                 predict_next: PredictNext | None = None, max_parallel: int = 8, guidance: bool = True,
+                 run_tag: str = "", run_id: str | None = None):
         self.graph = graph
         self.llm = llm
+        # IDs become inc_<tag>_N / dsp_<tag>_NN so a restart or another producer (e.g. fake_scenario's
+        # stand-in dispatches) can't collide with ours on the bus. The runner always sets a tag.
+        self._id_prefix = f"{run_tag}_" if run_tag else ""
+        self.run_id = run_id
         self.guidance = guidance  # append fixed procedure lines (dispatcher/guidance.py)
         self.predict_next = predict_next  # Wali's graph; falls back to rules.predicted_next when absent
         self.cfg = cfg
@@ -193,14 +198,14 @@ class Dispatcher:
               route: str, calls: int, errors: list[str], t0: float) -> list[dict]:
         if case.incident_id is None:
             self._incident_count += 1
-            case.incident_id = f"inc_{self._incident_count}"
+            case.incident_id = f"inc_{self._id_prefix}{self._incident_count}"
         recommendation = body["recommendation"]
         if self.guidance and route != "operator":  # operator updates reuse the already-guided text
             recommendation = with_guidance(recommendation, incident_type(case))
         msg = {
             "type": "dispatch",
             "schema_version": SCHEMA_VERSION,
-            "event_id": f"dsp_{self._dispatch_count + 1:02d}",
+            "event_id": f"dsp_{self._id_prefix}{self._dispatch_count + 1:02d}",
             "ts": self.clock,
             "source": "dispatcher",
             "incident_id": case.incident_id,
@@ -216,6 +221,8 @@ class Dispatcher:
             "evidence_event_ids": body["evidence_event_ids"],
             "requires_human_confirm": case.operator_action is None,
         }
+        if self.run_id:
+            msg["run_id"] = self.run_id
         self.stats["model_calls"] += calls
         prev = case.last_dispatch
         if prev and {k: v for k, v in prev.items() if k not in _INSTANCE_FIELDS} == \

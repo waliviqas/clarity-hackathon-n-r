@@ -70,7 +70,9 @@ The model's part is limited to 300 minus the guidance length, so the total stays
 
 Measured on Mina's `fake_scenario` (3 incidents starting 10 s apart, replayed as one poll per second, live model): slowest poll 3.9 s → 2.3 s, model calls 18 → 15 (updates within a poll merge), no fallbacks. Overlap in that scenario peaks at 2 incidents; the gain grows with overlap (see the load test: 16 concurrent requests take 3.4 s, not 16 × 1.6 s).
 
-Planned bus runner (once `bus/` is on `main`): every ~0.5 s, `fetch()` `detection`, `relay`, `agent_verdict`, `operator_action` with `since_ts = newest seen − 30`, sort the merged list by `ts`, `d.process(batch)`, `publish()` each dispatch.
+**Bus runner: `python -m dispatcher.run`** (`dispatcher/run.py`). Every 0.5 s it `fetch()`es `detection`, `relay`, `agent_verdict`, `operator_action` with `since_ts = newest seen − 30`, sorts the merged list by `ts`, runs `process(batch)`, and `publish()`es each dispatch. Cameras come from the bus's `GET /cameras` (or `--cameras PATH`); Wali's `graph.predict_next` is used automatically if importable; `--no-model` runs rules only. Each process tags its IDs (`inc_r3fa9_1`, `dsp_r3fa9_01`) so restarts and `fake_scenario`'s stand-in dispatches can't collide.
+
+Verified end to end against Mina's real `bus/server.py` (strict schema validation) with `bus/fake_scenario.py`: 62/62 events valid, 0 invalid, 0 duplicate IDs, officers never sent to a decoy.
 
 ## Verifier (why the model can't send officers somewhere wrong)
 
@@ -134,5 +136,5 @@ python scripts/bench_dispatcher.py --levels 1 4 8 16                            
 
 ## Not done yet (waiting on others)
 
-- **Bus runner** (`fetch()` relays/verdicts/operator actions, `publish()` dispatches): waits for Mina's bus client to land on `main`.
-- **Wali's `predict_next`**: hook is ready (`Dispatcher(..., predict_next=fn)`); plug in when the graph module exists.
+- **Wali's `predict_next`**: `dispatcher.run` imports `graph.predict_next` automatically once his `graph` package is merged.
+- **Bus runner** needs Mina's `bus/` + `contracts/` merged before it can run (it exits with a clear message until then).

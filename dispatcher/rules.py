@@ -92,7 +92,13 @@ def subject_appearance(case: SubjectCase) -> str | None:
 
 
 def subject_direction(case: SubjectCase) -> str | None:
-    return _latest(case, "direction", (None, "", "unknown"))
+    """Observed heading: detections first. A relay's direction is the edge it was sent along, and an agent
+    relays to every neighbor (exit and decoy), so relays only count when no detection has a direction."""
+    skip = (None, "", "unknown")
+    seen = [d for d in case.of_type("detection") if d.get("direction") not in skip]
+    if seen:
+        return seen[-1]["direction"]
+    return _latest(case, "direction", skip)
 
 
 def predicted_next(case: SubjectCase, cam_path: list[dict], graph: CameraGraph, cfg: RuleConfig) -> list[dict]:
@@ -100,13 +106,20 @@ def predicted_next(case: SubjectCase, cam_path: list[dict], graph: CameraGraph, 
         return []
     visited = {p["camera_id"] for p in cam_path}
     answered = {v["camera_id"] for v in case.of_type("agent_verdict")}
-    pending = {r["to_camera"] for r in case.of_type("relay")} - answered - visited
-
     last, heading = cam_path[-1]["camera_id"], subject_direction(case)
-    weights = {c: cfg.heading_weight if heading and graph.direction(last, c) == heading else 1.0
-               for c in graph.neighbors(last) if c not in visited}
-    for c in pending:
-        weights[c] = max(weights.get(c, 1.0), cfg.pending_relay_weight)
+    # Only relays sent from where the subject was last confirmed: once they've moved on, older relays are stale.
+    pending = {r["to_camera"] for r in case.of_type("relay") if r["from_camera"] == last} - answered - visited
+
+    weights = {}
+    for c in set(graph.neighbors(last)) | pending:
+        if c in visited:
+            continue
+        w = 1.0
+        if heading and graph.direction(last, c) == heading:
+            w *= cfg.heading_weight  # signals combine: relayed-to AND in the direction of travel beats either alone
+        if c in pending:
+            w *= cfg.pending_relay_weight
+        weights[c] = w
     total = sum(weights.values())
     ranked = sorted(weights.items(), key=lambda kv: (-kv[1], kv[0]))[: cfg.max_predictions]
     return [{"camera_id": c, "probability": round(w / total, 2)} for c, w in ranked]
