@@ -7,6 +7,7 @@ Run from the repo root, into a folder outside the repo (clips never go in git):
 Each frame shows its camera and frame number in text, plus the frame number as a row of black/white
 squares that survives compression (read it back with read_frame_code). Camera k starts at run-clock
 (k-1) * --offset s (default 10: +0/+10/+20 like the three staged takes). No people, nothing sensitive.
+Clips are 320x240 unless --width/--height say otherwise (e.g. 1920x1080 to test feeds' max_width).
 """
 from __future__ import annotations
 
@@ -22,8 +23,8 @@ CELL = 20               # square size in pixels
 WIDTH, HEIGHT = 320, 240
 
 
-def draw_frame(camera_id: str, idx: int) -> np.ndarray:
-    img = np.full((HEIGHT, WIDTH, 3), 90, np.uint8)
+def draw_frame(camera_id: str, idx: int, width: int = WIDTH, height: int = HEIGHT) -> np.ndarray:
+    img = np.full((height, width, 3), 90, np.uint8)
     for bit in range(CODE_BITS):
         img[0:CELL, bit * CELL:(bit + 1) * CELL] = 255 if idx >> bit & 1 else 0
     cv2.putText(img, camera_id, (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 2)
@@ -36,12 +37,13 @@ def read_frame_code(image: np.ndarray) -> int:
     return sum(1 << bit for bit, v in enumerate(centers) if v > 127)
 
 
-def write_clip(path: Path, camera_id: str, seconds: float, fps: float) -> None:
-    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (WIDTH, HEIGHT))
+def write_clip(path: Path, camera_id: str, seconds: float, fps: float,
+               width: int = WIDTH, height: int = HEIGHT) -> None:
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
     if not writer.isOpened():
         raise SystemExit(f"ERROR: OpenCV can't write {path}")
     for idx in range(round(seconds * fps)):
-        writer.write(draw_frame(camera_id, idx))
+        writer.write(draw_frame(camera_id, idx, width, height))
     writer.release()
 
 
@@ -67,15 +69,19 @@ def main() -> None:
     parser.add_argument("--seconds", type=float, default=10.0)
     parser.add_argument("--fps", type=float, default=30.0, help="native frame rate of the clips")
     parser.add_argument("--offset", type=float, default=10.0, help="start_ts step between cameras (s)")
+    parser.add_argument("--width", type=int, default=WIDTH, help="frame width in pixels (even, >= 240)")
+    parser.add_argument("--height", type=int, default=HEIGHT, help="frame height in pixels (even, >= 180)")
     args = parser.parse_args()
     if not 1 <= args.cameras <= 12:
         raise SystemExit("ERROR --cameras: 1 to 12")
+    if args.width < CODE_BITS * CELL or args.height < 180 or args.width % 2 or args.height % 2:
+        raise SystemExit(f"ERROR --width/--height: even numbers, at least {CODE_BITS * CELL}x180")
     args.out_dir.mkdir(parents=True, exist_ok=True)
     clips = []
     for k in range(1, args.cameras + 1):
         cam = f"cam_{k:02d}"
         path = args.out_dir / f"{cam}.mp4"
-        write_clip(path, cam, args.seconds, args.fps)
+        write_clip(path, cam, args.seconds, args.fps, args.width, args.height)
         clips.append((cam, path, args.offset * (k - 1)))
         print(f"wrote {path}")
     out = args.out_dir / "cameras.json"
