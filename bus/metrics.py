@@ -14,6 +14,8 @@ What the numbers mean:
   verdict with the incident's subject_id. operator_action is not counted.
 - Its crime detection: the first detection (in arrival order) the dispatches cite, directly or through
   other events, whose activity isn't "none".
+- decisions: the incident's relays, verdicts and dispatches, whoever made them (a script, rules or a
+  model). The logs don't record whether a model ran, so this is not a count of model calls.
 - Overlap: an incident runs from its first to its last event; incidents that only touch count as
   "at once" but add no overlap time.
 - Events from bus.fake_scenario make the run "scripted": its timings are the script's pacing, not models.
@@ -28,7 +30,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-MODEL_DECISIONS = ("relay", "agent_verdict", "dispatch")
+DECISION_TYPES = ("relay", "agent_verdict", "dispatch")
 SCRIPTED_SOURCE = "fake_scenario"
 
 
@@ -117,7 +119,7 @@ def incident_metrics(key: str, dispatches: list[dict], events: list[dict], by_id
                   and e.get("activity") not in (None, "none")), None)
     first = dispatches[0]
     alert = next((d for d in dispatches if d.get("status") == "alert"), None)
-    decisions = Counter(e["type"] for e in members if e.get("type") in MODEL_DECISIONS)
+    decisions = Counter(e["type"] for e in members if e.get("type") in DECISION_TYPES)
     return {
         "incident_id": key,
         "subject_ids": subjects,
@@ -131,8 +133,8 @@ def incident_metrics(key: str, dispatches: list[dict], events: list[dict], by_id
         "to_first_alert_wall_s": gap(crime, alert, wall),
         "to_first_alert_run_s": gap(crime, alert, run),
         "events": len(members),
-        "model_decisions": sum(decisions.values()),
-        "model_decisions_by_type": {t: decisions[t] for t in MODEL_DECISIONS if decisions[t]},
+        "decisions": sum(decisions.values()),
+        "decisions_by_type": {t: decisions[t] for t in DECISION_TYPES if decisions[t]},
         "run_span": span(members, run),
         "wall_span": span(members, wall),
     }
@@ -203,7 +205,7 @@ def compute(run_dir: Path) -> dict:
     by_source = Counter(str(e.get("source")) for e in events)
     run_id = next((e["run_id"] for e in events if isinstance(e.get("run_id"), str)), run_dir.name)
     return {
-        "run_dir": str(run_dir),
+        "run_dir": run_dir.as_posix(),  # same text on Windows and Linux
         "run_id": run_id,
         "scripted": by_source.get(SCRIPTED_SOURCE, 0) > 0,
         "scripted_events": by_source.get(SCRIPTED_SOURCE, 0),
@@ -257,8 +259,8 @@ def report(m: dict) -> str:
                                   i["to_first_alert_run_s"])):
             lines.append(f"      to {label:<15}{str(eid or '-'):<12} wall {seconds(w, 2):>9}"
                          f"   run clock {seconds(r, 1):>8}")
-        lines.append(f"      events {i['events']}, model decisions {i['model_decisions']} "
-                     f"({counts_line(i['model_decisions_by_type'])})")
+        lines.append(f"      events {i['events']}, decisions {i['decisions']} "
+                     f"({counts_line(i['decisions_by_type'])})")
     if not m["incidents"]:
         lines.append("  no dispatches in this run")
 

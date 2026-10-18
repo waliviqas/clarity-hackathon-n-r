@@ -8,13 +8,17 @@ It gives no confidence, direction or box, so the detection says so instead of in
     (the dashboard puts a crime ring on every camera whose detection has a crime activity).
   - direction: null (not observed). bbox: null. activity_confidence: left out.
   - confidence: contract v0.1 requires a number here, so it is 0.5 with "confidence_known": false.
-    0.5 sits in the dispatcher's "ambiguous" band, so it acts like an unknown: never dropped, never
-    auto-alerted. Never 0.
+    The dispatcher reads confidence_known=false as unknown (Michael's 18efa11): never dropped; a stabbing
+    still alerts at once (56712cc), fistfights and purse snatches go to the model. Never 0.
   - extra fields (allowed by the contract): what_happened and on_screen (the dispatcher's model reads
-    them), spotter_crime (the spotter's own crime word), spotter (the whole answer), window_ts.
+    them), spotter_crime (the spotter's own crime word), spotter (the spotter's whole answer), window_ts.
+  - on a camera the checker was asked about (agents/combine.py), the suspect fields (and so `appearance`)
+    are the checker's; the detection adds description_by, checker (its 11 fields), checker_model, or
+    checker_error when it failed and the spotter's fields stayed. `spotter` is still what the spotter said.
 """
 from __future__ import annotations
 
+from .combine import split_answer
 from .matching import features
 
 SCHEMA_VERSION = "0.1"
@@ -72,13 +76,21 @@ def to_detection(answer: dict, *, event_id: str, track_id: str, camera_id: str, 
     event = {"type": "detection", "schema_version": SCHEMA_VERSION, "event_id": event_id, "ts": round(ts, 3)}
     if run_id:
         event["run_id"] = run_id
+    spotter, checker = split_answer(answer)
     event.update(
         source=SOURCE, camera_id=camera_id, track_id=track_id, label="person",
         confidence=UNSCORED_CONFIDENCE, confidence_known=False, bbox=None,
         activity=activity_of(answer), appearance=appearance_text(features(answer)), direction=None,
         on_screen=answer.get("on_screen"), what_happened=answer.get("what_happened"),
-        spotter_crime=answer.get("crime"), spotter=answer,
+        spotter_crime=answer.get("crime"), spotter=spotter,
     )
+    if answer.get("description_by"):  # the checker was asked about this camera
+        event["description_by"] = answer["description_by"]
+        if checker is not None:
+            event["checker"] = checker
+        for key in ("checker_model", "checker_error"):
+            if answer.get(key):
+                event[key] = answer[key]
     if window is not None:
         event["window_ts"] = [round(window[0], 3), round(window[1], 3)]
     event.update(extra or {})

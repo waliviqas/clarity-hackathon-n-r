@@ -1,9 +1,9 @@
 """Build the Annex site data from the filled clip log (format: data/staged/clip_log_template.csv).
 
-Writes (paths under --root, default the repo root):
-    data/sites/annex/cameras.json    camera graph: positions, neighbors, travel times, clip sources
+Writes (paths under --root, default the repo root; <site> is --site, default annex):
+    data/sites/<site>/cameras.json   camera graph: positions, neighbors, travel times, clip sources
     data/ground_truth/take<N>.json   per incident: subject, activity, outfit, path on the run clock, camera roles
-    data/manifests/annex.json        camera_id -> clip file + start_ts, for feeds/
+    data/manifests/<site>.json       camera_id -> clip file + start_ts, for feeds/
 
 Routes: one row per camera, each take's route rows in route order. Roles: an optional `approach` (the suspect is
 seen before the crime), the `crime`, any number of `path` cameras (`junction` is the older name for one), the
@@ -12,8 +12,9 @@ exit. Consecutive route cameras are linked, and so are the decoy and the camera 
 
 Run clock: each take is lined up on its crime: the crime row's suspect_enter is run-clock take offset + 5 s
 (5 / 15 / 25 s for takes 1/2/3), so the three separately filmed takes replay overlapped with their crimes 10 s
-apart. The other route clips follow by one of two rules, so a clip may start before run-clock 0 (feeds skips
-frames with ts < 0):
+apart. --run-offset S gives every take built the offset S instead (a one-take demo site uses 0, so its crime
+plays at 5 s like take 1's). The other route clips follow by one of two rules, so a clip may start before
+run-clock 0 (feeds skips frames with ts < 0):
   clock     the clips show a seconds clock. At clip second `clock_shown_at_s` it reads `clock_reading_hhmmss`, so
             clip second t is wall time reading + (t - clock_shown_at_s). A link's travel time is the next camera's
             suspect_enter minus the previous camera's suspect_exit on the run clock (0 if the views overlap).
@@ -51,6 +52,8 @@ Run from the repo root (stdlib only):
     python data/build_site.py data/staged/clip_log.csv --check-clips data/raw/staged
         (also checks that every clip_file exists in data/raw/staged/take<N>/ with the exact upper/lower case;
          the Brev box runs Linux, where IMG_0001.MOV and img_0001.mov are different files)
+    python data/build_site.py data/staged/clip_log_take3.csv --site annex_clip1 \\
+        --site-name "Red Hat Annex (clip 1)" --run-offset 0      # a one-take site of its own (clip 1)
 Then check: python contracts/validate.py data/sites/annex/cameras.json
 Tests (fixture logs in a temp folder): python data/check_build_site.py
 """
@@ -67,7 +70,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-SITE_ID = "annex"
+SITE_ID = "annex"  # default --site
+SITE_NAME = "Red Hat Annex (staged takes)"  # default --site-name
+SITE_ID_FORMAT = re.compile(r"^[a-z0-9_]+$")  # a folder name and a file name: data/sites/<site>/, <site>.json
 ROUTE_ROLES = ("approach", "crime", "path", "junction", "exit")  # route order; junction = path (older name)
 ROLES = ROUTE_ROLES + ("decoy",)
 ROUTE_RANK = {"approach": 0, "crime": 1, "path": 2, "junction": 2, "exit": 3}  # path rows keep their row order
@@ -321,8 +326,10 @@ def _positive(value: float) -> float:
     return value
 
 
-def build_take(n: int, rows: list[dict], problems: Problems, clocked: bool, run_speed: float) -> dict | None:
-    """Put one take's clips on the run clock; returns its route, path, links and clip start times."""
+def build_take(n: int, rows: list[dict], problems: Problems, clocked: bool, run_speed: float,
+               offset: float) -> dict | None:
+    """Put one take's clips on the run clock (its crime at offset + CRIME_AT_S); returns its route, path, links
+    and clip start times."""
     first: dict[str, dict] = {}
     for r in rows:
         if r["role"] in ONE_PER_TAKE and r["role"] in first:
@@ -348,7 +355,7 @@ def build_take(n: int, rows: list[dict], problems: Problems, clocked: bool, run_
     if any(r[k] is None for r in rows for k in ("camera_id", "lat", "lon")) or any(
             r[k] is None for r in route for k in timing) or None in (hops or []):
         return None  # cell errors already recorded
-    start_ts = clock_starts(n, route, problems) if clocked else chained_starts(n, route, hops)
+    start_ts = clock_starts(offset, route, problems) if clocked else chained_starts(offset, route, hops)
 
     path = [{"camera_id": r["camera_id"],
              "t_enter": round(start_ts[r["camera_id"]] + r["enter"], 2),
@@ -365,16 +372,16 @@ def build_take(n: int, rows: list[dict], problems: Problems, clocked: bool, run_
         split = route[-2]["camera_id"]
         start_ts[decoy["camera_id"]] = start_ts[split]  # the empty decoy clip plays with the camera it branches off
         links[(split, decoy["camera_id"])] = decoy["stopwatch"]
-    return {"take": n, "route": route, "decoy": decoy, "clocked": clocked, "start_ts": start_ts, "path": path,
-            "links": {k: round(v, 1) for k, v in links.items()}}
+    return {"take": n, "offset": offset, "route": route, "decoy": decoy, "clocked": clocked, "start_ts": start_ts,
+            "path": path, "links": {k: round(v, 1) for k, v in links.items()}}
 
 
-def clock_starts(n: int, route: list[dict], problems: Problems) -> dict[str, float]:
+def clock_starts(offset: float, route: list[dict], problems: Problems) -> dict[str, float]:
     """Run-clock start of each route clip from the clock it shows. The crime clip is placed so the suspect enters
     it at offset + CRIME_AT_S; the other clips keep their clock gap to it."""
     first = {r["camera_id"]: r["clock"] - r["shown_at"] for r in route}  # wall time of each clip's first frame
     crime = next(r for r in route if r["role"] == "crime")
-    crime_start = TAKE_OFFSETS[n] + CRIME_AT_S - crime["enter"]
+    crime_start = offset + CRIME_AT_S - crime["enter"]
     start_ts = {}
     for r in route:
         gap = first[r["camera_id"]] - first[crime["camera_id"]]
@@ -386,11 +393,11 @@ def clock_starts(n: int, route: list[dict], problems: Problems) -> dict[str, flo
     return start_ts
 
 
-def chained_starts(n: int, route: list[dict], hops: list[float]) -> dict[str, float]:
+def chained_starts(offset: float, route: list[dict], hops: list[float]) -> dict[str, float]:
     """Run-clock start of each route clip without a clock: the crime as in clock_starts; after it, enter = the
     previous camera's exit + the hop; before it (the approach), exit = the next camera's enter - the hop."""
     k = next(i for i, r in enumerate(route) if r["role"] == "crime")
-    start_ts = {route[k]["camera_id"]: round(TAKE_OFFSETS[n] + CRIME_AT_S - route[k]["enter"], 2)}
+    start_ts = {route[k]["camera_id"]: round(offset + CRIME_AT_S - route[k]["enter"], 2)}
     for i in range(k + 1, len(route)):
         prev, cur = route[i - 1], route[i]
         start_ts[cur["camera_id"]] = round(start_ts[prev["camera_id"]] + prev["exit"] + hops[i - 1] - cur["enter"], 2)
@@ -486,7 +493,8 @@ def mean_center(rows: list[dict]) -> dict:
             "lon": round(sum(r["lon"] for r in rows) / len(rows), 6)}
 
 
-def cameras_json(takes: list[dict], cams: dict[str, dict]) -> dict:
+def cameras_json(takes: list[dict], cams: dict[str, dict], site_id: str = SITE_ID,
+                 site_name: str = SITE_NAME) -> dict:
     neighbors: dict[str, list[dict]] = {cam: [] for cam in cams}
     for t in takes:
         for (a, b), travel in t["links"].items():
@@ -508,32 +516,34 @@ def cameras_json(takes: list[dict], cams: dict[str, dict]) -> dict:
                            "start_ts": t["start_ts"][r["camera_id"]]},
             })
     cameras.sort(key=lambda cam: cam["camera_id"])
-    return {"schema_version": "0.1", "site_id": SITE_ID, "site_name": "Red Hat Annex (staged takes)",
+    return {"schema_version": "0.1", "site_id": site_id, "site_name": site_name,
             "map": {"center": mean_center(list(cams.values())), "zoom": 18, "site_image": None},
             "cameras": cameras}
 
 
-def ground_truth(t: dict) -> dict:
+def ground_truth(t: dict, site_id: str = SITE_ID) -> dict:
     crime = next(r for r in t["route"] if r["role"] == "crime")
-    return {"site_id": SITE_ID, "take": t["take"], "run_offset_s": TAKE_OFFSETS[t["take"]],
+    return {"site_id": site_id, "take": t["take"], "run_offset_s": t["offset"],
             "incident_id": f"inc_take{t['take']}", "subject_id": f"subj_take{t['take']}",
             "activity": crime["activity"], "appearance": crime["outfit"],
             "path": t["path"], "decoy_camera_id": t["decoy"]["camera_id"] if t["decoy"] else None,
             "camera_roles": {r["camera_id"]: r["role"] for r in take_cameras(t)}}
 
 
-def manifest(takes: list[dict]) -> dict:
+def manifest(takes: list[dict], site_id: str = SITE_ID) -> dict:
     clips = {}
     for t in takes:
         for r in take_cameras(t):
             clips[r["camera_id"]] = {"take": t["take"], "clip_file": r["clip_file"],
                                      "uri": f"data/raw/staged/take{t['take']}/{r['clip_file']}",
                                      "start_ts": t["start_ts"][r["camera_id"]]}
-    return {"site_id": SITE_ID, "clips": dict(sorted(clips.items()))}
+    return {"site_id": site_id, "clips": dict(sorted(clips.items()))}
 
 
 def build(rows: list[dict], wanted: set[int] | None, clip_dir: Path | None = None,
-          run_speed: float = RUN_SPEED_M_S) -> tuple[dict, list[dict], dict]:
+          run_speed: float = RUN_SPEED_M_S, run_offset: float | None = None, site_id: str = SITE_ID,
+          site_name: str = SITE_NAME) -> tuple[dict, list[dict], dict]:
+    """run_offset: every take's run-clock offset (None: TAKE_OFFSETS, so the takes overlap 10 s apart)."""
     problems = Problems()
     if wanted:
         rows = [r for r in rows if r.get("take") in {str(n) for n in wanted}]
@@ -554,7 +564,8 @@ def build(rows: list[dict], wanted: set[int] | None, clip_dir: Path | None = Non
 
     takes = []
     for n in sorted({p["take"] for p in parsed if p["take"] is not None}):
-        t = build_take(n, [p for p in parsed if p["take"] == n], problems, str(n) in clocked, run_speed)
+        offset = TAKE_OFFSETS[n] if run_offset is None else run_offset
+        t = build_take(n, [p for p in parsed if p["take"] == n], problems, str(n) in clocked, run_speed, offset)
         if t:
             takes.append(t)
     if not problems:
@@ -566,9 +577,9 @@ def build(rows: list[dict], wanted: set[int] | None, clip_dir: Path | None = Non
         for msg in problems:
             print(f"ERROR {msg}", file=sys.stderr)
         raise SystemExit(1)
-    cameras = cameras_json(takes, seen)
+    cameras = cameras_json(takes, seen, site_id, site_name)
     warn_same_direction(cameras["cameras"])
-    return cameras, takes, manifest(takes)
+    return cameras, takes, manifest(takes, site_id)
 
 
 def write_json(path: Path, data: dict) -> None:
@@ -589,6 +600,14 @@ def main() -> int:
     parser.add_argument("--run-speed", type=float, default=RUN_SPEED_M_S, metavar="M_PER_S",
                         help="takes without a clock: escape speed for links without travel_s, used on the "
                              f"straight-line lat/lon distance (default {RUN_SPEED_M_S:g})")
+    parser.add_argument("--run-offset", type=float, metavar="SECONDS",
+                        help="run-clock offset of every take built, so its crime plays at SECONDS + "
+                             f"{CRIME_AT_S:g} (default: 0 / 10 / 20 for takes 1/2/3, so they overlap 10 s apart; "
+                             "a one-take demo site uses 0)")
+    parser.add_argument("--site", default=SITE_ID,
+                        help=f"site id: writes data/sites/<site>/cameras.json and data/manifests/<site>.json "
+                             f"(default {SITE_ID}; lower-case letters, digits and _)")
+    parser.add_argument("--site-name", default=SITE_NAME, help=f"site name on the map (default {SITE_NAME!r})")
     args = parser.parse_args()
     for stream in (sys.stdout, sys.stderr):  # a Windows pipe can't print every character in a cell
         stream.reconfigure(errors="replace")
@@ -598,8 +617,15 @@ def main() -> int:
         raise SystemExit(f"ERROR --takes: expected numbers like 1,2 (got {args.takes!r})")
     if not (math.isfinite(args.run_speed) and args.run_speed > 0):
         raise SystemExit(f"ERROR --run-speed: expected metres per second > 0 (got {args.run_speed:g})")
+    if args.run_offset is not None and not (math.isfinite(args.run_offset) and args.run_offset >= 0):
+        raise SystemExit(f"ERROR --run-offset: expected seconds >= 0 (got {args.run_offset:g})")
+    if not SITE_ID_FORMAT.match(args.site):
+        raise SystemExit(f"ERROR --site: lower-case letters, digits and _ only, e.g. annex_clip1 (got {args.site!r})")
+    if not args.site_name.strip():
+        raise SystemExit("ERROR --site-name: must not be blank")
 
-    cameras, takes, clips = build(read_rows(args.log), wanted, args.check_clips, args.run_speed)
+    cameras, takes, clips = build(read_rows(args.log), wanted, args.check_clips, args.run_speed, args.run_offset,
+                                  args.site, args.site_name.strip())
     for t in takes:
         hops = " -> ".join(f"{p['camera_id']}@{p['t_enter']}s" for p in t["path"])
         links = ", ".join(f"{a}-{b} {s}s" for (a, b), s in t["links"].items())
@@ -615,11 +641,11 @@ def main() -> int:
     if args.check_clips:
         print(f"all {sum(len(take_cameras(t)) for t in takes)} clips found in {args.check_clips}")
     data = args.root / "data"
-    write_json(data / "sites" / SITE_ID / "cameras.json", cameras)
+    write_json(data / "sites" / args.site / "cameras.json", cameras)
     for t in takes:
-        write_json(data / "ground_truth" / f"take{t['take']}.json", ground_truth(t))
-    write_json(data / "manifests" / f"{SITE_ID}.json", clips)
-    print(f"next: python contracts/validate.py \"{data / 'sites' / SITE_ID / 'cameras.json'}\"")
+        write_json(data / "ground_truth" / f"take{t['take']}.json", ground_truth(t, args.site))
+    write_json(data / "manifests" / f"{args.site}.json", clips)
+    print(f"next: python contracts/validate.py \"{data / 'sites' / args.site / 'cameras.json'}\"")
     return 0
 
 

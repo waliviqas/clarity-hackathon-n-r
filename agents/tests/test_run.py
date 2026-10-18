@@ -1,4 +1,4 @@
-"""agents/run.py: the live spotter's time limit, the startup model check, malformed answers, backups, ids."""
+"""agents/run.py: the live spotter's time limit, the startup model checks, malformed answers, backups, ids."""
 import argparse
 import json
 import os
@@ -13,13 +13,20 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
+from agents.combine import merge_answers
 from agents.network import Network
-from agents.run import Clip, Clock, check_spotter, id_tag, main, run_timeline, start_live
+from agents.run import Clip, Clock, check_checker, check_spotter, id_tag, main, run_timeline, start_live
 from agents.tests.test_network import CRIME, SITE, Recorder, cam
+from contracts.validate import check
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# A stand-in for Wali's src/spotter.py: same names (spot, MODEL, client.base_url), canned answer.
+# What the checker (Wali's describe()) might say about a suspect: all 11 suspect fields.
+DESC = {"build": "average", "height": "tall", "shirt": "red jacket", "pants": "blue jeans",
+        "shoes": "white sneakers", "glasses": "no", "headwear": "none", "hair": "short dark",
+        "bag": "black backpack", "weapon": "none", "vehicle": "none"}
+
+# Stand-ins for Wali's src/spotter.py and src/checker.py: same names (spot / describe, MODEL, client.base_url).
 FAKE_SPOTTER = '''import os
 class _Client:
     base_url = os.environ["SPOTTER_URL"]
@@ -27,6 +34,14 @@ client = _Client()
 MODEL = os.environ["SPOTTER_MODEL"]
 def spot(video_path, count=4):
     return {"what_happened": "grabs a bag", "on_screen": "crime", "crime": "stealing", "shirt": "black hoodie"}
+'''
+FAKE_CHECKER = f'''import os
+class _Client:
+    base_url = os.environ.get("CHECKER_BASE_URL", "http://localhost:8002/v1")
+client = _Client()
+MODEL = os.environ.get("CHECKER_MODEL", "checker")
+def describe(video_path, count=8):
+    return {DESC!r}
 '''
 
 
@@ -63,6 +78,34 @@ def temp_dir(test: unittest.TestCase) -> Path:
     return path
 
 
+def fake_wali_src(test: unittest.TestCase, checker: bool = True) -> Path:
+    """A folder holding stand-ins for Wali's src/ (spotter.py, and checker.py unless checker=False) and a
+    one-camera cameras.json. Its src/ is a regular package (__init__.py), so a real src/ elsewhere on
+    sys.path can't add modules to it."""
+    root = temp_dir(test)
+    (root / "src").mkdir()
+    (root / "src" / "__init__.py").write_text("", encoding="utf-8")
+    (root / "src" / "spotter.py").write_text(FAKE_SPOTTER, encoding="utf-8")
+    if checker:
+        (root / "src" / "checker.py").write_text(FAKE_CHECKER, encoding="utf-8")
+    (root / "cameras.json").write_text(json.dumps({"cameras": [cam("cam_01")]}), encoding="utf-8")
+    return root
+
+
+def run_agents(fake: Path, env: dict, *args: str) -> subprocess.CompletedProcess:
+    """`python -m agents.run --live ...` in a fresh process that imports the stand-ins in `fake`, never Wali's
+    real src/ (a merged checkout has it at the repo root): the working folder, which -m puts first on sys.path,
+    is `fake`, and the repo root only follows it on PYTHONPATH."""
+    env = {**os.environ, **env, "PYTHONPATH": os.pathsep.join([str(fake), str(REPO_ROOT)])}
+    return subprocess.run([sys.executable, "-m", "agents.run", "--live", "--no-publish", "--speed", "0",
+                           "--cameras", str(fake / "cameras.json"), *args],
+                          cwd=fake, env=env, capture_output=True, text=True, timeout=60)
+
+
+def events_in(path: Path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
+
+
 class SpotterCheck(unittest.TestCase):
     def setUp(self):
         self.vllm = FakeModels("spotter-ft")
@@ -88,16 +131,12 @@ class SpotterCheck(unittest.TestCase):
         self.assertIn("can't read", str(stop.exception.code))
 
     def test_live_run_stops_with_exit_1_before_any_event(self):
-        fake = temp_dir(self)
-        (fake / "src").mkdir()
-        (fake / "src" / "spotter.py").write_text(FAKE_SPOTTER, encoding="utf-8")
-        cameras = fake / "cameras.json"
-        cameras.write_text(json.dumps({"cameras": [cam("cam_01")]}), encoding="utf-8")
+        fake = fake_wali_src(self)
+        checker = FakeModels("checker")
+        self.addCleanup(checker.close)
         for model, code in (("Qwen/Qwen3-VL-2B-Instruct", 1), ("spotter-ft", 0)):
-            env = {**os.environ, "PYTHONPATH": str(fake), "SPOTTER_URL": self.vllm.url, "SPOTTER_MODEL": model}
-            run = subprocess.run([sys.executable, "-m", "agents.run", "--live", "--no-publish", "--speed", "0",
-                                  "--cameras", str(cameras)], cwd=REPO_ROOT, env=env, capture_output=True,
-                                 text=True, timeout=60)
+            run = run_agents(fake, {"SPOTTER_URL": self.vllm.url, "SPOTTER_MODEL": model,
+                                    "CHECKER_BASE_URL": checker.url, "CHECKER_MODEL": "checker"})
             self.assertEqual(run.returncode, code, run.stderr)
             if code:
                 self.assertEqual(run.stderr.strip().splitlines()[-1],
@@ -105,6 +144,65 @@ class SpotterCheck(unittest.TestCase):
                 self.assertNotIn("detection", run.stdout)
             else:
                 self.assertIn("detection", run.stdout)
+
+
+class CheckerCheck(unittest.TestCase):
+    """--live also checks the checker, before anything is published (a fresh process with fakes of Wali's src/)."""
+
+    def setUp(self):
+        self.spotter, self.checker = FakeModels("spotter-ft"), FakeModels("checker")
+        self.addCleanup(self.spotter.close)
+        self.addCleanup(self.checker.close)
+
+    def live(self, fake: Path, *args: str, **env: str) -> tuple[subprocess.CompletedProcess, list[dict]]:
+        out = fake / "events.jsonl"
+        env = {"SPOTTER_URL": self.spotter.url, "SPOTTER_MODEL": "spotter-ft",
+               "CHECKER_BASE_URL": self.checker.url, "CHECKER_MODEL": "checker", **env}
+        return run_agents(fake, env, "--tag", "t", "--out", str(out), *args), events_in(out)
+
+    def test_checker_not_serving_its_model_stops_the_run_with_exit_1(self):
+        run, events = self.live(fake_wali_src(self), CHECKER_MODEL="nemotron-12b")
+        self.assertEqual(run.returncode, 1, run.stderr)
+        self.assertEqual(run.stderr.strip().splitlines()[-1],
+                         f"checker check: {self.checker.url}/models serves checker, not CHECKER_MODEL=nemotron-12b "
+                         "(or run the spotter alone with --no-checker)")
+        self.assertEqual(events, [])
+        self.assertNotIn("detection", run.stdout)
+
+    def test_checker_messages_name_its_settings_and_the_way_out(self):
+        check_checker(self.checker.url, "checker")
+        for url, model, start in ((self.checker.url, "nemotron-12b", "checker check: "),
+                                  (self.checker.url[:-3] + "/v2", "checker", "checker check: can't read "),
+                                  (None, "checker", "checker check: no checker URL or model name (set "
+                                                    "CHECKER_BASE_URL and CHECKER_MODEL)")):
+            with self.assertRaises(SystemExit) as stop:
+                check_checker(url, model)
+            message = str(stop.exception.code)
+            self.assertNotIn("\n", message)
+            self.assertTrue(message.startswith(start), message)
+            self.assertTrue(message.endswith(" (or run the spotter alone with --no-checker)"), message)
+
+    def test_served_checker_describes_the_flagged_camera(self):
+        run, events = self.live(fake_wali_src(self))
+        self.assertEqual(run.returncode, 0, run.stderr)
+        det, = [e for e in events if e["type"] == "detection"]
+        self.assertEqual((det["description_by"], det["checker_model"], det["checker"]), ("checker", "checker", DESC))
+        self.assertEqual(det["spotter"]["shirt"], "black hoodie")  # what the spotter said stays in the receipts
+        self.assertIn("red jacket", det["appearance"])
+        self.assertIn("described by the checker", run.stdout)
+        self.assertEqual([check(e) for e in events], [[] for _ in events])
+
+    def test_no_checker_runs_the_spotter_alone(self):
+        fake = fake_wali_src(self, checker=False)
+        run, events = self.live(fake)  # the checker is on by default, and src/checker.py is missing
+        self.assertEqual(run.returncode, 1, run.stderr)
+        self.assertIn("Wali's checker isn't importable", run.stderr.strip().splitlines()[-1])
+        self.assertEqual(events, [])
+        run, events = self.live(fake, "--no-checker", CHECKER_BASE_URL="http://127.0.0.1:9/v1")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        det, = [e for e in events if e["type"] == "detection"]
+        self.assertEqual((det["spotter"]["shirt"], det["appearance"]), ("black hoodie", "black hoodie"))
+        self.assertFalse({"description_by", "checker", "checker_model"} & det.keys())
 
 
 class LiveTimeLimit(unittest.TestCase):
@@ -172,13 +270,15 @@ class Backups(unittest.TestCase):
 
         argv = ["agents.run", "--live", "--no-publish", "--speed", "0", "--cameras", str(cameras),
                 "--save-answers", str(backup)]
-        with patch.object(sys, "argv", argv), patch("agents.run.check_spotter"), \
+        with patch.object(sys, "argv", argv), patch("agents.run.check_spotter"), patch("agents.run.check_checker"), \
                 patch("agents.run.live_spotter", return_value=(lambda path, n: CRIME, "fake", "http://x/v1")), \
+                patch("agents.run.live_checker", return_value=(lambda path, n: DESC, "checker", "http://y/v1")), \
                 patch("agents.run.run_timeline", crash), self.assertRaises(RuntimeError), \
                 self.assertLogs("agents", "INFO"):
             main()
         saved = json.loads(backup.read_text(encoding="utf-8"))
-        self.assertEqual((saved["model"], saved["answers"]), ("fake", {"cam_01": CRIME}))
+        self.assertEqual((saved["model"], saved["answers"]),
+                         ("fake", {"cam_01": merge_answers(CRIME, DESC, "checker")}))
 
 
 class Tags(unittest.TestCase):

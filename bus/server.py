@@ -9,7 +9,8 @@ Settings (environment variables):
     CLARITY_BUS_STRICT  1 = reject invalid events with HTTP 422 (default); 0 = accept them with a warning
     CLARITY_RUN_ID      names the log folder, default run_dev
     CLARITY_RUNS_DIR    where run logs go, default runs
-    CLARITY_CAMERAS     the active cameras.json served at GET /cameras, default data/cameras.json
+    CLARITY_CAMERAS     the active cameras.json served at GET /cameras,
+                        default data/sites/annex_clip1/cameras.json (the clip-1 demo site)
     CLARITY_BUS_CORS    browser origins allowed to call the bus (comma-separated),
                         default http://localhost:5173,http://127.0.0.1:5173 (the dashboard dev server)
     CLARITY_CLIP_ROOT   folder that relative source.uri clip paths start from, default the repo root
@@ -59,7 +60,7 @@ STRICT = os.environ.get("CLARITY_BUS_STRICT", "1") != "0"
 RUN_ID = os.environ.get("CLARITY_RUN_ID", "run_dev")
 LOG_PATH = Path(os.environ.get("CLARITY_RUNS_DIR", "runs")) / RUN_ID / "events.jsonl"
 ARRIVALS_PATH = LOG_PATH.with_name("arrivals.jsonl")
-CAMERAS_PATH = Path(os.environ.get("CLARITY_CAMERAS", "data/cameras.json"))
+CAMERAS_PATH = Path(os.environ.get("CLARITY_CAMERAS", "data/sites/annex_clip1/cameras.json"))
 CORS_ORIGINS = [o.strip() for o in
                 os.environ.get("CLARITY_BUS_CORS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
                 if o.strip()]

@@ -1,6 +1,6 @@
 # Spotter training data: what we need and where to get it
 
-For Wali's next fine-tune of the spotter (Qwen3-VL-2B). Status: **115 clips cut; 32 labeled for training in `labels_public.csv`**. Wali labels the 83 assault and normal clips himself. Sources were checked on Sat Oct 17, about 23:40 to 00:15, by Claude Code's researcher agent in a browser. Licenses were read on each source's own page; the links are below. Anything marked UNVERIFIED wasn't confirmed.
+**Status (Sun Oct 18, final):** 115 public clips cut, 32 of them labeled here in `labels_public.csv` (Wali took the 83 assault and normal clips). They trained only v4 and v5 ("+ 113 public clips" in `hf_model/README.md`), which scored lower than v3 and were rejected; the final spotter, v3, doesn't use them (AIRTLab included). The rest of this page is the plan from Sat Oct 17 night, with later notes in sections 6 and 7. Sources were checked on Sat Oct 17, about 23:40 to 00:15, by Claude Code's researcher agent in a browser. Licenses were read on each source's own page; the links are below. Anything marked UNVERIFIED wasn't confirmed.
 
 ## 1. The ask (spec from the team, Sat Oct 17 ~23:35)
 
@@ -94,7 +94,7 @@ The annotations are in the [Kitware repo](https://gitlab.kitware.com/meva/meva-d
 | 2018-03-15.14-50-00.14-55-00.school.G421 | 6544–6684 and 7748–7880 | 2 thefts |
 | 2018-03-05.13-15-01.13-20-01.bus.G331 | 6207–6334 | theft |
 | 2018-03-15.14-55-00.15-00-00.bus.G331 | 3434–3582 | theft |
-| 2018-03-15.15-10-00.15-15-00.bus.G331 | 6319–6444 | ex085 (burned-in labels): not used for training or the external check |
+| 2018-03-15.15-10-00.15-15-00.bus.G331 | 6319–6444 | The clean video behind ex085: never cut (the ex085 example clip, with burned-in labels, left the external check on Oct 18) |
 
 Hugs, 11 clips, each from a different camera and date (frame spans are the annotation spans, some long):
 - 2018-03-12.11-05-01.11-10-01.school.G423, frames 5405–5769
@@ -160,9 +160,9 @@ Page URLs: `https://mixkit.co/free-stock-video/<slug>/` and `https://www.pexels.
 3. **Stock sites:** may we use hand-picked downloads despite the "no scraping for machine learning" clauses? Pexels also says identifiable people may not appear "in a bad light", so use Pexels for normals only.
 4. **Real-incident datasets** stay out (our footage rule).
 
-**Wali decided (Sun Oct 18, ~00:55):** AIRTLab yes, disclosed on the model card; cam2 rows kept; he labels the 83 assault and normal clips himself. Mixkit stays in; its Acceptable Use Policy is still unread. Each source can be left out by its clip prefix in `labels_public.csv`: `airt_` (AIRTLab), `mixkit_` (Mixkit), `meva_` (MEVA).
+**Wali decided (Sun Oct 18, ~00:55):** AIRTLab yes, to be disclosed on the model card of any version trained on it; cam2 rows kept; he labels the 83 assault and normal clips himself. **Outcome:** AIRTLab went only into v4 and v5, which were rejected; v3 doesn't use it, so its model card (`hf_model/README.md`) doesn't mention AIRTLab. Mixkit stays in; its Acceptable Use Policy is still unread. Each source can be left out by its clip prefix in `labels_public.csv`: `airt_` (AIRTLab), `mixkit_` (Mixkit), `meva_` (MEVA).
 
-## 7. Next steps
+## 7. Next steps (the plan; outcome in the status at the top)
 
 - **Wali:** pick the sources (decisions above) and say which categories matter most for the next run.
 - **Download on the Brev box, not a laptop.** Cut 5–15 s clips with the action in the middle, convert to 720p H.264 MP4, and keep one angle per file.

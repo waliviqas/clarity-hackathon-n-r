@@ -1,11 +1,12 @@
-# Staged training clips: sources, licenses, shortfalls (2026-10-17)
+# Public clips: sources, licenses and status (Oct 17–18)
 
-Status: **11 clips labeled from frames** (Oct 17, late evening): 23 person rows in
+**Status (Sun Oct 18, final):** the 11 clips in `staged_clips.csv` (CAVIAR 8, MEVA 3) are the external check set; ex085 was dropped from it on Oct 18 (burned-in labels), so 10 remain. Wali's draft labels for them (`labels_external.csv` at the repo root, all `split=train`) trained v2; whether they also trained v3, the final spotter, is an open question for Wali. The public training clips at the end of this page trained only v4 and v5, which were rejected; v3 doesn't use them.
+
+Labels: **11 clips labeled from frames** (Oct 17, late evening): 23 person rows in
 `staged_clips.csv`, every field checked on a second frame (`verified`). Height and glasses are
 `Unknown` throughout (not readable at these resolutions); the aggressor in runaway2 and chase
 is a low-confidence call. The same labels in Wali's `labels_external.csv` format are in
-`labels_external_filled.csv`. These clips became an external check set (the spotter trains
-on the team's own clips); since Oct 18, ex085 is out of it (burned-in labels). Videos are local (copied from `data/videos/`), with frames at 2 fps
+`labels_external_filled.csv` (`split=external`). Videos are local (copied from `data/videos/`), with frames at 2 fps
 and contact sheets in `data/raw/training/frames/<clip_id>/` (gitignored).
 
 Findings from the frames (Oct 17 evening):
@@ -15,7 +16,9 @@ Findings from the frames (Oct 17 evening):
 - ex085 is a bag lifted from the bench beside its seated owner, not a grab from a person,
   so `purse_snatch` is questionable.
 
-## Next step (from repo root)
+## How the frames and labels were made (from repo root)
+
+Done on Oct 17 for all 11 clips; these commands redo it.
 
 ```bash
 pip install pandas   # plus yt-dlp / awscli only when downloading
@@ -48,16 +51,18 @@ training set; flag it if anyone redistributes derived frames.
 
 - **Bus Violence** (zenodo.org/records/7044203): license field says CC BY 4.0, description says "non-commercial use". Has staged fights and theft-from-person on 3 bus cameras. Ask the authors or treat as NC.
 - **CHAD** (github.com/TeCSAR-UNCC/CHAD): repo is Apache-2.0 but the README doesn't say it covers the videos. Has staged fighting, theft, pick-pocketing, 4 cameras. Ask authors.
-- **BEHAVE, PETS, VIRAT, MNNIT shoplifting:** research-only, no license, or not confirmed. (AIRTLab is now used, research and education only, link-only and never re-hosted: see the public-clips section.)
+- **BEHAVE, PETS, VIRAT, MNNIT shoplifting:** research-only, no license, or not confirmed. (AIRTLab is in the public training clips, research and education only, link-only and never re-hosted; they went only into the rejected v4 and v5: see the public-clips section.)
 - **Pexels / Pixabay:** terms ban automated collection "for machine learning purposes" and showing identifiable people "in a bad light". Fails the ML check, and crime labels on actors hit the second clause.
 - **Coverr, Videvo/Magnific:** explicitly ban AI training.
-- **Mixkit:** Free License allows copy/modify/commercial and says nothing about AI; points to User Terms and an AUP we could not read. Now used for 5 stealing clips (link-only, never re-hosted). We read the Free License (copy, modify, distribute, no attribution required) and the User Terms (no re-hosting on a stock basis); neither mentions AI training. The Acceptable Use Policy is still unread, so this stays a team decision: drop the `mixkit_` rows if it rules out training. If the team confirms the AUP allows it, these would fill purse_snatch (ground-level angle, not CCTV):
+- **Mixkit:** Free License allows copy/modify/commercial and says nothing about AI; points to User Terms and an AUP we could not read. In the public training clips (4 thefts, 1 fleeing clip, 4 normals; link-only, never re-hosted), which went only into the rejected v4 and v5. We read the Free License (copy, modify, distribute, no attribution required) and the User Terms (no re-hosting on a stock basis); neither mentions AI training. The Acceptable Use Policy is still unread, so this stays a team decision: drop the `mixkit_` rows if it rules out training. If the team confirms the AUP allows it, these would fill purse_snatch (ground-level angle, not CCTV):
   - https://mixkit.co/free-stock-video/thief-steals-a-womans-purse-on-the-street-31359/ (Free License confirmed on page, 8 s, file https://assets.mixkit.co/videos/31359/31359-720.mp4)
   - https://mixkit.co/free-stock-video/woman-is-robbed-of-her-cell-phone-by-a-thief-31395/
   - https://mixkit.co/free-stock-video/balaclava-assailant-steals-computer-from-car-31363/
 - **Wikimedia Commons, YouTube CC BY:** no staged or training-scenario clips found.
 
-## Shortfall vs the 20-clip mix
+## Shortfall vs the 20-clip mix (Oct 17 plan, superseded)
+
+Superseded on Oct 18: these clips became the external check (v2 also trained on them; see the status at the top), and the public training clips below replaced this mix (they went only into the rejected v4 and v5).
 
 | activity | target | candidates (unverified) | gap |
 |---|---|---|---|
@@ -69,7 +74,7 @@ training set; flag it if anyone redistributes derived frames.
 
 ## Public training clips (slice D3, Oct 18)
 
-For Wali's next fine-tune (`split=train`). Files: `public_clips_candidates.csv` (source link, license and cut
+Prepared for the fine-tune (`split=train`). Outcome: they trained only v4 and v5 ("+ 113 public clips" in `hf_model/README.md`), which scored lower than v3 and were rejected; v3 doesn't use them. Files: `public_clips_candidates.csv` (source link, license and cut
 per camera file), `labels_public.csv` (Wali's format, header identical to `labels_external_filled.csv`),
 `public_clips.csv` (one row per person, `staged_clips.csv` format), `public_verification_log.csv` (fetch log).
 Rebuild every clip on the Brev box from the repo root (720p, 10 fps, H.264, no audio; MEVA is cut straight
@@ -82,7 +87,7 @@ python data/scripts/check_public_labels.py data/training/labels_public.csv --cli
 
 Local labeling copies: `data/raw/training_public/clips/`, frames + contact sheets in `.../frames/<clip_id>/` (gitignored).
 
-| Source | License | In `labels_public.csv` | Built, not yet labeled |
+| Source | License | In `labels_public.csv` | Built, not labeled here |
 |---|---|---|---|
 | AIRTLab (github.com/airtlab/A-Dataset-for-Automatic-Violence-Detection-in-Videos) | Research and education only (README); no LICENSE file. Team decision: link only, don't re-host | 12 stabbing IDs × cam1 + cam2 = 24 files | 21 assault IDs (42 files), 13 non-violent IDs (26 files) |
 | Mixkit (mixkit.co) | Stock Video Free License, checked on each clip page Oct 18; link only | 4 stealing (31359, 31395, 31363, 31366), 1 fleeing (31377) | 4 normals (4605, 4643, 42237, 4735) |
@@ -101,4 +106,4 @@ Local labeling copies: `data/raw/training_public/clips/`, frames + contact sheet
   ex085's video (`15-10-00.15-15-00.bus.G331`) is never used.
 
 ## ex085 and two MEVA thefts (Wali, Sun Oct 18 ~00:55)
-ex085 is no longer used for training or the external check (its MEVA example video has the activity labels burned in). So the two MEVA thefts that overlapped it are back in training: bus G331 frames 6207-6334 (the same camera as ex085) and school G421 frames 7748-7880 (the thief's outfit matches a bystander in ex085).
+ex085 is no longer used for training or the external check (its MEVA example video has the activity labels burned in). So the two MEVA thefts that overlapped it are back in the public training clips: bus G331 frames 6207-6334 (the same camera as ex085) and school G421 frames 7748-7880 (the thief's outfit matches a bystander in ex085).
