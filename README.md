@@ -8,7 +8,7 @@
 
 **Design principle:** video stays on the agency's own hardware; only text descriptions move between agents.
 
-Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17–18, 2026). **Track: Fine-Tuned.** <!-- source: team decision Sat Oct 17 ~10 PM (Mina); docs/hackathon.md -->
+Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17–18, 2026). **Track: Fine-Tuned.** <!-- source: team decision, Sat Oct 17 evening -->
 
 | | |
 |---|---|
@@ -205,7 +205,7 @@ TODO: Wali to confirm which model, if any, the camera agents call to match a des
 
 ## Models and parameter budget
 
-The hackathon cap is **33B parameters in total** across all generative language models, counting verifiers and routers too. Embedding and reranking models don't count. Our verifier is plain code, not a model. <!-- source: hackathon rules (docs/hackathon.md, from the event's Notion page) -->
+The hackathon cap is **33B parameters in total** across all generative language models, counting verifiers and routers too. Embedding and reranking models don't count. Our verifier is plain code, not a model. <!-- source: the event's published rules -->
 
 | Role | Model | Parameters[^params] | Counts toward cap | Served on |
 |---|---|---|---|---|
@@ -534,12 +534,7 @@ vLLM serves the coordinator's model and the spotter on one GPU box, behind one O
 
 ## Best Model Improvement with NeMo Gym
 
-TODO: not yet confirmed that we enter this bounty. If we do, Michael writes this section; otherwise delete it. Planned contents:
-
-- **Environment.** TODO: tasks built from the staged ground truth, the tools the agent can call, and the code that scores each attempt.
-- **Baseline vs. final.** TODO: scores on the same held-out tasks with the same config.
-- **What caused the gain.** TODO: each change and its effect.
-- **How to run the scoring.** TODO: command from `eval/`.
+TODO: not yet confirmed that we enter this bounty. If we do, Michael writes this section; otherwise delete it.
 
 ---
 

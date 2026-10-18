@@ -231,6 +231,16 @@ data/raw/
 *.webm
 *.m4v
 *.wmv
+# Same in upper case: Linux (the Brev box) matches case-sensitively, and iPhones write IMG_0001.MOV
+*.MP4
+*.AVI
+*.MOV
+*.MKV
+*.MPG
+*.MPEG
+*.WEBM
+*.M4V
+*.WMV
 data/videos/
 runs/*/frames/
 # Dashboard
