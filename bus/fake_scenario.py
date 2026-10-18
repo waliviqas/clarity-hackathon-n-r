@@ -15,12 +15,21 @@ that camera's path step, run clock) or, without one, as the suspect leaves its v
 carry a fresh tag every run, so a rerun into the same bus and dispatcher is a new incident, not duplicates
 they drop. Before publishing it checks that the bus (GET /cameras) serves the take's site.
 
+--lookout CAM (with --ground-truth) scripts the take's last path step, CAM, as a far re-sighting instead of a
+handoff: CAM is no neighbor of the chase, so the chase runs to the camera before it, the trail goes cold, and
+at CAM's t_enter its agent sees someone run past (detection), the last chase camera sends it a lookout relay
+(basis "lookout": a description match, no expected arrival) and CAM's agent answers "match".
+--max-gap caps every pause between two events (run-clock seconds) while publishing; the events keep their
+true ts, so a 38-minute cold trail plays in a few seconds.
+
 Run from the repo root (bus running, started with the same CLARITY_CAMERAS):
     python -m bus.fake_scenario --speed 5
     python -m bus.fake_scenario --out runs/fake/events.jsonl   # write a log instead of publishing
     python -m bus.fake_scenario --no-dispatch                  # scripted perception only; a real
                                                                # dispatcher (python -m dispatcher.run) decides
     python -m bus.fake_scenario --ground-truth data/ground_truth/take1.json --cameras data/sites/annex/cameras.json
+    python -m bus.fake_scenario --ground-truth data/ground_truth/annex_lookout/take3.json \\
+        --cameras data/sites/annex_lookout/cameras.json --lookout cam_14 --max-gap 5
 """
 from __future__ import annotations
 
@@ -65,6 +74,7 @@ SCENES = {
 }
 VERDICT_AFTER_S = 0.5  # a camera agent answers a relay this long after the suspect walks into view
 RELAY_AFTER_S = 0.5  # ...and relays on no sooner than this after its own detection or verdict
+LOOKOUT_AFTER_S = 0.25  # a lookout relay follows the far camera's detection (it is what matched the description)
 GT_FIELDS = ("site_id", "incident_id", "subject_id", "activity", "appearance", "path", "camera_roles")
 
 
@@ -213,11 +223,22 @@ def ground_truth_problem(gt: dict) -> str | None:
     return None
 
 
-def load_ground_truth(path: str, cameras_path: str, cams: dict[str, dict]) -> dict:
+def lookout_problem(gt: dict, lookout: str | None) -> str | None:
+    """What makes --lookout unusable with this ground truth, or None. The lookout camera must be the last path
+    step, after the crime camera; a camera the ground truth marks "lookout" needs --lookout."""
+    marked = [cam for cam, role in gt["camera_roles"].items() if role == "lookout"]
+    if lookout is None:
+        return f"camera_roles marks {marked[0]} as a far re-sighting; pass --lookout {marked[0]}" if marked else None
+    if gt["path"][-1]["camera_id"] != lookout:  # ground_truth_problem: the crime camera is never the last
+        return f"--lookout {lookout} must be the last camera on the path"
+    return None
+
+
+def load_ground_truth(path: str, cameras_path: str, cams: dict[str, dict], lookout: str | None = None) -> dict:
     """A take's ground truth, checked against the cameras file (which must be the one the bus serves).
     Anything wrong is a ValueError with one readable line."""
     gt = read_json(path, "ground truth")
-    problem = ground_truth_problem(gt)
+    problem = ground_truth_problem(gt) or lookout_problem(gt, lookout)
     if problem:
         raise ValueError(f"{path}: {problem}")
     site_id = read_json(cameras_path, "cameras file").get("site_id")
@@ -262,14 +283,15 @@ def crime_moment(step: dict) -> float:
     return step["t_crime"] if step.get("t_crime") is not None else step["t_exit"]
 
 
-def take_events(gt: dict, cams: dict[str, dict], run_id: str, run_tag: str) -> list[dict]:
+def take_events(gt: dict, cams: dict[str, dict], run_id: str, run_tag: str, lookout: str | None = None) -> list[dict]:
     """One staged take as its camera agents would publish it, at the ground truth's run-clock times.
 
     The crime camera (camera_roles) detects the crime when it happens (crime_moment), then relays to the next
     camera as the suspect leaves its view (expected there after the cameras.json travel time). Each later camera
     sees the suspect walk in, answers the relay with "match" and relays on. Cameras before the crime (an approach)
     aren't scripted. No dispatch: a real dispatcher decides. run_tag goes into every id, so each run is its own
-    incident.
+    incident. With lookout (the path's last camera, checked by lookout_problem) the chase stops one camera
+    earlier, and the far re-sighting follows at the lookout camera's t_enter: detection, lookout relay, match.
     """
     tag, subj, activity, look = (f"{gt['incident_id'].removeprefix('inc_')}_{run_tag}",
                                  f"{gt['subject_id']}_{run_tag}", gt["activity"], gt["appearance"])
@@ -277,6 +299,7 @@ def take_events(gt: dict, cams: dict[str, dict], run_id: str, run_tag: str) -> l
     common = {"schema_version": "0.1", "run_id": run_id, "source": SOURCE}
     on_path = [s["camera_id"] for s in gt["path"]]
     steps, out = gt["path"][on_path.index(crime_camera(gt)):], []
+    far = steps.pop() if lookout else None
 
     def ev(type_, event_id, ts, **fields):
         out.append({"type": type_, "event_id": event_id, "ts": round(ts, 3), **common, **fields})
@@ -287,7 +310,7 @@ def take_events(gt: dict, cams: dict[str, dict], run_id: str, run_tag: str) -> l
         cam = step["camera_id"]
         nxt = steps[i + 1]["camera_id"] if i + 1 < len(steps) else None
         onward = link(cams, cam, nxt) if nxt else None
-        heading = onward["direction"] if onward else relay_in["direction"]
+        heading = onward["direction"] if onward else relay_in["direction"] if relay_in else None
         crime = relay_in is None
         seen_at = crime_moment(step) if crime else step["t_enter"]
         # on_screen / what_happened: the spotter's extra fields, which the real detection adapter copies too.
@@ -310,6 +333,22 @@ def take_events(gt: dict, cams: dict[str, dict], run_id: str, run_tag: str) -> l
                activity=activity, confidence=0.85, expected_arrival_s=onward["travel_time_s"],
                evidence_event_ids=[cause], appearance=look)
             relay_in = out[-1]
+
+    if far:  # the trail went cold at the last chase camera; nobody saw which way they went (direction None)
+        n, last, cam = len(steps), steps[-1]["camera_id"], far["camera_id"]
+        cold = f"trail cold {(far['t_enter'] - steps[-1]['t_exit']) / 60:.0f} min"
+        det = ev("detection", f"det_{tag}_{n + 1}", far["t_enter"], camera_id=cam, track_id=f"trk_{cam}_{tag}",
+                 label="person", confidence=0.9, bbox=None, activity="none", activity_confidence=0.95, direction=None,
+                 appearance=look, on_screen="fleeing", what_happened="Someone runs past, as if escaping.")
+        rel = ev("relay", f"rel_{tag}_{n}", far["t_enter"] + LOOKOUT_AFTER_S, from_camera=last, to_camera=cam,
+                 subject_id=subj, summary=f"Lookout: description match, {cold}. {scene} Last seen at {last}.",
+                 direction=None, activity=activity, confidence=0.6, expected_arrival_s=None,
+                 evidence_event_ids=[cause, det], appearance=look, basis="lookout")
+        ev("agent_verdict", f"ver_{tag}_{n}", far["t_enter"] + VERDICT_AFTER_S, agent_id=f"agent_{cam}",
+           camera_id=cam, subject_id=subj, decision="match", confidence=0.75,
+           reason=f"{look} matches the lookout from {last} ({cold}); description match only, {cam} is not a "
+                  f"neighbor of the chase.",
+           evidence_event_ids=[rel, det])
     return out
 
 
@@ -320,18 +359,30 @@ def camera_status_events(cams: dict[str, dict], run_id: str, run_tag: str = "") 
              "source_kind": "replay"} for cam_id in cams]
 
 
-def build(cameras_path: str, run_id: str, ground_truth: str | None = None) -> list[dict]:
+def build(cameras_path: str, run_id: str, ground_truth: str | None = None, lookout: str | None = None) -> list[dict]:
     cams = load_cameras(cameras_path)
     if ground_truth:
         # A fresh tag per run: the dispatcher and the dashboard drop an event_id they've already seen, and the
         # dispatcher files a known subject_id under its old incident, so a rerun into the same bus would vanish.
         run_tag = uuid.uuid4().hex[:6]
-        gt = load_ground_truth(ground_truth, cameras_path, cams)
-        events = camera_status_events(cams, run_id, run_tag) + take_events(gt, cams, run_id, run_tag)
+        gt = load_ground_truth(ground_truth, cameras_path, cams, lookout)
+        events = camera_status_events(cams, run_id, run_tag) + take_events(gt, cams, run_id, run_tag, lookout)
     else:
         script = [e for inc in INCIDENTS for e in incident_events(inc, cams, run_id)]
         events = camera_status_events(cams, run_id) + script
     return sorted(events, key=lambda e: e["ts"])  # stable sort keeps causal order at equal ts
+
+
+def send_times(events: list[dict], speed: float, max_gap: float | None = None) -> list[float]:
+    """Seconds after the start at which each (ts-sorted) event goes out: its ts / speed, with every pause
+    between two events capped at max_gap run-clock seconds first (None = no cap)."""
+    times, clock, prev = [], 0.0, 0.0
+    for e in events:
+        gap = e["ts"] - prev
+        clock += gap if max_gap is None else min(gap, max_gap)
+        prev = e["ts"]
+        times.append(clock / speed)
+    return times
 
 
 def main() -> None:
@@ -344,12 +395,22 @@ def main() -> None:
     p.add_argument("--ground-truth", metavar="TAKE_JSON",
                    help="one staged take on its real site instead of the placeholder incidents, timed by its ground "
                         "truth (e.g. data/ground_truth/take1.json); never scripts a dispatch")
+    p.add_argument("--lookout", metavar="CAMERA_ID",
+                   help="with --ground-truth: script the path's last camera (no neighbor of the chase) as a far "
+                        "re-sighting after the trail goes cold, e.g. cam_14")
+    p.add_argument("--max-gap", type=float, metavar="SECONDS",
+                   help="longest pause between two events while publishing, in run-clock seconds; events keep "
+                        "their true ts (default: no cap)")
     args = p.parse_args()
     if args.speed <= 0:
         p.error("--speed must be greater than 0")
+    if args.max_gap is not None and args.max_gap < 0:
+        p.error("--max-gap must be 0 or more")
+    if args.lookout and not args.ground_truth:
+        p.error("--lookout needs --ground-truth")
 
     try:
-        events = build(args.cameras, os.environ.get("CLARITY_RUN_ID", "run_fake"), args.ground_truth)
+        events = build(args.cameras, os.environ.get("CLARITY_RUN_ID", "run_fake"), args.ground_truth, args.lookout)
         if args.ground_truth and not args.out:
             check_bus_site(args.ground_truth, args.cameras)
     except ValueError as e:
@@ -362,10 +423,11 @@ def main() -> None:
         print(f"wrote {len(events)} events to {args.out}")
         return
 
-    print(f"publishing {len(events)} events over ~{events[-1]['ts'] / args.speed:.0f}s (speed {args.speed}x)")
+    times = send_times(events, args.speed, args.max_gap)
+    print(f"publishing {len(events)} events over ~{times[-1]:.0f}s (speed {args.speed}x)")
     start = time.monotonic()
-    for e in events:
-        wait = e["ts"] / args.speed - (time.monotonic() - start)
+    for at, e in zip(times, events):
+        wait = at - (time.monotonic() - start)
         if wait > 0:
             time.sleep(wait)
         publish(e)

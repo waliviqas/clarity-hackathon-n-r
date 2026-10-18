@@ -1,0 +1,137 @@
+{
+  "schema_version": "0.1",
+  "site_id": "annex_lookout",
+  "site_name": "Red Hat Annex (staged clip 1) + far lookout camera (illustrative)",
+  "map": {
+    "center": {
+      "lat": 35.78045,
+      "lon": -78.648505
+    },
+    "zoom": 15,
+    "site_image": null
+  },
+  "notes": "cam_07-cam_10: test clip 1, exactly as in data/sites/annex_clip1. cam_14 (no neighbors, not linked to the chase): Illustrative position (Mina's decision): a public Hillsborough St sidewalk near NC State, about 2.4 km (~30 min walk) west-northwest of clip 1's cameras. The footage is test clip 8's cam2 (same actor, same black hoodie), filmed 38 min after clip 1 (16:43:28 vs 16:05:04) about 200 m from clip 1, not on Hillsborough St. Used by the scripted lookout run runs/run_lookout_scripted/.",
+  "cameras": [
+    {
+      "camera_id": "cam_07",
+      "name": "Route 3: sidewalk by street parking",
+      "take": 3,
+      "position": {
+        "lat": 35.7755,
+        "lon": -78.6371
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 7.0,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam1.mp4",
+        "start_ts": 0.8
+      }
+    },
+    {
+      "camera_id": "cam_08",
+      "name": "Route 3: sidewalk by painted parklet",
+      "take": 3,
+      "position": {
+        "lat": 35.7757,
+        "lon": -78.637
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_07",
+          "travel_time_s": 7.0,
+          "direction": "south"
+        },
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 6.0,
+          "direction": "southeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam2.mp4",
+        "start_ts": 14.0
+      }
+    },
+    {
+      "camera_id": "cam_09",
+      "name": "Route 3: crosswalk corner",
+      "take": 3,
+      "position": {
+        "lat": 35.7756,
+        "lon": -78.6368
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 6.0,
+          "direction": "northwest"
+        },
+        {
+          "camera_id": "cam_10",
+          "travel_time_s": 3.0,
+          "direction": "southeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam3.mp4",
+        "start_ts": 22.6
+      }
+    },
+    {
+      "camera_id": "cam_10",
+      "name": "Route 3: sidewalk by building column",
+      "take": 3,
+      "position": {
+        "lat": 35.77555,
+        "lon": -78.63671
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 3.0,
+          "direction": "northwest"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam4.mp4",
+        "start_ts": 30.76
+      }
+    },
+    {
+      "camera_id": "cam_14",
+      "name": "Hillsborough St sidewalk (illustrative)",
+      "take": 1,
+      "position": {
+        "lat": 35.7854,
+        "lon": -78.6603
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip8_cam2.mp4",
+        "start_ts": 2304.8
+      },
+      "illustrative_position": true,
+      "notes": "Illustrative position (Mina's decision): a public Hillsborough St sidewalk near NC State, about 2.4 km (~30 min walk) west-northwest of clip 1's cameras. The footage is test clip 8's cam2 (same actor, same black hoodie), filmed 38 min after clip 1 (16:43:28 vs 16:05:04) about 200 m from clip 1, not on Hillsborough St."
+    }
+  ]
+}
