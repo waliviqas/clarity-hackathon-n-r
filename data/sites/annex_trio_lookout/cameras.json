@@ -1,0 +1,284 @@
+{
+  "schema_version": "0.1",
+  "site_id": "annex_trio_lookout",
+  "site_name": "Red Hat Annex + Hillsborough St",
+  "map": {
+    "center": {
+      "lat": 35.780105,
+      "lon": -78.648505
+    },
+    "zoom": 15,
+    "site_image": null
+  },
+  "notes": "cam_04-cam_13: test clips 7, 1 and 3, exactly as in data/sites/annex_trio. cam_14 (no neighbors, not linked to any route): Placed on Hillsborough St for this scripted story, and the ~30 min gap after Route 2's crime is set for it (start_ts = Route 2's crime detection 18.3 + 1800 - 1.25). Footage: clip 8 cam2, filmed about 4 min after clip 7 (16:43:28 vs 16:39:30) about 60 m from it (56-67 m by the phones' GPS), not on Hillsborough St. Used by the run runs/run_trio_lookout/: the three crimes are the camera agents on recorded model answers; only the cam_14 pickup is scripted.",
+  "cameras": [
+    {
+      "camera_id": "cam_04",
+      "name": "Route 2: street corner sidewalk",
+      "take": 2,
+      "position": {
+        "lat": 35.775,
+        "lon": -78.6387
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_05",
+          "travel_time_s": 3.0,
+          "direction": "south"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/clip7_cam1.mp4",
+        "start_ts": 2.43
+      }
+    },
+    {
+      "camera_id": "cam_05",
+      "name": "Route 2: sidewalk by bollard",
+      "take": 2,
+      "position": {
+        "lat": 35.7749,
+        "lon": -78.6387
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_04",
+          "travel_time_s": 3.0,
+          "direction": "north"
+        },
+        {
+          "camera_id": "cam_06",
+          "travel_time_s": 3.0,
+          "direction": "south"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/clip7_cam2.mp4",
+        "start_ts": 12.2
+      }
+    },
+    {
+      "camera_id": "cam_06",
+      "name": "Route 2: crosswalk sidewalk",
+      "take": 2,
+      "position": {
+        "lat": 35.77481,
+        "lon": -78.6387
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_05",
+          "travel_time_s": 3.0,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/clip7_cam3.mp4",
+        "start_ts": 19.45
+      }
+    },
+    {
+      "camera_id": "cam_07",
+      "name": "Route 3: sidewalk by street parking",
+      "take": 3,
+      "position": {
+        "lat": 35.7755,
+        "lon": -78.6371
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 7.0,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam1.mp4",
+        "start_ts": 0.8
+      }
+    },
+    {
+      "camera_id": "cam_08",
+      "name": "Route 3: sidewalk by painted parklet",
+      "take": 3,
+      "position": {
+        "lat": 35.7757,
+        "lon": -78.637
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_07",
+          "travel_time_s": 7.0,
+          "direction": "south"
+        },
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 6.0,
+          "direction": "southeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam2.mp4",
+        "start_ts": 14.0
+      }
+    },
+    {
+      "camera_id": "cam_09",
+      "name": "Route 3: crosswalk corner",
+      "take": 3,
+      "position": {
+        "lat": 35.7756,
+        "lon": -78.6368
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 6.0,
+          "direction": "northwest"
+        },
+        {
+          "camera_id": "cam_10",
+          "travel_time_s": 3.0,
+          "direction": "southeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam3.mp4",
+        "start_ts": 22.6
+      }
+    },
+    {
+      "camera_id": "cam_10",
+      "name": "Route 3: sidewalk by building column",
+      "take": 3,
+      "position": {
+        "lat": 35.77555,
+        "lon": -78.63671
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 3.0,
+          "direction": "northwest"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam4.mp4",
+        "start_ts": 30.76
+      }
+    },
+    {
+      "camera_id": "cam_11",
+      "name": "Route 4: patio planters",
+      "take": 4,
+      "position": {
+        "lat": 35.77557,
+        "lon": -78.637
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_12",
+          "travel_time_s": 8.0,
+          "direction": "west"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take4/clip3_cam1.mp4",
+        "start_ts": 5.0
+      }
+    },
+    {
+      "camera_id": "cam_12",
+      "name": "Route 4: cafe patio",
+      "take": 4,
+      "position": {
+        "lat": 35.7755,
+        "lon": -78.6373
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_11",
+          "travel_time_s": 8.0,
+          "direction": "east"
+        },
+        {
+          "camera_id": "cam_13",
+          "travel_time_s": 6.0,
+          "direction": "northeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take4/clip3_cam2.mp4",
+        "start_ts": 19.5
+      }
+    },
+    {
+      "camera_id": "cam_13",
+      "name": "Route 4: patio planters (second angle)",
+      "take": 4,
+      "position": {
+        "lat": 35.7756,
+        "lon": -78.6371
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_12",
+          "travel_time_s": 6.0,
+          "direction": "southwest"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take4/clip3_cam3.mp4",
+        "start_ts": 28.8
+      }
+    },
+    {
+      "camera_id": "cam_14",
+      "name": "Hillsborough St sidewalk",
+      "take": 1,
+      "position": {
+        "lat": 35.7854,
+        "lon": -78.6603
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip8_cam2.mp4",
+        "start_ts": 1817.05
+      },
+      "notes": "Placed on Hillsborough St for this scripted story, and the ~30 min gap after Route 2's crime is set for it (start_ts = Route 2's crime detection 18.3 + 1800 - 1.25). Footage: clip 8 cam2, filmed about 4 min after clip 7 (16:43:28 vs 16:39:30) about 60 m from it (56-67 m by the phones' GPS), not on Hillsborough St."
+    }
+  ]
+}
