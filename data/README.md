@@ -8,7 +8,7 @@ Raw downloads and all video go in `data/raw/` (gitignored); clips are published 
 
 1. **Our staged clips (the main open data).** On Oct 17 the team filmed 13 staged incidents (clips 1 to 13, 34 camera views) in downtown Raleigh, near the Red Hat Annex. Wali's `labels.csv` (repo root) labels every view and splits them for the spotter fine-tune: clips 1, 3, 4, 7, 8, 12 and 13 are test clips (18 views, never used for training); clips 2, 5, 6, 9, 10 and 11 are training clips (16 views).
    - **Clip 8** (test; a phone snatch, 3 cameras) is **published** with its method: https://huggingface.co/datasets/WilwilMina/clarity-clip8 (method: [`staged/README.md`](staged/README.md)). The earlier scripted fallback run, `runs/run_1018-0028_r2s`, is on clip 8's site.
-   - **Clip 1** (test; a mimed stabbing, 4 cameras) is the **live demo** (`data/sites/annex_clip1/`). Both people on screen agreed to be filmed. It is **not published yet**: a frame-by-frame look found no recognizable bystanders, and a teammate's check comes before publishing.
+   - **Clip 1** (test; a mimed stabbing, 4 cameras) is the **live demo** (`data/sites/annex_clip1/`). Both people on screen agreed to be filmed. It is **published** as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (CC BY 4.0): a frame-by-frame look found no recognizable bystanders, and a teammate checked the same sheets before upload.
    - **Clips 4, 11 and 12 are not published** (clip 11 is a training clip).
 2. **Public clips**, filmed elsewhere:
    - an **external check set** (CAVIAR and MEVA example clips) that tests the spotter on footage from outside our site;
@@ -20,7 +20,7 @@ Raw downloads and all video go in `data/raw/` (gitignored); clips are published 
 
 | Source | What it gives us | License / terms | How we use it | Status |
 |---|---|---|---|---|
-| **Our staged clips** ([`staged/README.md`](staged/README.md)) | 13 staged incidents, 34 camera views, filmed by the team on Oct 17; labels in `labels.csv` | Clip 8: **CC BY 4.0** | Spotter fine-tune (training clips) and its test (test clips); the two demo sites | **Used.** Clip 8 published; clip 1 is the live demo, not published yet |
+| **Our staged clips** ([`staged/README.md`](staged/README.md)) | 13 staged incidents, 34 camera views, filmed by the team on Oct 17; labels in `labels.csv` | Clips 8 and 1: **CC BY 4.0** | Spotter fine-tune (training clips) and its test (test clips); the two demo sites | **Used.** Clips 8 and 1 published; clip 1 is the live demo |
 | **MEVA** (Multiview Extended Video with Activities), mevadata.org | ~100 consenting actors, scripted activities, indoor + outdoor cameras with overlapping and non-overlapping views; geo-registered outdoor cameras; actor GPS logs; 37 annotated activities incl. threat-based `person_steals_object` and `person_abandons_package`. Collected under IRB approval. | **CC BY 4.0** (attribution required) | Cut training clips (thefts, hugs, hand contact); example clips in the external check | **Used.** The training cuts went only into the rejected v4 and v5. ex007 and ex050 are in the external check (ex085 dropped); like CAVIAR's, they were in v2's training data, and whether v3 trained on them is open |
 | **MEVA drop-4 subset on Hugging Face** (`Voxel51/extended_video_activities_drop_4`) | 201 clips of MEVA Known Facility 1; the MeVID re-ID benchmark annotates the same people across cameras on this footage | CC BY 4.0 (videos from mevadata.org) | — | **Not used** |
 | **AIRTLab violence dataset** (github.com/airtlab/A-Dataset-for-Automatic-Violence-Detection-in-Videos) | 350 staged clips by non-professional actors (230 violent, 120 non-violent such as hugs and high-fives), filmed from **2 viewpoints** | "Freely released for research and educational purposes" (no formal license file) | Public training clips: stabbings, assaults and hard negatives; link only, never re-hosted | **Used only in the rejected v4 and v5**; v3 doesn't use it |
@@ -40,7 +40,7 @@ The hackathon counts staged clips as open data only if we **publish the clips an
 - Everyone who acts in a scene agreed to be filmed. Passers-by appear in some clips, so every clip gets a bystander check before publishing, and nothing we publish shows a recognizable bystander (clip 8's passers-by are blurred).
 - No weapons and no props that look like weapons; stabbings are mimed with empty hands.
 - Each take is logged: cameras, positions, who did what, at what time. That log is the ground truth; the logs of the two demo sites are committed with `phone_owner` blank (`data/staged/clip_log_take1.csv`, `clip_log_take3.csv`).
-- Published: clip 8 with the method. Clip 1: publishing is pending a teammate's bystander check. Clips 4, 11 and 12 are not published.
+- Published: clip 8 with the method. Clip 1 (the live demo) with the same method: [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1). Clips 4, 11 and 12 are not published.
 
 ## Building the demo sites from the clip logs
 
