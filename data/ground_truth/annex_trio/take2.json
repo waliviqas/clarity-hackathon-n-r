@@ -1,0 +1,32 @@
+{
+  "site_id": "annex_trio",
+  "take": 2,
+  "run_offset_s": 8.0,
+  "incident_id": "inc_take2",
+  "subject_id": "subj_take2",
+  "activity": "purse_snatch",
+  "appearance": "black hoodie, dark grey trousers",
+  "path": [
+    {
+      "camera_id": "cam_04",
+      "t_enter": 2.43,
+      "t_exit": 10.0
+    },
+    {
+      "camera_id": "cam_05",
+      "t_enter": 13.0,
+      "t_exit": 16.45
+    },
+    {
+      "camera_id": "cam_06",
+      "t_enter": 19.45,
+      "t_exit": 23.7
+    }
+  ],
+  "decoy_camera_id": null,
+  "camera_roles": {
+    "cam_04": "approach",
+    "cam_05": "crime",
+    "cam_06": "exit"
+  }
+}
