@@ -11,7 +11,8 @@
 (c) Errors stop the build and write nothing: a take without an exit, a hop with neither travel_s nor lat/lon,
     and a take whose clock is on only some route rows. A camera with two neighbors in the same 8-way direction
     (clip 8's raw GPS) builds with a warning.
-(d) The committed log data/staged/clip_log_take1.csv rebuilds the committed site files exactly.
+(d) The committed logs rebuild the committed site files exactly, without warnings: data/staged/clip_log_take1.csv
+    the clip-8 site (annex), data/staged/clip_log_take3.csv the clip-1 site (annex_clip1, crime at run-clock 5 s).
 Exit code 0 if every check passes, 1 if any fails.
 """
 from __future__ import annotations
@@ -90,8 +91,15 @@ SAME_WAY_LOG = HEADER + """
 1,purse_snatch,path,cam_02,,,35.7744,-78.6386,,a2.mp4,,,1.25,2.5,3,
 1,purse_snatch,exit,cam_03,,,35.7746,-78.6386,,a3.mp4,,,1.5,4.1,6,
 """  # clip 8's raw GPS: cam_02 is south of both its neighbors
-COMMITTED_LOG = REPO / "data" / "staged" / "clip_log_take1.csv"
-COMMITTED_FILES = ("data/sites/annex/cameras.json", "data/ground_truth/take1.json", "data/manifests/annex.json")
+# committed log: (the flags it is built with, the committed files it must rebuild exactly)
+COMMITTED = {
+    "clip_log_take1.csv": ((), ("data/sites/annex/cameras.json", "data/ground_truth/take1.json",
+                                "data/manifests/annex.json")),
+    "clip_log_take3.csv": (("--site", "annex_clip1", "--site-name", "Red Hat Annex (staged clip 1)",
+                            "--run-offset", "0"),
+                           ("data/sites/annex_clip1/cameras.json", "data/ground_truth/take3.json",
+                            "data/manifests/annex_clip1.json")),
+}
 
 failures: list[str] = []
 
@@ -222,14 +230,16 @@ def check_errors(tmp: Path) -> None:
 
 
 def check_committed_log(tmp: Path) -> None:
-    root = tmp / "committed"
-    result = run(BUILD, COMMITTED_LOG, "--root", root)
-    if not check(result.returncode == 0, f"committed log: {COMMITTED_LOG.name} builds", result.stderr):
-        return
-    for out in COMMITTED_FILES:
-        want, got = read_text(REPO / out), read_text(root / out)
-        diff = "".join(list(difflib.unified_diff(want.splitlines(True), got.splitlines(True), out, "rebuilt"))[:30])
-        check(want == got, f"committed log: rebuilds {out} exactly", diff)
+    for i, (name, (flags, files)) in enumerate(COMMITTED.items()):
+        root = tmp / f"committed{i}"
+        result = run(BUILD, REPO / "data" / "staged" / name, "--root", root, *flags)
+        if not check(result.returncode == 0, f"committed log: {name} builds", result.stderr):
+            continue
+        check("WARNING" not in result.stdout, f"committed log: {name} builds without warnings", result.stdout)
+        for out in files:
+            want, got = read_text(REPO / out), read_text(root / out)
+            diff = "".join(list(difflib.unified_diff(want.splitlines(True), got.splitlines(True), out, "rebuilt"))[:30])
+            check(want == got, f"committed log: {name} rebuilds {out} exactly", diff)
 
 
 def main() -> int:

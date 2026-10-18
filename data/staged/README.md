@@ -21,7 +21,7 @@ cam_01 bus shelter (the snatch) ──► cam_02 sidewalk by tree grate ──�
 
 There is no decoy: no camera films an empty path, so the footage never gives the camera agents a real "no match" view.
 
-Only clip 8 is used, and it is a test clip. Clips 4, 11 and 12 from the same filming session are never published.
+Only clip 8 is published, and it is a test clip. Test clip 1 has a demo site of its own but is not published yet (see [Clip 1: a second demo site](#clip-1-a-second-demo-site)). Clips 4, 11 and 12 from the same filming session are never published.
 
 Clip 8 (a phone snatch) contains no stabbing. Other clips from the session include mimed stabbings, acted with empty hands: we found no openly licensed stabbing footage, and we never stage scenes with knives or anything that looks like one.
 
@@ -135,3 +135,26 @@ The processing scripts are code, not data. Their license is set in the repo's ma
 - **Phone positions.** Raw GPS is accurate to ±14–28 m, more than the 11–22 m between cameras, and puts the cameras out of route order, so the cameras are placed by hand (see [Raw GPS vs placed positions](#raw-gps-vs-placed-positions)). The placed positions are within that error but approximate: the north heading is assumed, and the 11 m and 22 m spacings are themselves distances between GPS fixes. The 8-way directions between cameras follow from the placement.
 - **The route grouping leaks.** The `Route 1:` camera names, the `take` field in `cameras.json` and the `take1/` folder in each clip path all reveal which cameras belong to the incident. A system that reads these fields could use them as a shortcut.
 - **No stabbing footage** (see [What it is](#what-it-is)).
+
+## Clip 1: a second demo site
+
+Test clip 1 is another staged incident from the same session, built as a site of its own (`data/sites/annex_clip1/`, cameras `cam_07` to `cam_10`) so the demo can switch from clip 8 to it. **It is not published yet:** whole-frame review sheets of its four views (`python data/review_sheets.py data/raw/staged/take3`, two frames per second, written to the gitignored `data/raw/review/take3/`) wait for a teammate's bystander check, which also confirms that both actors are teammates. Like clip 8, it counts as open data only once the clips are published with this method.
+
+- **What happens:** on a sidewalk, the suspect walks up to a person and mimes a stabbing with empty hands (no prop); the person falls and the suspect runs off. Label `stabbing`; suspect outfit: black hoodie, dark grey trousers.
+- **Route:** `cam_07` sidewalk by street parking (the attack) ──► `cam_08` sidewalk by painted parklet ──► `cam_09` crosswalk corner ──► `cam_10` sidewalk by building column (exit). No decoy.
+- **Filmed** like clip 8: one handheld iPhone, one run of the scene per view (IMG_7352 to IMG_7355, recorded 16:05 to 16:08), converted the same way (720p, constant 10 fps, H.264, no audio).
+- **Labels** (clip seconds, from the team's clip log): `cam_07` 4.2–7.1 s (the attack at 5.6 s), `cam_08` 0.9–2.6 s, `cam_09` 0.0–5.31 s (standing at the curb when the clip starts, still in view at its end), `cam_10` 0.15–4.04 s (still in view at the end).
+- **Travel times:** 7 s from `cam_07` to `cam_08` (about 24 m) and 6 s from `cam_08` to `cam_09` (about 21 m), from the camera-position sheet. The 3 s from `cam_09` to `cam_10`, over an estimated 10 m, is **our estimate**: the sheet gives 0 m because both views have the same rounded GPS fix.
+- **Positions:** the raw fixes of `cam_07` to `cam_09` are already in route order and give the sheet's distances, so they stay. `cam_10`'s fix is the same 4-decimal point as `cam_09`'s, so it is placed about 10 m further on, continuing the `cam_08` → `cam_09` heading (southeast is an assumption). That is 10 m from its own fix: more than its ±5 m accuracy, within that accuracy plus the sheet's rounding to 4 decimals (about ±5 m). From `cam_08`, `cam_07` is south and `cam_09` southeast; from `cam_09`, `cam_08` is northwest and `cam_10` southeast. The clip log `data/staged/clip_log_take3.csv` keeps raw and placed positions the same way as take 1's:
+
+| Camera | Spot | Raw GPS (lat, lon) | GPS accuracy | Placed (lat, lon) |
+|---|---|---|---|---|
+| `cam_07` | sidewalk by street parking | 35.7755, -78.6371 | ±6 m | 35.77550, -78.63710 (its GPS fix) |
+| `cam_08` | sidewalk by painted parklet | 35.7757, -78.6370 | ±25 m | 35.77570, -78.63700 (its GPS fix, 24 m from `cam_07`) |
+| `cam_09` | crosswalk corner | 35.7756, -78.6368 | ±20 m | 35.77560, -78.63680 (its GPS fix, 21 m from `cam_08`) |
+| `cam_10` | sidewalk by building column | 35.7756, -78.6368 | ±5 m | 35.77555, -78.63671 (about 10 m southeast of `cam_09`, estimate) |
+
+- **Run clock:** built with `--run-offset 0`, so the attack plays at run-clock 5 s like clip 8's snatch. The suspect is in view at 5.0–7.9 s (`cam_07`), 14.9–16.6 s (`cam_08`), 22.6–27.91 s (`cam_09`) and 30.91–34.8 s (`cam_10`). As with clip 8, these are four separate runs of the scene placed on one clock by the estimated travel times.
+- **Background people:** distant passers-by and passing drivers appear in some views (for example on the far sidewalk in `cam_09`); the bystander check decides whether any of them needs blurring before the clips are published or shown.
+- **Build:** `python data/build_site.py data/staged/clip_log_take3.csv --site annex_clip1 --site-name "Red Hat Annex (staged clip 1)" --run-offset 0 --check-clips data/raw/staged`, then `contracts/validate.py` and `feeds.replay --check` on `data/sites/annex_clip1/cameras.json`. It writes `data/sites/annex_clip1/cameras.json`, `data/ground_truth/take3.json` and `data/manifests/annex_clip1.json`; the clip-8 files are untouched.
+- **Recorded model answers:** `data/answers/clip1_system_v3_checker.json` holds the answers of Wali's final system on these four views (the fine-tuned spotter v3 decides crime and type, Nemotron Nano 12B v2 VL describes the suspect; 3 NeMo Gym runs per view, converted by `data/gym_answers.py`). `python -m agents.run --answers data/answers/clip1_system_v3_checker.json --cameras data/sites/annex_clip1/cameras.json` replays the chase from them without a GPU. The spotter calls the attack an assault in all 3 runs, so the camera agents report a `fistfight` at `cam_07`, not a stabbing.
