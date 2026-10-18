@@ -1,0 +1,38 @@
+{
+  "site_id": "annex_duo",
+  "take": 3,
+  "run_offset_s": 0.0,
+  "incident_id": "inc_take3",
+  "subject_id": "subj_take3",
+  "activity": "stabbing",
+  "appearance": "black hoodie, dark grey trousers",
+  "path": [
+    {
+      "camera_id": "cam_07",
+      "t_enter": 5.0,
+      "t_exit": 7.9
+    },
+    {
+      "camera_id": "cam_08",
+      "t_enter": 14.9,
+      "t_exit": 16.6
+    },
+    {
+      "camera_id": "cam_09",
+      "t_enter": 22.6,
+      "t_exit": 27.91
+    },
+    {
+      "camera_id": "cam_10",
+      "t_enter": 30.91,
+      "t_exit": 34.8
+    }
+  ],
+  "decoy_camera_id": null,
+  "camera_roles": {
+    "cam_07": "crime",
+    "cam_08": "path",
+    "cam_09": "path",
+    "cam_10": "exit"
+  }
+}

@@ -14,7 +14,7 @@ seen before the crime), the `crime`, any number of `path` cameras (`junction` is
 exit. Consecutive route cameras are linked, and so are the decoy and the camera it branches off.
 
 Run clock: each take is lined up on its crime: the crime row's suspect_enter is run-clock take offset + 5 s
-(5 / 15 / 25 s for takes 1/2/3), so the three separately filmed takes replay overlapped with their crimes 10 s
+(5 / 15 / 25 / 35 s for takes 1-4), so the separately filmed takes replay overlapped with their crimes 10 s
 apart. --run-offset S gives every take built the offset S instead (a one-take demo site uses 0, so its crime
 plays at 5 s like take 1's); --run-offset 3=0,2=7 sets it per take (a take not named keeps its default), e.g.
 take 2's crime 7 s after take 3's. The other route clips follow by one of two rules, so a clip may start before
@@ -61,6 +61,9 @@ Run from the repo root (stdlib only):
     python data/build_site.py data/staged/clip_log_take2.csv data/staged/clip_log_take3.csv --site annex_multi \\
         --site-name "Red Hat Annex (staged clips 1 and 7)" --run-offset 3=0,2=7 --site-truth
         (two takes on one map, clip 7's crime 7 s after clip 1's; ground truth in data/ground_truth/annex_multi/)
+    python data/build_site.py data/staged/clip_log_take3.csv data/staged/clip_log_take4.csv --site annex_duo \\
+        --site-name "Red Hat Annex (staged clips 1 and 3)" --run-offset 3=0,4=4 --site-truth
+        (clips 1 and 3, both full chases; clip 3's crime 4 s after clip 1's)
 Then check: python contracts/validate.py data/sites/annex/cameras.json
 Tests (fixture logs in a temp folder): python data/check_build_site.py
 """
@@ -84,8 +87,8 @@ ROUTE_ROLES = ("approach", "crime", "path", "junction", "exit")  # route order; 
 ROLES = ROUTE_ROLES + ("decoy",)
 ROUTE_RANK = {"approach": 0, "crime": 1, "path": 2, "junction": 2, "exit": 3}  # path rows keep their row order
 ONE_PER_TAKE = ("approach", "crime", "exit", "decoy")
-TAKE_OFFSETS = {1: 0.0, 2: 10.0, 3: 20.0}
-CRIME_AT_S = 5.0  # a take's crime (crime row's suspect_enter) plays at run-clock offset + this: 5 / 15 / 25 s
+TAKE_OFFSETS = {1: 0.0, 2: 10.0, 3: 20.0, 4: 30.0}
+CRIME_AT_S = 5.0  # a take's crime (crime row's suspect_enter) plays at run-clock offset + this: 5 / 15 / 25 / 35 s
 RUN_SPEED_M_S = 4.0  # default --run-speed: escape pace for no-clock links without travel_s
 ACTIVITIES = ("stabbing", "fistfight", "purse_snatch")
 COLUMNS = ("take", "activity", "role", "camera_id", "phone_owner", "spot_description", "lat", "lon",
@@ -93,7 +96,7 @@ COLUMNS = ("take", "activity", "role", "camera_id", "phone_owner", "spot_descrip
            "suspect_exit_s", "notes")
 OPTIONAL_COLUMNS = ("heading_deg", "travel_s")  # added later; older logs without them still build
 CLOCK_COLUMNS = ("clock_shown_at_s", "clock_reading_hhmmss")
-CAMERA_ID = re.compile(r"^cam_(0[1-9]|1[0-2])$")
+CAMERA_ID = re.compile(r"^cam_(0[1-9]|1[0-3])$")  # cam_13: take 4 (clip 3) after cam_01-10
 # Decimal degrees, or degrees-minutes-seconds with symbols or spaces: 35°46'31"N, 35 46 31 N
 COORD = re.compile(r"""^(-?\d+(?:\.\d+)?)(?:\s*°\s*|\s+)?(?:(\d+(?:\.\d+)?)(?:\s*['′]\s*|\s+)?)?"""
                    r"""(?:(\d+(?:\.\d+)?)\s*(?:"|″|'')?\s*)?([NSEW])?$""", re.IGNORECASE)
@@ -341,7 +344,7 @@ def take_offset(n: int, run_offset: float | dict[int, float] | None) -> float:
 
 def _camera_id(text: str) -> str:
     if not CAMERA_ID.match(text):
-        raise ValueError("must be cam_01 ... cam_12")
+        raise ValueError("must be cam_01 ... cam_13")
     return text
 
 
@@ -645,7 +648,7 @@ def main() -> int:
                              f"straight-line lat/lon distance (default {RUN_SPEED_M_S:g})")
     parser.add_argument("--run-offset", metavar="SECONDS",
                         help="run-clock offset of every take built, so its crime plays at SECONDS + "
-                             f"{CRIME_AT_S:g} (default: 0 / 10 / 20 for takes 1/2/3, so they overlap 10 s apart; "
+                             f"{CRIME_AT_S:g} (default: 0 / 10 / 20 / 30 for takes 1-4, so they overlap 10 s apart; "
                              "a one-take demo site uses 0); or per take, e.g. 3=0,2=7 (a take not named keeps "
                              "its default)")
     parser.add_argument("--site-truth", action="store_true",

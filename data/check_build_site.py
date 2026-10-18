@@ -16,8 +16,9 @@
 (d) The committed logs rebuild the committed site files exactly, without warnings, and write no other files:
     data/staged/clip_log_take1.csv the clip-8 site (annex), data/staged/clip_log_take3.csv the clip-1 site
     (annex_clip1, crime at run-clock 5 s), and clip_log_take2.csv + clip_log_take3.csv the two-crime site
-    (annex_multi: clip 7's crime 7 s after clip 1's, ground truth in data/ground_truth/annex_multi/). On
-    annex_multi no link joins the two takes, and the clip-1 cameras equal annex_clip1's.
+    (annex_multi: clip 7's crime 7 s after clip 1's, ground truth in data/ground_truth/annex_multi/), and
+    clip_log_take3.csv + clip_log_take4.csv the clips 1 + 3 site (annex_duo: clip 3's crime 4 s after clip 1's).
+    On annex_multi and annex_duo no link joins two takes, and the clip-1 cameras equal annex_clip1's.
 Exit code 0 if every check passes, 1 if any fails.
 """
 from __future__ import annotations
@@ -96,7 +97,7 @@ SAME_WAY_LOG = HEADER + """
 1,purse_snatch,path,cam_02,,,35.7744,-78.6386,,a2.mp4,,,1.25,2.5,3,
 1,purse_snatch,exit,cam_03,,,35.7746,-78.6386,,a3.mp4,,,1.5,4.1,6,
 """  # clip 8's raw GPS: cam_02 is south of both its neighbors
-BAD_OFFSETS = {"4=0": "take must be one of", "2=-1": "expected seconds >= 0"}  # --run-offset: error text
+BAD_OFFSETS = {"5=0": "take must be one of", "2=-1": "expected seconds >= 0"}  # --run-offset: error text
 # committed logs: (the logs, the flags they are built with, the committed files they must rebuild exactly)
 COMMITTED = {
     "clip_log_take1.csv": (("clip_log_take1.csv",), (),
@@ -113,6 +114,12 @@ COMMITTED = {
          "--run-offset", "3=0,2=7", "--site-truth"),
         ("data/sites/annex_multi/cameras.json", "data/ground_truth/annex_multi/take2.json",
          "data/ground_truth/annex_multi/take3.json", "data/manifests/annex_multi.json")),
+    "clip_log_take3.csv + clip_log_take4.csv": (
+        ("clip_log_take3.csv", "clip_log_take4.csv"),
+        ("--site", "annex_duo", "--site-name", "Red Hat Annex (staged clips 1 and 3)",
+         "--run-offset", "3=0,4=4", "--site-truth"),
+        ("data/sites/annex_duo/cameras.json", "data/ground_truth/annex_duo/take3.json",
+         "data/ground_truth/annex_duo/take4.json", "data/manifests/annex_duo.json")),
 }
 
 failures: list[str] = []
@@ -288,19 +295,20 @@ def check_committed_log(tmp: Path) -> None:
             check(want == got, f"committed log: {name} rebuilds {out} exactly", diff)
         written = sorted(p.relative_to(root).as_posix() for p in root.rglob("*.json"))
         check(written == sorted(files), f"committed log: {name} writes no other files", str(written))
-    check_multi_site()
+    for site in ("annex_multi", "annex_duo"):
+        check_multi_site(site)
 
 
-def check_multi_site() -> None:
-    """annex_multi: the two takes' cameras never link (no relay crosses from one crime to the other), and its
+def check_multi_site(site: str) -> None:
+    """A several-take site: the takes' cameras never link (no relay crosses from one crime to another), and its
     clip-1 cameras are annex_clip1's, so both sites play clip 1 on the same run clock."""
-    multi = {c["camera_id"]: c for c in read_json(REPO / "data/sites/annex_multi/cameras.json")["cameras"]}
+    multi = {c["camera_id"]: c for c in read_json(REPO / f"data/sites/{site}/cameras.json")["cameras"]}
     crossing = [f"{cam_id}-{nb['camera_id']}" for cam_id, cam in multi.items() for nb in cam["neighbors"]
                 if multi.get(nb["camera_id"], {}).get("take") != cam["take"]]
-    check(not crossing, "annex_multi: no link between the two takes' cameras", str(crossing))
+    check(not crossing, f"{site}: no link between two takes' cameras", str(crossing))
     clip1 = read_json(REPO / "data/sites/annex_clip1/cameras.json")["cameras"]
     differ = [c["camera_id"] for c in clip1 if multi.get(c["camera_id"]) != c]
-    check(not differ, "annex_multi: clip-1 cameras identical to annex_clip1's", f"differ: {differ}")
+    check(not differ, f"{site}: clip-1 cameras identical to annex_clip1's", f"differ: {differ}")
 
 
 def main() -> int:
