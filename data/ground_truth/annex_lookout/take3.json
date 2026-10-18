@@ -41,5 +41,5 @@
     "cam_10": "exit",
     "cam_14": "lookout"
   },
-  "notes": "take 3 (test clip 1) as in data/ground_truth/take3.json, plus a far re-sighting at cam_14 (role lookout, scripted with bus.fake_scenario --lookout cam_14): Illustrative position (Mina's decision): a public Hillsborough St sidewalk near NC State, about 2.4 km (~30 min walk) west-northwest of clip 1's cameras. The footage is test clip 8's cam2 (same actor, same black hoodie), filmed 38 min after clip 1 (16:43:28 vs 16:05:04) about 200 m from clip 1, not on Hillsborough St."
+  "notes": "take 3 (test clip 1) as in data/ground_truth/take3.json, plus a far re-sighting at cam_14 (role lookout, scripted with bus.fake_scenario --lookout cam_14). cam_14: Placed on Hillsborough St for this scripted story; footage: clip 8 cam2, filmed 38 min after clip 1 (16:43:28 vs 16:05:04) about 200 m from it, not on Hillsborough St."
 }
