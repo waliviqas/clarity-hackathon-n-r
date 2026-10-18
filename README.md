@@ -31,7 +31,7 @@ Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17
 - the crime type: **stabbing**, **assault** or **stealing**;
 - the suspect, field by field: build, height, shirt, pants, shoes, hair, glasses, headwear, bag, weapon, vehicle.
 
-That answer becomes a `detection` event (see [`contracts/`](contracts/README.md)), and its suspect description is what the camera agents pass from camera to camera. TODO: Wali to confirm how the answer maps onto the contract's `activity` labels (`stabbing`, `fistfight`, `purse_snatch`, `none`).
+That answer becomes a `detection` event (see [`contracts/`](contracts/README.md)), and its suspect description is what the camera agents pass from camera to camera. TODO: label names. The spotter says `assault` and `stealing`; the contract's `activity` labels are `fistfight` and `purse_snatch` (plus `stabbing` and `none`). The coordinator accepts both sets, but the event bus checks every event against the contract and rejects `assault` and `stealing`. Proposed: the step that turns the spotter's answer into a `detection` converts them to the contract names. The other option, renaming the contract labels, is a team decision. Also open (Wali): which label a "fleeing" answer gets. <!-- source: ACTIVITY_ALIASES in dispatcher/rules.py and the "Spotter-shaped input" run in dispatcher/IMPROVEMENTS.md (Michael branch, cdac7b5); closed activity enum in contracts/schemas/detection.schema.json; the bus rejects invalid events by default (CLARITY_BUS_STRICT=1, bus/server.py) -->
 
 **Why fine-tune.** We scored the base model, `Qwen/Qwen3-VL-2B-Instruct`, on our held-out test clips before any training. It picked the right one of crime / fleeing / nothing in about half its answers, but it named the crime type wrong every time and almost never got the suspect's clothes right in its fields (table below). On our demo clip (clip 8, camera 1), it saw a crime but called a phone snatch an "assault", and its fields gave the suspect glasses and no shirt description, although its own summary mentions the man in the black hoodie. <!-- source: before.json on Wali's branch, clip8 cam1, same answer in 3 of 3 runs --> A 2B model is small enough to run beside every camera on an agency's own hardware, so we teach it this one job instead of using a bigger model.
 
@@ -97,7 +97,7 @@ In our own words, the Fine-Tuned track asks for three things: a small open model
 | Model serving on vLLM (Brev) | `infra/` | Michael | Coordinator model served (port 8003); base spotter served for its load test. TODO: fine-tuned spotter and checker |
 | Coordinator (Nemotron Nano 9B v2, rules for clear cases, a verifier) | `dispatcher/` | Michael | Built, on the `Michael` branch until it merges |
 | Lookup (RAG with Nemotron Embed + Rerank) | — | Michael | **Cut.** Replaced by fixed procedure lines in `dispatcher/guidance.py` |
-| NeMo Gym environment + scoring | `eval/` | Michael | TODO: not yet confirmed that we enter this bounty |
+| NeMo Gym environment + scoring | — | — | **Cut.** Not used in Clarity; we don't enter that bounty |
 
 Wali's and Michael's parts live on their own branches until they merge. TODO: update this table before submission (Sun Oct 18, 10:30 AM ET).
 
@@ -199,7 +199,7 @@ TODO: Wali to confirm which model, if any, the camera agents call to match a des
 | Agents and pipeline | Python 3.10+, OpenAI-compatible client with structured outputs (JSON schema), NetworkX |
 | Event bus | FastAPI, uvicorn, WebSockets, jsonschema |
 | Dashboard | Vite, React, TypeScript, react-leaflet, OpenStreetMap tiles |
-| Measurement | Wali's spotter scoring and load test, Michael's `scripts/bench_dispatcher.py`, `bus/metrics.py`. TODO: NeMo Gym, only if we enter that bounty |
+| Measurement | Wali's spotter scoring and load test, Michael's `scripts/bench_dispatcher.py`, `bus/metrics.py` |
 
 ---
 
@@ -250,7 +250,7 @@ The method for the demo clip (test clip 8: filming, positions, timing, conversio
 - **Who:** only consenting teammates act. No weapons or props that look like weapons; the stabbing is mimed with empty hands.
 - **What:** 13 clips, each showing one incident or a scene with no crime. The test clips hold mimed stabbings (clips 1, 3 and 4), a pickpocket (7), a phone snatch (8), an assault (13) and a no-crime scene (12). <!-- source: labels in before.json --> TODO: describe the training clips.
 - **Where and when:** sidewalks, a plaza, a cafe patio, a bus shelter and a parking garage around the Red Hat Annex in Raleigh, plus a few indoor views, filmed on Oct 17 between about 4:05 and 5:40 PM. <!-- source: camera_positions.csv (recorded_at, spot_name) -->
-- **Cameras:** iPhones placed like fixed security cameras, 1 to 4 per clip along the suspect's path, 34 camera views in total. Each spot's position is read from the phone's GPS (accuracy 5 to 189 m, worse indoors), with the distance from the previous camera and an estimated running time. <!-- source: camera_positions.csv -->
+- **Cameras:** one iPhone (the clips are consecutive files from one camera roll), moved from spot to spot along the suspect's path; for clip 8 it was handheld, not mounted, so its views move a little. 1 to 4 views per clip, 34 camera views in total. <!-- source: camera_positions.csv (source_file IMG_7352-IMG_7390, recorded_at); data/staged/README.md --> The team's camera-position sheet lists each spot's GPS fix (accuracy 5 to 189 m, worse indoors), the distance from the previous camera and an estimated running time. <!-- source: camera_positions.csv --> On the demo map, clip 8's cameras are placed by hand in route order, not at their raw GPS fixes (±14–28 m, more than the 11–22 m between the cameras, and out of route order): they form a straight line heading north (an assumption), spaced by the distances between the rounded GPS fixes. The raw GPS stays in the clip log's `gps_lat`, `gps_lon` and `gps_accuracy_m` columns. <!-- source: data/staged/README.md ("Raw GPS vs placed positions") and data/staged/clip_log_take1.csv -->
 - **Filmed separately, replayed together.** The views of one clip are short shots (2.4 to 12.5 s) filmed one after another, not at the same moment. For the demo they are replayed on one shared clock as if several cameras watched the same run. Each view is placed on that clock by the estimated running time from the previous spot (3 s and 6 s for clip 8), because the clips share no clock. <!-- source: camera_positions.csv (duration_s, gap_from_prev_cam_s) -->
 - **Clip format.** [`data/convert_clips.py`](data/convert_clips.py) (ffmpeg) turns each iPhone clip into a 720p, constant 10 fps, H.264 copy with the audio removed, so every clip decodes the same way and no bystander voices are kept. The originals are not changed.
 - **Labels and ground truth:** per camera view, what happens, the crime type and the suspect's description (see [The fine-tuned spotter](#the-fine-tuned-spotter)). For replay, [`data/build_site.py`](data/build_site.py) turns a clip log (clip 8's is committed as `data/staged/clip_log_take1.csv`; template: `data/staged/clip_log_template.csv`) into the camera map (`data/sites/annex/cameras.json`), ground truth (`data/ground_truth/take<N>.json`) and clip manifest (`data/manifests/annex.json`), all built and committed for clip 8.
@@ -412,7 +412,7 @@ Copy [`.env.example`](.env.example) to `.env` and fill it in. It contains only p
 | `HF_TOKEN` | Only if a model download needs it |
 | `VITE_BUS_URL` | Bus address for the dashboard (goes in `dashboard/.env`; never put secrets in `VITE_` variables) |
 
-The bus binds to `127.0.0.1` on the GPU box by default. From a laptop, reach it with `brev port-forward <instance> --port 8080:8080` (and `--port 8003:8003` for the coordinator's model server). TODO: confirm the model servers bind to `127.0.0.1`.
+The bus binds to `127.0.0.1` on the GPU box by default, and so does the coordinator's vLLM server (`--host 127.0.0.1` in `infra/serve_dispatcher.sh`; vLLM's own default listens on every interface). <!-- source: infra/serve_dispatcher.sh on the Michael branch (cdac7b5) --> From a laptop, reach them with `brev port-forward <instance> --port 8080:8080` (and `--port 8003:8003` for the coordinator's model server). TODO: the spotter's vLLM server should bind to `127.0.0.1` too (Michael asked Wali).
 
 ---
 
@@ -423,15 +423,14 @@ TODO: fill in once each part is merged. Planned order:
 1. **Get the staged clips.** TODO: download command from the dataset link into `data/raw/staged/`. The demo uses test clip 8.
 2. **Site data.** Convert the clips and build the site as in Quick start step 3. Then `python -m feeds.replay --cameras data/sites/annex/cameras.json --check` must report every camera OK. TODO: confirm for clip 8.
 3. **Spotter before/after.** TODO: Wali's command to score the base and the fine-tuned spotter on the test and external splits, and where to download the fine-tuned model.
-4. **Coordinator model server (GPU box)**, from `dispatcher/README.md` on the `Michael` branch:
+4. **Coordinator model server (GPU box).** Start Michael's script inside tmux, so the server keeps running after you disconnect:
 
    ```bash
-   vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --port 8003 \
-     --gpu-memory-utilization 0.30 --max-model-len 8192 --max-num-seqs 16 \
-     --mamba_ssm_cache_dtype float32 --enable-prefix-caching --trust-remote-code
+   tmux new -s dispatcher          # later: tmux attach -t dispatcher
+   bash infra/serve_dispatcher.sh
    ```
 
-   TODO: spotter and checker servers, once they are wired in.
+   It serves Nemotron Nano 9B v2 as `dispatcher` on `127.0.0.1:8003`, with vLLM 0.11.0 from the virtual environment `~/vllm12`, because newer vLLM fails with this GPU's driver. Every flag is explained in [`VLLM_BOUNTY.md`](VLLM_BOUNTY.md) ("Configuration"). Both files are on the `Michael` branch until it merges. <!-- source: infra/serve_dispatcher.sh and VLLM_BOUNTY.md on the Michael branch (cdac7b5) --> TODO: spotter and checker servers, once they are wired in.
 5. **Bus.** `python -m bus.server` with `CLARITY_CAMERAS=data/sites/annex/cameras.json` and a fresh `CLARITY_RUN_ID`.
 6. **Coordinator.** `CLARITY_LLM_BASE_URL=http://localhost:8003/v1 CLARITY_LLM_MODEL=dispatcher python -m dispatcher.run`. Add `--no-model` for rules only (label any recording "coordinator: rules mode").
 7. **Feeds.** `python -m feeds.replay --cameras data/sites/annex/cameras.json` (plays the clips and publishes `camera_status`).
@@ -461,7 +460,7 @@ On the test split only (never used in training).
 
 ### 3. Serving many cameras and incidents at once on vLLM
 
-Load tests on the team's Brev GPU box (the coordinator's run states an A100 80 GB, shared by our models). Throughput grows much faster than latency as requests overlap, because vLLM batches them.
+Load tests on the team's Brev GPU box (the coordinator's runs state an A100 80 GB, shared by our models). Throughput grows much faster than latency as requests overlap, because vLLM batches them.
 
 **Spotter** (base `Qwen/Qwen3-VL-2B-Instruct`, 4 frames per request, 32 requests per level, 0 errors at every level): <!-- source: results/vllm_bench.json on Wali's branch (cc8d3ae) -->
 
@@ -476,7 +475,7 @@ Load tests on the team's Brev GPU box (the coordinator's run states an A100 80 G
 
 At 32 cameras at once: 11.3× the throughput of one camera, for 2.5× the median latency. TODO: rerun with the fine-tuned spotter.
 
-**Coordinator** (Nemotron Nano 9B v2, real coordinator prompt and JSON schema, 16 requests per level, every answer passed the verifier): <!-- source: dispatcher/IMPROVEMENTS.md on the Michael branch, "Serving throughput" -->
+**Coordinator** (Nemotron Nano 9B v2, real coordinator prompt and JSON schema, 16 requests per level, every answer passed the verifier). Two runs with the same settings; the table is run 1: <!-- source: dispatcher/IMPROVEMENTS.md on the Michael branch, "Serving throughput" -->
 
 | Requests at once | p50 latency | p95 latency | Requests/s | Output tokens/s |
 |---|---|---|---|---|
@@ -485,7 +484,9 @@ At 32 cameras at once: 11.3× the throughput of one camera, for 2.5× the median
 | 8 | 2.25 s | 2.34 s | 3.51 | 362 |
 | 16 | 3.14 s | 3.16 s | 4.99 | 514 |
 
-At 16 at once: 7.6× the output throughput for about 2× the latency.
+Run 2 (a repeat on Sat Oct 17 night, GPU shared with the spotter): 65 → 477 output tokens/s and p50 1.55 → 3.39 s from 1 to 16 at once; 64 of 64 answers passed the verifier; one slow outlier at 4 at once (p95 5.6 s). <!-- source: dispatcher/IMPROVEMENTS.md on the Michael branch, "Run-to-run variation" (code at df3a804) -->
+
+At 16 at once, over both runs: 477–514 output tokens/s, about 7× one request (7.3–7.6×), for about 2× the latency. <!-- source: the two runs above; 477/65 = 7.3x, 514/68 = 7.6x; p50 3.39/1.55 = 2.2x, 3.14/1.53 = 2.1x -->
 
 **End to end** (crime on camera to the coordinator's recommendation, from the bus logs with `python -m bus.metrics runs/<run_id>`): TODO: measure on the clip 8 run. Runs that contain `bus.fake_scenario` events are labeled SCRIPTED: their timings follow the script's pacing, not model speed.
 
@@ -498,19 +499,15 @@ At 16 at once: 7.6× the output throughput for about 2× the latency.
 
 TODO: which model the baseline uses and what it is given, or delete this section.
 
-### 5. NeMo Gym: baseline vs. final
-
-TODO: only if we enter the NeMo Gym bounty (not yet confirmed); otherwise delete this section.
-
 ---
 
 ## Best Use of Red Hat vLLM
 
-vLLM serves the coordinator's model and the spotter on one GPU box, behind one OpenAI-compatible API (the checker is planned on it too). Sources: `dispatcher/IMPROVEMENTS.md` and `dispatcher/README.md` (Michael's branch) and `results/vllm_bench.json` (Wali's branch).
+vLLM serves the coordinator's model and the spotter on one GPU box, behind one OpenAI-compatible API (the checker is planned on it too). This is the short version. Michael's full write-up, with every flag and both coordinator load-test runs: [`VLLM_BOUNTY.md`](VLLM_BOUNTY.md). Sources: `VLLM_BOUNTY.md`, `dispatcher/IMPROVEMENTS.md` and `dispatcher/README.md` (Michael's branch until it merges) and `results/vllm_bench.json` (Wali's branch).
 
 **How it fits.** The coordinator's model, Nemotron Nano 9B v2, runs on vLLM 0.11.0 on port 8003 with the served model name `dispatcher`; the coordinator calls it with `temperature=0`, `max_tokens=400` and a JSON schema, so answers come back in the shape of a `dispatch`, and the verifier checks each one. The base spotter is served by vLLM too (load test in Results section 3). TODO: spotter and checker serve commands.
 
-**How we configured it.** One A100 80 GB shared by the team's models; the coordinator's server takes a 0.30 memory share, an 8192-token context and up to 16 concurrent sequences (full command in [Reproduce the full demo](#reproduce-the-full-demo)). The coordinator sends model calls for different incidents in parallel (up to 8, below vLLM's 16) so vLLM can batch them.
+**How we configured it.** One A100 80 GB shared by the team's models; the coordinator's server takes a 0.30 memory share, an 8192-token context and up to 16 concurrent sequences, and listens only on `127.0.0.1`. vLLM stays pinned at 0.11.0 because newer releases fail with this GPU's driver. Full command: `infra/serve_dispatcher.sh` (step 4 of [Reproduce the full demo](#reproduce-the-full-demo)); each flag is explained in `VLLM_BOUNTY.md`. The coordinator sends model calls for different incidents in parallel (up to 8, below vLLM's 16) so vLLM can batch them. <!-- source: infra/serve_dispatcher.sh and VLLM_BOUNTY.md, "Configuration" (Michael branch, cdac7b5) -->
 
 **What we changed, and what it measured** (one change at a time, same scenario; small samples):
 
@@ -521,17 +518,11 @@ vLLM serves the coordinator's model and the spotter on one GPU box, behind one O
 | Batch each bus poll, call the model for different incidents in parallel, skip repeated events (3 overlapping incidents) | slowest poll 3.9 s, 18 model calls | slowest poll 2.3 s, 15 model calls, 0 fallbacks (1 run) |
 | Retry once on unparseable JSON | 1 fallback in 15 dispatches | 0 fallbacks in 36 calls |
 
-**Measured results.** Continuous batching: the coordinator reaches 514 output tokens/s at 16 requests at once (7.6× one request, for about 2× the latency), and the spotter handles 992.8 cameras per minute at 32 at once (11.3× one camera, for 2.5× the median latency), with no errors. Tables: [Results section 3](#3-serving-many-cameras-and-incidents-at-once-on-vllm).
+**Measured results.** Continuous batching. The coordinator reaches 477–514 output tokens/s at 16 requests at once (two runs): about 7× one request (7.3–7.6×), for about 2× the latency, and every answer passed the verifier. The spotter handles 992.8 cameras per minute at 32 at once: 11.3× one camera, for 2.5× the median latency, with no errors. Tables: [Results section 3](#3-serving-many-cameras-and-incidents-at-once-on-vllm). <!-- source: coordinator: dispatcher/IMPROVEMENTS.md on the Michael branch, "Serving throughput" (run 1: 68 -> 514 tok/s) and "Run-to-run variation" (run 2: 65 -> 477 tok/s, 64/64 verified); spotter: results/vllm_bench.json on Wali's branch (cc8d3ae) -->
 
 **Tried, didn't help.** Prefix caching is switched on but vLLM 0.11 does not apply it to this hybrid Mamba model (its cache counter stayed at 0), so we don't claim it. A per-request setting to drop whitespace from structured output was accepted but ignored.
 
 **Why vLLM.** Local inference on hardware we control (the privacy case), one API for a vision model and a language model, JSON-schema outputs the coordinator can rely on, and batching that lets one GPU keep up with many cameras at once.
-
----
-
-## Best Model Improvement with NeMo Gym
-
-TODO: not yet confirmed that we enter this bounty. If we do, Michael writes this section; otherwise delete it.
 
 ---
 
@@ -546,12 +537,12 @@ TODO: not yet confirmed that we enter this bounty. If we do, Michael writes this
 - **Staged, not real, footage.** Short scenes acted by teammates, in daylight.
 - **The stabbing is mimed.** It is acted with empty hands and no props, so it looks unlike a real attack. We found no openly licensed stabbing footage to test against.
 - **Camera views were filmed one after another.** The views of a clip are separate short shots replayed on one clock, not one moment seen by several cameras.
-- **Rough camera positions.** GPS accuracy ranges from 5 to 189 m, worst indoors and in the garage.
+- **Rough camera positions.** GPS accuracy ranges from 5 to 189 m, worst indoors and in the garage. So clip 8's cameras on the demo map are placed by hand in route order, not at their GPS fixes: a straight line heading north, which is an assumption, spaced by the distances between the rounded GPS fixes. The positions, and the compass directions between cameras that follow from them, are approximate. The raw GPS stays in the clip log (`gps_lat`, `gps_lon`, `gps_accuracy_m`). <!-- source: data/staged/README.md ("Raw GPS vs placed positions", "Known limitations") and data/staged/clip_log_take1.csv -->
 - **Replay, not live cameras.** Feeds are recorded clips played back as cameras, not live streams.
 - **Fixed procedure text.** The coordinator's guidance is a fixed line per crime type in `dispatcher/guidance.py`, not a search over an agency's real procedures (we cut the lookup step).
 - **Not on agency hardware yet.** The demo runs on a rented Brev cloud GPU box standing in for the agency's server, and the dashboard on a laptop over a port-forward.
 - **Descriptions can be wrong.** A clothing description can match an innocent person or miss a suspect who changes clothes. That's why a human confirms every recommendation, and why each recommendation shows its evidence.
-- **No login on the bus.** It has no user accounts; it binds to `127.0.0.1` on the GPU box and is reached through a port-forward. TODO: confirm how the model servers are protected (vLLM `--api-key`, localhost only, or both).
+- **No login on the bus or the coordinator's model server.** Neither has user accounts or an API key; both bind to `127.0.0.1` on the GPU box and are reached through a port-forward. <!-- source: bus/server.py; infra/serve_dispatcher.sh on the Michael branch (--host 127.0.0.1, no --api-key) --> TODO: the spotter's vLLM server, once it binds to `127.0.0.1` too (Michael asked Wali).
 
 ## Next steps
 
@@ -578,7 +569,7 @@ TODO: not yet confirmed that we enter this bounty. If we do, Michael writes this
 The bus writes event logs to `runs/<run_id>/` when it runs.
 
 TODO: added when Wali's branch merges: the spotter fine-tune and scoring code and results, `perception/` (spotter and checker), `agents/` (camera agents), `graph/` (camera graph).
-TODO: added when Michael's branch merges: `infra/` (vLLM serving), `dispatcher/` (coordinator, verifier, procedure lines in `guidance.py`), `scripts/bench_dispatcher.py`, `eval/` (NeMo Gym, only if we enter that bounty).
+TODO: added when Michael's branch merges: `infra/` (vLLM serving, `serve_dispatcher.sh`), `dispatcher/` (coordinator, verifier, procedure lines in `guidance.py`), `scripts/bench_dispatcher.py`, `VLLM_BOUNTY.md` (vLLM write-up).
 
 ---
 
@@ -586,9 +577,9 @@ TODO: added when Michael's branch merges: `infra/` (vLLM serving), `dispatcher/`
 
 | Name | Role | GitHub |
 |---|---|---|
-| Mina | Event bus, camera feeds, staged clips and data, dashboard, video and write-up | TODO: handle |
-| Wali | Spotter fine-tune and scoring, crime detection (spotter + checker), camera agents, camera graph | TODO: handle |
-| Michael | vLLM serving on Brev, coordinator. TODO: NeMo Gym, if we enter that bounty | TODO: handle |
+| Mina | Event bus, camera feeds, staged clips and data, dashboard, video and write-up | [@WilwilMina](https://github.com/WilwilMina) |
+| Wali | Spotter fine-tune and scoring, crime detection (spotter + checker), camera agents, camera graph | [@waliviqas](https://github.com/waliviqas) |
+| Michael | vLLM serving on Brev, coordinator, vLLM write-up | [@venecia-mv](https://github.com/venecia-mv) |
 
 ---
 
