@@ -1,0 +1,2136 @@
+{
+  "model": "Qwen/Qwen3-VL-2B-Instruct",
+  "split": "test",
+  "runs_per_camera": 3,
+  "cameras_scored": 18,
+  "prompt": "These are frames from one security camera, in time order.\n\nFirst, describe what happens in one or two short sentences (\"what_happened\").\n\nThen decide what is on screen:\n- \"crime\": a crime happens in these frames: stabbing, assault (hitting, punching, shoving), or stealing (taking someone's property, including pickpocketing, snatching, or stealing a vehicle)\n- \"fleeing\": no crime happens here, but someone is running away as if escaping\n- \"none\": nothing suspicious\n\n\"crime\" is the type of crime you see. If someone is fleeing, use the crime they appear to be escaping from if you can tell, otherwise \"none\".\n\nThe suspect is the person committing the crime or running away, not the victim (the person who gets hurt, falls, or loses something). Describe only the suspect. Use \"unknown\" for anything you cannot see clearly. For headwear, bag, weapon and vehicle, use \"none\" if the suspect clearly has none. If there is no suspect, use \"unknown\" for build, height and glasses, and \"none\" for the other description fields.",
+  "summary": {
+    "on_screen_accuracy": 0.537,
+    "crime_type_accuracy": 0.0,
+    "false_alarm_rate": 0.0,
+    "description_accuracy": 0.253,
+    "description_accuracy_by_field": {
+      "build": 0.0,
+      "height": 0.0,
+      "glasses": 0.077,
+      "shirt": 0.062,
+      "pants": 0.0,
+      "shoes": 0.0,
+      "headwear": 0.854,
+      "hair": 0.0,
+      "bag": 0.854,
+      "weapon": 1.0,
+      "vehicle": null
+    },
+    "consistent_cameras": "12/18",
+    "failed_requests": 7,
+    "mean_latency_s": 2.006
+  },
+  "cameras": [
+    {
+      "clip": "clip1",
+      "cam": "cam1",
+      "label": {
+        "clip": "clip1",
+        "cam": "cam1",
+        "split": "test",
+        "on_screen": "crime",
+        "crime": "stabbing",
+        "what_happened": "suspect in black hoodie walks up to man in navy sweater on sidewalk and stabs him; victim falls; suspect runs off",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "black sweatpants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A man in a dark sweater and light-colored pants is seen walking on a sidewalk. He then suddenly falls to his knees and appears to be in distress. Another man in a black hoodie walks past him, and a third man in a dark jacket walks toward him. The man in the dark sweater is the one who falls to the ground.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A man in a dark sweater and light-colored pants is seen walking on a sidewalk. He then suddenly falls to his knees and appears to be in distress. Another man in a black hoodie walks past him, and a third man in a dark jacket walks toward him. The man in the dark sweater is the one who falls to the ground.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A man in a dark sweater and light-colored pants is seen walking on a sidewalk. He then suddenly falls to his knees and appears to be in distress. Another man in a black hoodie walks past him, and a third man in a dark jacket walks toward him. The man in the dark sweater is the one who falls to the ground.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip1",
+      "cam": "cam2",
+      "label": {
+        "clip": "clip1",
+        "cam": "cam2",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stabbing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "black sweatpants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A person wearing a black hoodie and dark pants runs from the left side of the frame to the right side, passing in front of the colorful outdoor seating area. The person is moving quickly and appears to be in motion, possibly fleeing from something or someone. The scene is a city street with parked cars and buildings in the background.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person wearing a black hoodie and dark pants runs from the left side of the frame to the right side, passing in front of the colorful outdoor seating area. The person is moving quickly and appears to be in motion, possibly fleeing from something or someone. The scene is a city street with parked cars and buildings in the background.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person wearing a black hoodie and dark pants runs from the left side of the frame to the right side, passing in front of the colorful outdoor seating area. The person is moving quickly and appears to be in motion, possibly fleeing from something or someone. The scene is a city street with parked cars and buildings in the background.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip1",
+      "cam": "cam3",
+      "label": {
+        "clip": "clip1",
+        "cam": "cam3",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stabbing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "black sweatpants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A person in a black hoodie is seen standing on a sidewalk. They then run across the street, moving away from the camera's viewpoint.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a black hoodie is seen standing on a sidewalk. They then run across the street, moving away from the camera's viewpoint.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a black hoodie is seen standing on a sidewalk. They then run across the street, moving away from the camera's viewpoint.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip1",
+      "cam": "cam4",
+      "label": {
+        "clip": "clip1",
+        "cam": "cam4",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stabbing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "black sweatpants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A person wearing a black hoodie and dark pants is walking on a city sidewalk. They are moving away from the camera, and the person is walking on the brick-paved area. The person is not carrying any bag, weapon, or other object. The person is not running, and no crime is committed in these frames.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person wearing a black hoodie and dark pants is walking on a city sidewalk. They are moving away from the camera, and the person is walking on the brick-paved area. The person is not carrying any bag, weapon, or other object. The person is not running, and no crime is committed in these frames.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person wearing a black hoodie and dark pants is walking on a city sidewalk. They are moving away from the camera, and the person is walking on the brick-paved area. The person is not carrying any bag, weapon, or other object. The person is not running, and no crime is committed in these frames.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip3",
+      "cam": "cam1",
+      "label": {
+        "clip": "clip3",
+        "cam": "cam1",
+        "split": "test",
+        "on_screen": "crime",
+        "crime": "stabbing",
+        "what_happened": "suspect in black hoodie walks up to man sitting by plant pots, bends over and stabs him; suspect runs off",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "dark grey pants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A man is sitting on the ground next to two large planters. Another man approaches him from the right and appears to hit him in the face. The first man falls to the ground and the second man walks away.",
+          "on_screen": "crime",
+          "crime": "assault",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A man is sitting on the ground next to two large planters. Another man approaches him from the right and appears to hit him in the face. The first man falls to the ground and the second man walks away.",
+          "on_screen": "crime",
+          "crime": "assault",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A man is sitting on the ground next to two large planters. Another man approaches him from the right and appears to hit him in the face. The first man falls to the ground and the second man walks away.",
+          "on_screen": "crime",
+          "crime": "assault",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip3",
+      "cam": "cam2",
+      "label": {
+        "clip": "clip3",
+        "cam": "cam2",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stabbing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "dark grey pants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A man in a black hoodie and grey pants is seen running across a sidewalk in front of a building. He appears to be moving quickly and is not looking at the camera. A person in a dark jacket is standing on the sidewalk in the background, but they are not moving.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        null,
+        null
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          false,
+          false
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          false,
+          false
+        ]
+      },
+      "consistent": false
+    },
+    {
+      "clip": "clip3",
+      "cam": "cam3",
+      "label": {
+        "clip": "clip3",
+        "cam": "cam3",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stabbing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "dark grey pants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A person is lying on the ground in a courtyard, and another person runs past them. The person on the ground appears to be unconscious or unresponsive.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person is lying on the ground in a courtyard, and another person runs past them. The person on the ground appears to be unconscious or unresponsive.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person is lying on the ground in a courtyard, and another person runs past them. The person on the ground appears to be unconscious or unresponsive.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip4",
+      "cam": "cam1",
+      "label": {
+        "clip": "clip4",
+        "cam": "cam1",
+        "split": "test",
+        "on_screen": "crime",
+        "crime": "stabbing",
+        "what_happened": "in a parking garage suspect meets man in navy sweater and stabs him; victim falls; suspect sprints away",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black jacket",
+        "pants": "dark pants",
+        "shoes": "unknown",
+        "glasses": "unknown",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A person is walking in a parking garage. Another person is seen walking towards the camera. The first person then runs away from the camera, and the second person is seen falling to the ground.",
+          "on_screen": "crime",
+          "crime": "assault",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        null,
+        null
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          false,
+          false
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          false,
+          false
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          false,
+          false
+        ]
+      },
+      "consistent": false
+    },
+    {
+      "clip": "clip4",
+      "cam": "cam2",
+      "label": {
+        "clip": "clip4",
+        "cam": "cam2",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stabbing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black jacket",
+        "pants": "dark pants",
+        "shoes": "unknown",
+        "glasses": "unknown",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A white SUV drives into a parking space, then a person runs across the parking lot from the left side of the frame.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "white SUV"
+        },
+        {
+          "what_happened": "A white SUV drives into a parking space, then a person runs across the parking lot from the left side of the frame.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "white SUV"
+        },
+        {
+          "what_happened": "A white SUV drives into a parking space, then a person runs across the parking lot from the left side of the frame.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "white SUV"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": false
+    },
+    {
+      "clip": "clip4",
+      "cam": "cam3",
+      "label": {
+        "clip": "clip4",
+        "cam": "cam3",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stabbing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black jacket",
+        "pants": "dark pants",
+        "shoes": "unknown",
+        "glasses": "unknown",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A person is seen running across a parking garage. The person is moving quickly from the left side of the frame to the right, and their motion is blurred, indicating they are in motion. There are several parked cars in the garage, and the person is not interacting with any of them. The person is wearing dark clothing and appears to be in a hurry.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person is seen running across a parking garage. The person is wearing dark clothing and appears to be moving quickly, possibly fleeing from something or someone. A silver car is parked in the middle of the frame, and other cars are visible in the background.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person is seen running across a parking garage. The person is wearing dark clothing and appears to be moving quickly, possibly fleeing from something or someone. A silver car is parked in the middle of the frame, and other cars are visible in the background.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": false
+    },
+    {
+      "clip": "clip7",
+      "cam": "cam1",
+      "label": {
+        "clip": "clip7",
+        "cam": "cam1",
+        "split": "test",
+        "on_screen": "none",
+        "crime": "stealing",
+        "what_happened": "two men walk down the sidewalk, nothing happens yet",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "grey pants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "Two men are walking on a sidewalk. The man in the foreground is wearing a dark blue sweater and khaki pants. The man behind him is wearing a dark jacket and jeans. They are walking from the right side of the frame towards the left, passing a brick-paved crosswalk. The man in the foreground stops and turns to face the camera, then begins walking again. The man behind him continues walking away from the camera.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "Two men are walking on a sidewalk. The man in the foreground is wearing a dark blue sweater and khaki pants. The man behind him is wearing a dark jacket and jeans. They are walking from the right side of the frame towards the left, passing a brick-paved crosswalk. The man in the foreground stops and turns to face the camera, then begins walking again. The man behind him continues walking away from the camera.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "Two men are walking on a sidewalk. The man in the foreground is wearing a dark blue sweater and khaki pants. The man behind him is wearing a dark jacket and jeans. They are walking from the right side of the frame towards the left, passing a brick-paved crosswalk. The man in the foreground stops and turns to face the camera, then begins walking again. The man behind him continues walking away from the camera.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ],
+        "false_alarm": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": true
+    },
+    {
+      "clip": "clip7",
+      "cam": "cam2",
+      "label": {
+        "clip": "clip7",
+        "cam": "cam2",
+        "split": "test",
+        "on_screen": "crime",
+        "crime": "stealing",
+        "what_happened": "suspect bumps into man in navy sweater and pickpockets him",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "grey pants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A man in a blue sweater and glasses is standing on a sidewalk. Another man in a black hoodie runs into the frame from the right and begins to run away. The man in the blue sweater turns and runs after him.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A man in a blue sweater and glasses is standing on a sidewalk. Another man in a black hoodie runs into the frame from the right and begins to run away. The man in the blue sweater turns and runs after him.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A man in a blue sweater and glasses is standing on a sidewalk. Another man in a black hoodie runs into the frame from the right and begins to run away. The man in the blue sweater turns and runs after him.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip7",
+      "cam": "cam3",
+      "label": {
+        "clip": "clip7",
+        "cam": "cam3",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stealing",
+        "what_happened": "right after the pickpocket, suspect walks away",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "grey pants",
+        "shoes": "unknown",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "short dark",
+        "bag": "none",
+        "weapon": "unknown",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        null,
+        null,
+        null
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          false,
+          false,
+          false
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          false,
+          false,
+          false
+        ]
+      },
+      "consistent": false
+    },
+    {
+      "clip": "clip8",
+      "cam": "cam1",
+      "label": {
+        "clip": "clip8",
+        "cam": "cam1",
+        "split": "test",
+        "on_screen": "crime",
+        "crime": "stealing",
+        "what_happened": "suspect chats with man on phone at bus stop, snatches the phone and runs",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "dark grey pants",
+        "shoes": "black sneakers",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "curly dark",
+        "bag": "none",
+        "weapon": "none",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A man in a blue sweater and glasses is standing at a bus stop, looking at his phone. Another man in a black hoodie approaches him and they begin to talk. The man in the hoodie then runs away from the bus stop.",
+          "on_screen": "crime",
+          "crime": "assault",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A man in a blue sweater and glasses is standing at a bus stop, looking at his phone. Another man in a black hoodie approaches him and they begin to talk. The man in the hoodie then runs away from the bus stop.",
+          "on_screen": "crime",
+          "crime": "assault",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A man in a blue sweater and glasses is standing at a bus stop, looking at his phone. Another man in a black hoodie approaches him and they begin to talk. The man in the hoodie then runs away from the bus stop.",
+          "on_screen": "crime",
+          "crime": "assault",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "shoes": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ],
+        "weapon": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip8",
+      "cam": "cam2",
+      "label": {
+        "clip": "clip8",
+        "cam": "cam2",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stealing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "dark grey pants",
+        "shoes": "black sneakers",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "curly dark",
+        "bag": "none",
+        "weapon": "none",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "A person in a black hoodie runs across a sidewalk. A red car is seen driving on the street, and the person is moving quickly, possibly fleeing from the car.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "red car"
+        },
+        {
+          "what_happened": "A person in a black hoodie runs across a sidewalk. A red car is seen driving on the street, and the person is moving quickly, possibly fleeing from the car.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "red car"
+        },
+        {
+          "what_happened": "A person in a black hoodie runs across a sidewalk. A red car is seen driving on the street, and the person is moving quickly, possibly fleeing from the car.",
+          "on_screen": "fleeing",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "red car"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "shoes": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ],
+        "weapon": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip8",
+      "cam": "cam3",
+      "label": {
+        "clip": "clip8",
+        "cam": "cam3",
+        "split": "test",
+        "on_screen": "fleeing",
+        "crime": "stealing",
+        "what_happened": "suspect runs away through frame",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black hoodie",
+        "pants": "dark grey pants",
+        "shoes": "black sneakers",
+        "glasses": "no",
+        "headwear": "none",
+        "hair": "curly dark",
+        "bag": "none",
+        "weapon": "none",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "Two people are walking on a sidewalk. A man in a black hoodie and jeans runs into a covered area, then exits the frame. A woman in a black jacket and light-colored pants is seen walking away from the camera on the sidewalk.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "Two people are walking on a sidewalk. A man in a black hoodie and jeans runs into a covered area, then exits the frame. A woman in a black jacket and light-colored pants is seen walking away from the camera on the sidewalk.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "Two people are walking on a sidewalk. A man in a black hoodie and jeans runs into a covered area, then exits the frame. A woman in a black jacket and light-colored pants is seen walking away from the camera on the sidewalk.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          false,
+          false,
+          false
+        ],
+        "shirt": [
+          false,
+          false,
+          false
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "shoes": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ],
+        "weapon": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": true
+    },
+    {
+      "clip": "clip12",
+      "cam": "cam1",
+      "label": {
+        "clip": "clip12",
+        "cam": "cam1",
+        "split": "test",
+        "on_screen": "none",
+        "crime": "none",
+        "what_happened": "crowded hall of people working at tables; nothing happens",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "The video shows a group of people in a large room, likely a conference or meeting room, with long tables and laptops. The people are seated and appear to be working or attending a meeting. The room has a large screen on the wall, and the lighting is bright. There is no visible movement or action that suggests a crime, and no one is running away. The people are all sitting and focused on their work, with no visible signs of conflict or theft.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "The video shows a group of people in a large room, likely a conference or meeting room, with long tables and laptops. The people are seated and appear to be working or attending a meeting. The room has a large screen on the wall, and the lighting is bright. There is no visible movement or action that suggests a crime, and no one is running away. The people are all sitting and focused on their work, with no visible signs of conflict or theft.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "The video shows a group of people in a large room, likely a conference or meeting room, with long tables and laptops. The people are seated and appear to be working or attending a meeting. The room has a large screen on the wall, and the lighting is bright. There is no visible movement or action that suggests a crime, and no one is running away. The people are all sitting and focused on their work, with no visible signs of conflict or theft.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ],
+        "false_alarm": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": true
+    },
+    {
+      "clip": "clip13",
+      "cam": "cam1",
+      "label": {
+        "clip": "clip13",
+        "cam": "cam1",
+        "split": "test",
+        "on_screen": "crime",
+        "crime": "assault",
+        "what_happened": "in a hallway man in black t-shirt punches another man by a door; victim ends up on the floor",
+        "build": "slim",
+        "height": "average",
+        "shirt": "black t-shirt",
+        "pants": "grey pants",
+        "shoes": "unknown",
+        "glasses": "yes",
+        "headwear": "none",
+        "hair": "curly dark",
+        "bag": "none",
+        "weapon": "none",
+        "vehicle": "",
+        "check": ""
+      },
+      "answers": [
+        {
+          "what_happened": "Two men are standing in a hallway. The man on the right is walking towards the left, and the man on the left is looking at him. The man on the right then turns and walks away. The man on the left is standing still. The man on the right is then seen falling to the ground, and the man on the left is seen standing over him.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "black",
+          "pants": "black",
+          "shoes": "black",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "black",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "Two men are standing in a hallway. The man on the right is walking towards the camera, and the man on the left is standing still. The man on the right then turns and walks away from the camera. The man on the left is still standing. The man on the right is then seen sitting on the floor, and the man on the left is still standing.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "black",
+          "pants": "black",
+          "shoes": "black",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "black",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "Two men are standing in a hallway. The man on the right is walking towards the camera, and the man on the left is standing still. The man on the right then turns and walks away from the camera. The man on the left is still standing. The man on the right is then seen sitting on the floor, and the man on the left is still standing.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "black",
+          "pants": "black",
+          "shoes": "black",
+          "glasses": "yes",
+          "headwear": "none",
+          "hair": "black",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {
+        "build": [
+          false,
+          false,
+          false
+        ],
+        "height": [
+          false,
+          false,
+          false
+        ],
+        "glasses": [
+          true,
+          true,
+          true
+        ],
+        "shirt": [
+          true,
+          true,
+          true
+        ],
+        "pants": [
+          false,
+          false,
+          false
+        ],
+        "headwear": [
+          true,
+          true,
+          true
+        ],
+        "hair": [
+          false,
+          false,
+          false
+        ],
+        "bag": [
+          true,
+          true,
+          true
+        ],
+        "weapon": [
+          true,
+          true,
+          true
+        ]
+      },
+      "consistent": false
+    }
+  ]
+}

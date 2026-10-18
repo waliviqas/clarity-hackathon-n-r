@@ -1,0 +1,31 @@
+clarity_spotter:
+  resources_servers:
+    clarity_spotter:
+      entrypoint: app.py
+      domain: other
+      description: Detect crimes in security-camera frames and describe the suspect
+      value: Measure and improve a small vision model's crime detection and suspect descriptions
+      verified: false
+clarity_spotter_simple_agent:
+  responses_api_agents:
+    simple_agent:
+      entrypoint: app.py
+      max_steps: 1
+      resources_server:
+        type: resources_servers
+        name: clarity_spotter
+      model_server:
+        type: responses_api_models
+        name: policy_model
+      datasets:
+      - name: test
+        type: example
+        jsonl_fpath: resources_servers/clarity_spotter/data/test.jsonl
+
+clarity_spotter_environment_server:
+  environment_servers:
+    legacy_agent:
+      entrypoint: app.py
+      agent_server:
+        type: responses_api_agents
+        name: clarity_spotter_simple_agent
