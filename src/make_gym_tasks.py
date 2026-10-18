@@ -30,6 +30,7 @@ def main() -> None:
     parser.add_argument("--split", default="test")
     parser.add_argument("--out", default="nemo_gym/clarity_spotter/data/test.jsonl")
     parser.add_argument("--frames", type=int, default=4)
+    parser.add_argument("--width", type=int, default=640, help="frame width in pixels (frames are never upscaled)")
     parser.add_argument("--task", choices=["spot", "describe", "describe_v1", "crime"], default="spot")
     args = parser.parse_args()
     prompt, schema = {"spot": (PROMPT, SCHEMA), "describe": (DESCRIBE_PROMPT, DESCRIBE_SCHEMA),
@@ -43,7 +44,7 @@ def main() -> None:
         for label in rows:
             video = Path(label["video"]) if label.get("video") else Path(args.clips) / label["clip"] / f"{label['cam']}.mp4"
             images = [{"type": "input_image", "detail": "auto", "image_url": "data:image/jpeg;base64," + base64.b64encode(fr).decode()}
-                      for fr in sample_frames(str(video), args.frames)]
+                      for fr in sample_frames(str(video), args.frames, width=args.width)]
             task = {
                 "responses_create_params": {
                     "input": [{"role": "user", "content": [*images, {"type": "input_text", "text": prompt}]}],
