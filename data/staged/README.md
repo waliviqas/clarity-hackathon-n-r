@@ -28,10 +28,10 @@ Clip 8 (a phone snatch) contains no stabbing. Other clips from the session inclu
 ## How it was filmed
 
 - **One phone, three runs.** A single iPhone filmed the three camera views one after another. The teammates acted the scene once per view, and the phone moved to the next spot between runs. So each view shows a separate run of the same scene, not one run seen by three cameras at once. The source files are IMG_7380, IMG_7381 and IMG_7382, recorded at 16:41:45, 16:43:28 and 16:43:50. The gaps between them are setup time, not the suspect's running time.
-- **Views:** high-angle views looking down at the sidewalk, like a CCTV camera. The copies we processed are 1080p H.264 at 30 fps, with audio (removed in processing, see below). TODO: confirm how the phone was held or mounted.
+- **Views:** high-angle views looking down at the sidewalk, like a CCTV camera. The copies we processed are 1080p H.264 at 30 fps, with audio (removed in processing, see below). The phone was handheld, not on a fixed mount, so the view moves a little during the clips (most visibly in `cam_03`).
 - **No clock sync.** No clock is in view, and the runs were separate anyway. The time between views comes from **estimated running times** (`travel_s` in the clip log), based on the distance between the spots: 3 s from `cam_01` to `cam_02` (about 11 m) and 6 s from `cam_02` to `cam_03` (about 22 m). They are estimates, not measurements.
 - **Positions:** the GPS position in each clip's metadata, collected in the team's camera-position sheet (`video-data/custom-clips/camera_positions.csv`, on Wali's branch). Its accuracy is ±14–28 m, which is more than the 11–22 m between the cameras. The direction the phone faces (`heading_deg`) was not recorded.
-- **Labels:** the seconds when the suspect enters and leaves each view were read from frame contact sheets in 0.25 s steps and typed into the clip log: `cam_01` 3.25–7.75 s (the snatch at 6.5 s), `cam_02` 1.25–2.5 s, `cam_03` 1.5–4.1 s (still in view when the clip ends). TODO: state whether this was done by hand or with model help, and who checked it.
+- **Labels:** the seconds when the suspect enters and leaves each view were read from frame contact sheets in 0.25 s steps and typed into the clip log: `cam_01` 3.25–7.75 s (the snatch at 6.5 s), `cam_02` 1.25–2.5 s, `cam_03` 1.5–4.1 s (still in view when the clip ends). They were read by our coding assistant (Claude Code, a development tool that is not part of Clarity's runtime) and shown to the team; nobody has re-checked them frame by frame yet.
 
 ### Raw GPS vs placed positions
 
@@ -49,7 +49,10 @@ The cameras will be **hand-placed** in route order at their named spots, within 
 
 - **Only consenting teammates are on camera.** The three actors are teammates and agreed to publication under CC BY 4.0 (confirmed by the team on Oct 17).
 - **No weapons and no weapon-like props.**
-- **No bystanders.** Any clip where a bystander's face could be recognized is re-filmed, blurred before publishing, or not published. TODO: `cam_03` (`clip8_cam3`) shows two other people walking away in the background for about its first 3 s; confirm who they are and whether a face can be recognized before publishing. List any clips that needed blurring, and how they were blurred (or write "none").
+- **No bystanders.** Any clip where a bystander's face could be recognized is re-filmed, blurred before publishing, or not published. Blurred for publishing and for the demo, with `data/publish_clip8.py` (moving boxes, heavy 3-pass box blur; every blurred frame checked on full-resolution contact sheets):
+  - `cam_03`: two passers-by walking away (seen from behind), frames 0–38 (0–3.9 s); at frames 21–22 the suspect runs right past them, and one tight box touches the edge of the suspect's head.
+  - `cam_01`: one stranger's lower legs at the top edge, frames 0–44 (0–4.5 s).
+  - `cam_02`: nobody but the suspect; unchanged.
 - **No audio.** The conversion step strips the audio track, because it could carry bystanders' voices. The published clips have no audio stream (checked with ffprobe).
 - **Clip files are never in git.** Raw video lives in `data/raw/` (gitignored). The clips are published only through the dataset link.
 
