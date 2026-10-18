@@ -612,3 +612,42 @@ def test_detection_without_spotter_extras_unchanged(graph):
     c = case_from(DOC)
     payload = json.loads(build_user_message(c, path(c), [], graph).removeprefix("Case:" + chr(10)))
     assert all("what_happened" not in e for e in payload["evidence"])
+
+
+# --- Mina's real clip-8 site (data/sites/annex/cameras.json) + ground truth (data/ground_truth/take1.json) ----
+
+ANNEX = {"schema_version": "0.1", "site_id": "annex", "cameras": [
+    {"camera_id": "cam_01", "name": "Route 1: bus shelter", "neighbors": [{"camera_id": "cam_02", "travel_time_s": 3.0, "direction": "south"}],
+     "source": {"kind": "replay", "uri": "x"}},
+    {"camera_id": "cam_02", "name": "Route 1: sidewalk by tree grate",
+     "neighbors": [{"camera_id": "cam_01", "travel_time_s": 3.0, "direction": "north"},
+                   {"camera_id": "cam_03", "travel_time_s": 6.0, "direction": "north"}], "source": {"kind": "replay", "uri": "x"}},
+    {"camera_id": "cam_03", "name": "Route 1: covered walkway", "neighbors": [{"camera_id": "cam_02", "travel_time_s": 6.0, "direction": "south"}],
+     "source": {"kind": "replay", "uri": "x"}}]}
+GT_PATH = ["cam_01", "cam_02", "cam_03"]  # take1.json: purse_snatch, black hoodie, dark grey trousers
+
+
+def test_clip8_ground_truth_path_and_confirm_moment():
+    graph = CameraGraph.from_config(ANNEX)
+    look, msgs = "black hoodie, dark grey trousers", []
+    msgs.append(det("det_t0", "cam_01", 5.0, "purse_snatch", None, appearance=look, direction="south"))
+    msgs.append(rel("rel_t0", 9.5, "cam_01", "cam_02", "subj_take1", ["det_t0"], activity="purse_snatch", direction="south"))
+    msgs.append(det("det_t1", "cam_02", 12.5, appearance=look, direction="north"))
+    msgs.append(ver("ver_t1", 13.0, "cam_02", "subj_take1", "match", ["rel_t0", "det_t1"]))
+    msgs.append(rel("rel_t1", 13.75, "cam_02", "cam_03", "subj_take1", ["det_t1"], activity="purse_snatch"))
+    msgs.append(det("det_t2", "cam_03", 19.75, appearance=look, direction="north"))
+    msgs.append(ver("ver_t2", 20.25, "cam_03", "subj_take1", "match", ["rel_t1", "det_t2"]))
+    d, out = Dispatcher(graph, None, run_tag="rgt"), []
+    for m in msgs:
+        out += d.process([m])
+    assert out[0]["status"] == "tracking" and out[0]["predicted_next"][0]["camera_id"] == "cam_02"
+    assert next(m for m in out if len(m["path"]) == 2)["status"] == "alert"  # confirmed at cam_02 -> operator decides
+    assert [p["camera_id"] for p in out[-1]["path"]] == GT_PATH and out[-1]["incident_type"] == "purse_snatch"
+    assert out[-1]["priority"] == "low" and out[-1]["predicted_next"] == []
+
+
+def test_unknown_confidence_is_not_written_as_zero(graph):
+    d = det("det_1", "cam_03", 0, "stabbing")
+    del d["confidence"]
+    out = Dispatcher(graph, None).process([d, rel("rel_1", 1, "cam_03", "cam_05", "subj_1", ["det_1"])])
+    assert "(conf" not in out[-1]["reason"] and "stabbing detected;" in out[-1]["reason"]

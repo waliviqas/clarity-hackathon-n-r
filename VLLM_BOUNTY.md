@@ -29,17 +29,18 @@ cameras ─► spotter (Qwen3-VL-2B, vLLM :8001) ─► camera agents ─► bus
 
 ## Configuration
 
-Dispatcher (in a tmux session on the Brev box; vLLM pinned to **0.11.0** because newer releases don't work with this GPU's driver):
+Dispatcher ([`infra/serve_dispatcher.sh`](infra/serve_dispatcher.sh), run in a tmux session on the Brev box; vLLM pinned to **0.11.0** because newer releases don't work with this GPU's driver):
 
 ```bash
 source ~/vllm12/bin/activate
-vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --port 8003 \
+vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --host 127.0.0.1 --port 8003 \
   --gpu-memory-utilization 0.30 --max-model-len 8192 --max-num-seqs 16 \
   --mamba_ssm_cache_dtype float32 --enable-prefix-caching --trust-remote-code
 ```
 
 | Flag | Why |
 |---|---|
+| `--host 127.0.0.1` | Only reachable on the box and through the SSH/port-forward tunnel, not from the internet (vLLM's default listens on every interface) |
 | `--gpu-memory-utilization 0.30` | Leaves room on the shared A100 for the spotter(s) and checker |
 | `--max-model-len 8192` | Dispatcher prompts are ~1.2k characters by design; a short context frees KV/state memory for concurrency |
 | `--max-num-seqs 16` | Fits the 0.30 slice; the dispatcher caps its own parallel calls at 8 to stay under it |

@@ -170,11 +170,13 @@ def template(case: SubjectCase, cam_path: list[dict], pred: list[dict], graph: C
     """Rules-written dispatch body for cases that don't need the model."""
     top = max(concerning(case), key=lambda d: (activity_severity(d["activity"]), activity_conf(d) or 0))
     what = top["activity"].replace("_", " ")
+    conf = activity_conf(top)
+    seen = f"{what} detected (conf {conf:.2f})" if conf is not None else f"{what} detected"  # never "conf 0.00"
     target = pred[0]["camera_id"] if pred else cam_path[-1]["camera_id"] if cam_path else top["camera_id"]
     return {
         "status": "alert",
         "priority": priority_for(activity_severity(top["activity"])),
         "recommendation": f"Send officer to {graph.name(target)} ({target}); {what} at {graph.name(top['camera_id'])} ({top['camera_id']})",
-        "reason": f"{what} detected (conf {activity_conf(top) or 0:.2f}); subject confirmed at {len(cam_path)} camera(s)",
+        "reason": f"{seen}; subject confirmed at {len(cam_path)} camera(s)",
         "evidence_event_ids": [m["event_id"] for m in sorted(case.events.values(), key=lambda m: m["ts"])],
     }

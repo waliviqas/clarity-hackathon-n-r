@@ -86,9 +86,9 @@ A model answer is rejected (one retry with the errors, then fallback) if it:
 ## Serving (vLLM on Brev)
 
 ```bash
-# on the Brev box, inside tmux, using the team's pinned vLLM 0.11.0
+# on the Brev box, inside tmux, using the team's pinned vLLM 0.11.0 (same as infra/serve_dispatcher.sh)
 source ~/vllm12/bin/activate
-vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --port 8003 \
+vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --host 127.0.0.1 --port 8003 \
   --gpu-memory-utilization 0.30 --max-model-len 8192 --max-num-seqs 16 \
   --mamba_ssm_cache_dtype float32 --enable-prefix-caching --trust-remote-code
 ```
