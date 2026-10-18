@@ -530,7 +530,8 @@
     .card.info h3{font-size:20px}
     .card.info p{font-size:13px;line-height:1.5}
     .cards{margin-top:26px;gap:10px}
-    .stats,.track{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:26px}
+    .stats,.track{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px;margin-top:26px}
+    .stats .stat:nth-child(3):last-child{grid-column:span 2}
     .track::before{display:none}
     .station{gap:8px}
     .station .panel,.stat{padding:14px 14px;border-radius:14px}
@@ -703,183 +704,44 @@
 </section>
 
 <!-- ═══════ act-pipeline ═══════ -->
-<section class="act" id="act-pipeline" style="height:560vh" data-steps="each">
+<section class="act" id="act-pipeline" style="height:460vh" data-steps="all">
   <div class="pin">
-    <div class="kick" data-kick>04 · How Clarity works</div>
+    <div class="kick" data-kick>04 · How it works</div>
     <div class="sr-only">Video stays. Only words move.</div>
     <div class="line act-type" aria-hidden="true"><span class="w hot"><i>Video</i></span><span class="w"><i>stays.</i></span></div>
     <div class="line act-type" aria-hidden="true"><span class="w"><i>Only</i></span><span class="w hot"><i>words</i></span><span class="w"><i>move.</i></span></div>
     <div class="flow">
       <div class="step glass" data-fade><small>01 · Spotter</small><b>Is it a crime?</b>
-        <p>Our fine-tuned 2B model watches each camera: crime, fleeing or nothing, and which crime.</p></div>
+        <p>Our fine-tuned 2B model watches every camera.</p></div>
       <div class="step glass" data-fade><small>02 · Checker</small><b>Who did it?</b>
-        <p>Nemotron Nano 12B VL describes the suspect on the cameras the spotter flags.</p></div>
-      <div class="step glass" data-fade><small>03 · Camera agents</small><b>Pass it on.</b>
-        <p>The description travels, in words, to the cameras on the suspect's likely path.</p></div>
+        <p>Nemotron 12B VL describes the suspect.</p></div>
+      <div class="step glass" data-fade><small>03 · Cameras</small><b>Pass it on.</b>
+        <p>The description moves ahead, in words.</p></div>
       <div class="step glass" data-fade><small>04 · Coordinator</small><b>Get ahead.</b>
-        <p>Nemotron Nano 9B recommends where officers should go, with the evidence behind it.</p></div>
+        <p>Nemotron 9B says where officers should go.</p></div>
       <div class="step glass human" data-fade><small>05 · Operator</small><b>A human decides.</b>
-        <p>Every recommendation waits for Confirm or Dismiss on the map.</p></div>
+        <p>Confirm or Dismiss, every time.</p></div>
     </div>
-    <p class="note" data-fade>8 frames per camera · every message is a checked JSON event on one bus · <b>video stays on the agency's hardware; only text moves between agents</b></p>
-  </div>
-</section>
-
-<!-- ═══════ act-models ═══════ -->
-<section class="act" id="act-models" style="height:440vh" data-steps="all">
-  <div class="pin">
-    <div class="kick" data-kick>05 · Three models</div>
-    <div class="sr-only">Three small models. One GPU.</div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>Three</i></span><span class="w hot"><i>small</i></span><span class="w"><i>models.</i></span></div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>One</i></span><span class="w hot"><i>GPU.</i></span></div>
-    <div class="cards">
-      <div class="card glass info" data-fade><div class="num">SPOTTER · 2.13B</div>
-        <h3>Qwen3&#8209;VL&#8209;2B + our LoRA</h3>
-        <p>Fine-tuned for one job: spot the crime on one camera. Small enough to sit beside every camera.</p>
-        <div class="share">0.20 of the GPU<span class="bar"><i style="width:20%"></i></span></div></div>
-      <div class="card glass info" data-fade><div class="num">CHECKER · 13.18B</div>
-        <h3>Nemotron Nano 12B v2 VL</h3>
-        <p>Runs only on flagged cameras and describes the suspect field by field: top, pants, shoes, build.</p>
-        <div class="share">0.40 of the GPU<span class="bar"><i style="width:40%"></i></span></div></div>
-      <div class="card glass info" data-fade><div class="num">COORDINATOR · 8.89B</div>
-        <h3>Nemotron Nano 9B v2</h3>
-        <p>Pulls the reports into one case and writes the recommendation as JSON that code can check.</p>
-        <div class="share">0.30 of the GPU<span class="bar"><i style="width:30%"></i></span></div></div>
-    </div>
-    <p class="note" data-fade><b>24.20B parameters in total</b>, under the 33B cap · all three on Red Hat vLLM, sharing one NVIDIA A100 80 GB</p>
+    <p class="note" data-fade>Three small models, 24.20B parameters, all served on <b>Red Hat vLLM on one GPU</b></p>
   </div>
 </section>
 
 <!-- ═══════ act-finetune ═══════ -->
-<section class="act" id="act-finetune" style="height:560vh" data-steps="each">
+<section class="act" id="act-finetune" style="height:420vh" data-steps="all">
   <div class="pin">
-    <div class="kick" data-kick>06 · The fine-tune</div>
+    <div class="kick" data-kick>05 · The fine-tune</div>
     <div class="sr-only">Taught to see the crime, not the coat.</div>
     <div class="line act-type" aria-hidden="true"><span class="w"><i>Taught</i></span><span class="w"><i>to</i></span><span class="w"><i>see</i></span><span class="w"><i>the</i></span><span class="w hot"><i>crime,</i></span></div>
     <div class="line act-type" aria-hidden="true"><span class="w"><i>not</i></span><span class="w"><i>the</i></span><span class="w hollow"><i>coat.</i></span></div>
-    <div class="stats">
+    <div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div class="stat glass" data-fade><div class="from">base <s>67%</s></div><div class="to">89%</div>
         <p>right calls: crime, fleeing or nothing</p></div>
       <div class="stat glass" data-fade><div class="from">base <s>0.723</s></div><div class="to">0.821</div>
         <p>full-system score in NeMo Gym</p></div>
       <div class="stat glass" data-fade><div class="from">base <s>17%</s></div><div class="to">33%</div>
-        <p>right crime type, our weakest number</p></div>
-      <div class="stat glass" data-fade><div class="from">base <s>51/54</s></div><div class="to">54/54</div>
-        <p>answers not cut off</p></div>
+        <p>right crime type, doubled</p></div>
     </div>
-    <p class="note" data-fade>18 held-out camera views × 3 runs · false alarms 0% before and after · <b>v1 and v2 memorized our actors' outfits, so v3 learns only the crime fields</b> and the checker describes the suspect</p>
-  </div>
-</section>
-
-<!-- ═══════ act-data ═══════ -->
-<section class="act" id="act-data" style="height:420vh" data-steps="all">
-  <div class="pin">
-    <div class="kick" data-kick>07 · Open data</div>
-    <div class="sr-only">Staged by us. Shared with everyone.</div>
-    <div class="line act-type" aria-hidden="true"><span class="w hot"><i>Staged</i></span><span class="w"><i>by</i></span><span class="w"><i>us.</i></span></div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>Shared</i></span><span class="w"><i>with</i></span><span class="w hot"><i>everyone.</i></span></div>
-    <div class="cards">
-      <div class="card glass info" data-fade><div class="num">TEST CLIP 1 · 4 VIEWS</div>
-        <h3>A mimed stabbing</h3>
-        <p>Staged by our team on a sidewalk, empty hands, no prop. Seen along the escape by four cameras. The live demo.</p></div>
-      <div class="card glass info" data-fade><div class="num">TEST CLIP 8 · 3 VIEWS</div>
-        <h3>A phone snatched</h3>
-        <p>At a bus shelter, filmed one view at a time with one phone and replayed together as live cameras.</p></div>
-      <div class="card glass info" data-fade><div class="num">CC BY 4.0</div>
-        <h3>Published openly</h3>
-        <p>On Hugging Face with the filming method. No audio, no file metadata. The test split never trains the model.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════ act-live ═══════ -->
-<section class="act" id="act-live" style="height:560vh" data-steps="each">
-  <div class="pin">
-    <div class="kick" data-kick>08 · Live run · test clip 1 · every model live</div>
-    <div class="sr-only">First alert in 1.59 seconds.</div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>First</i></span><span class="w"><i>alert</i></span><span class="w"><i>in</i></span></div>
-    <div class="line act-type" aria-hidden="true"><span class="w hot"><i>1.59</i></span><span class="w"><i>seconds.</i></span></div>
-    <div class="track">
-      <div class="station crime" data-fade><i class="dot"></i><div class="panel glass">
-        <small>cam_07 · alert +1.59 s</small><b>Crime spotted</b>
-        <p>The suspect is described. Officers are sent toward cam_08.</p></div></div>
-      <div class="station" data-fade><i class="dot"></i><div class="panel glass">
-        <small>cam_08 · match 0.95</small><b>Still running</b>
-        <p>Black long-sleeve top, black pants. Officers move ahead to cam_09.</p></div></div>
-      <div class="station" data-fade><i class="dot"></i><div class="panel glass">
-        <small>cam_09 · match 0.95</small><b>Black hoodie</b>
-        <p>Same suspect, one camera on. Officers sent ahead to cam_10.</p></div></div>
-      <div class="station" data-fade><i class="dot"></i><div class="panel glass">
-        <small>cam_10 · match 0.95</small><b>Intercept</b>
-        <p>Last sighting, plus a check on the victim back at cam_07.</p></div></div>
-    </div>
-    <p class="note" data-fade>run_live2_1027 on one A100 · 14 of 14 events valid · <b>honest note: the mimed stabbing was called an assault, so it ran as a fistfight at medium priority</b></p>
-  </div>
-</section>
-
-<!-- ═══════ act-coordinator ═══════ -->
-<section class="act" id="act-coordinator" style="height:460vh" data-steps="all">
-  <div class="pin">
-    <div class="kick" data-kick>09 · The coordinator</div>
-    <div class="sr-only">The model writes. Code checks. A human decides.</div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>The</i></span><span class="w"><i>model</i></span><span class="w hot"><i>writes.</i></span></div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>Code</i></span><span class="w hot"><i>checks.</i></span></div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>A</i></span><span class="w"><i>human</i></span><span class="w hollow"><i>decides.</i></span></div>
-    <div class="cards">
-      <div class="card glass info" data-fade><div class="num">01 · RULES FIRST</div>
-        <h3>No wait on a stabbing</h3>
-        <p>Clear cases alert at once with no model call. Code computes the path and where the suspect is heading.</p></div>
-      <div class="card glass info" data-fade><div class="num">02 · NEMOTRON 9B</div>
-        <h3>Writes the call</h3>
-        <p>For the rest, the model writes the recommendation as JSON, told where to send officers and the priority cap.</p></div>
-      <div class="card glass info" data-fade><div class="num">03 · VERIFIER</div>
-        <h3>Code checks it</h3>
-        <p>Made-up evidence, unknown cameras, the wrong destination or an inflated priority are rejected. One retry, then operator review.</p></div>
-    </div>
-    <p class="note" data-fade>Every alert waits for the operator's <b>Confirm</b> or <b>Dismiss</b> · in our tests officers were never sent to a decoy exit</p>
-  </div>
-</section>
-
-<!-- ═══════ act-vllm ═══════ -->
-<section class="act" id="act-vllm" style="height:460vh" data-steps="all">
-  <div class="pin">
-    <div class="kick" data-kick>10 · Served on Red Hat vLLM</div>
-    <div class="sr-only">Batched, not queued.</div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>Batched,</i></span></div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>not</i></span><span class="w hot"><i>queued.</i></span></div>
-    <div class="stats">
-      <div class="stat glass" data-fade><div class="from">16 incidents at once</div><div class="to">~7×</div>
-        <p>coordinator throughput, because vLLM batches what arrives together</p></div>
-      <div class="stat glass" data-fade><div class="from">88 → 993 cameras / min</div><div class="to">11×</div>
-        <p>spotter throughput on the same GPU</p></div>
-      <div class="stat glass" data-fade><div class="from">was <s>13.3 s</s></div><div class="to">1.6 s</div>
-        <p>per coordinator call, after dropping length limits from the JSON schema</p></div>
-      <div class="stat glass" data-fade><div class="from">was <s>21.9 s</s></div><div class="to">1.59 s</div>
-        <p>to the first alert, with a warm-up at startup</p></div>
-    </div>
-    <p class="note" data-fade>vLLM 0.11.0 · three servers on 0.90 of one A100 · merged LoRA weights · every flag and both load tests in <b>VLLM_BOUNTY.md</b></p>
-  </div>
-</section>
-
-<!-- ═══════ act-limits ═══════ -->
-<section class="act" id="act-limits" style="height:400vh" data-steps="all">
-  <div class="pin">
-    <div class="kick" data-kick>11 · Honest limits</div>
-    <div class="sr-only">What 24 hours didn't solve.</div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>What</i></span><span class="w"><i>24</i></span><span class="w"><i>hours</i></span></div>
-    <div class="line act-type" aria-hidden="true"><span class="w"><i>didn't</i></span><span class="w hot"><i>solve.</i></span></div>
-    <div class="mkt">
-      <div class="tier glass" data-fade><div class="lab">WHAT IT ISN'T YET</div>
-        <div class="fig">Crime type is right a third of the time.</div>
-        <ul><li>18 test views is a small test set.</li>
-          <li>Test clips share actors with the training clips.</li>
-          <li>Staged footage; the stabbing is mimed.</li></ul></div>
-      <div class="tier glass" data-fade><div class="lab">NEXT</div>
-        <div class="fig">Film more people, places and angles.</div>
-        <ul><li>Retrain crime type on that wider data.</li>
-          <li>Live camera streams instead of replayed clips.</li>
-          <li>Bigger camera maps with real routes.</li></ul></div>
-    </div>
+    <p class="note" data-fade>18 held-out camera views × 3 runs, scored in NeMo Gym · false alarms stayed at 0%</p>
   </div>
 </section>
 
