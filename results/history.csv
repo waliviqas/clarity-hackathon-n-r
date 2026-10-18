@@ -1,3 +1,5 @@
 time,name,model,split,cameras,on_screen_accuracy,crime_type_accuracy,false_alarm_rate,description_accuracy,consistent_cameras,failed_requests,mean_latency_s
 2026-10-17 21:22,before,Qwen/Qwen3-VL-2B-Instruct,test,18,0.537,0.0,0.0,0.253,12/18,7,2.006
 2026-10-17 21:29,before_external,Qwen/Qwen3-VL-2B-Instruct,external,11,0.485,0.133,0.167,,3/11,8,1.171
+2026-10-18 03:05,before_nemo_gym,Qwen/Qwen3-VL-2B-Instruct,test,18,0.556,0.0,0.0,0.227,,12,
+2026-10-18 03:40,after_nemo_gym_v3,spotter-ft (v3: crime fields only),test,18,0.778,0.333,0.0,0.293,,0,

@@ -4,8 +4,12 @@ from pathlib import Path
 import cv2
 
 
-def sample_frames(video_path: str, count: int = 4, width: int = 640) -> list[bytes]:
-    """Return `count` evenly spaced frames from the video as JPEG bytes."""
+def sample_frames(video_path: str, count: int = 4, width: int = 640, shift: float = 0.0) -> list[bytes]:
+    """Return `count` evenly spaced frames from the video as JPEG bytes.
+
+    `shift` (between -0.5 and 0.5) nudges every sample within its slice; training uses it to get
+    several different views of the same clip. Evaluation always uses the default 0.
+    """
     if count < 1:
         raise ValueError(f"count must be at least 1, got {count}")
 
@@ -18,7 +22,7 @@ def sample_frames(video_path: str, count: int = 4, width: int = 640) -> list[byt
         video.release()
         raise ValueError(f"Video reports no frames (live streams aren't supported here): {video_path}")
     # Centre each sample in its slice of the video, e.g. 12.5%, 37.5%, 62.5%, 87.5% for 4.
-    positions = [int(total * (i + 0.5) / count) for i in range(count)]
+    positions = [min(total - 1, max(0, int(total * (i + 0.5 + shift) / count))) for i in range(count)]
 
     frames: list[bytes] = []
     for position in positions:
