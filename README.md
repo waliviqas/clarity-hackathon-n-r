@@ -28,7 +28,7 @@ Tested in NeMo Gym on our own videos the model never trained on:
 - Fine-tuned model: https://huggingface.co/waliviqas/clarity-spotter-qwen3vl-2b
 - Our videos (open data): https://huggingface.co/datasets/waliviqas/clarity-crime-clips
 - NeMo Gym setup and scores: [`nemo_gym/`](nemo_gym/), [`results/`](results/)
-- vLLM write-up: [`VLLM_BOUNTY.md`](VLLM_BOUNTY.md)
+- vLLM write-up: [`vllm_bounty/`](vllm_bounty/README.md)
 - Everything else (how to run, data sources, limitations): [`DETAILS.md`](DETAILS.md)
 
 ## Team
