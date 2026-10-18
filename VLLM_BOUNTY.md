@@ -106,6 +106,16 @@ Ranges are two runs. The 5.56 s p95 at concurrency 4 was one outlier on the shar
 | 16 | 1.07 s | 778 |
 | 32 | 1.65 s | **993** |
 
+**End to end, live** (Sun Oct 18, Brev A100, all three vLLM servers; clip 1's 4 camera views; spotter-ft + checker at 8 frames → Mina's camera agents → bus → dispatcher; timings from Mina's `python -m bus.metrics`):
+
+| | Result |
+|---|---|
+| Crime detection → first dispatch (alert) on the bus | **1.59 s** (warm). The first run after a model restart took 21.9 s; fixed with a warm-up request at dispatcher startup |
+| Spotter-ft per camera | 2.6–3.2 s |
+| Checker per camera (8 images) | 6.8–7.3 s |
+| Events through the bus | 13/13 and 14/14 valid under strict schema validation |
+| Chase | crime at cam 1, suspect matched at cams 2, 3, 4 (0.95 each); dispatches follow it camera by camera |
+
 **Pipeline correctness on vLLM** (Mina's real bus with strict schema validation + her 3-incident scenario + the dispatcher on vLLM): 61/61 events valid, officers sent to the real exit and never a decoy, 0 fallbacks.
 
 ## What didn't work (reported, not claimed)

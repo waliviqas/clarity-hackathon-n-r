@@ -119,7 +119,7 @@ class OpenAICompatBackend:
     """Talks to any OpenAI-compatible server; in production that's vLLM on Brev."""
 
     def __init__(self, base_url: str, model: str, api_key: str = "EMPTY",
-                 timeout: float = 20.0, max_tokens: int = 400):
+                 timeout: float = 20.0, max_tokens: int = 300):
         from openai import OpenAI
 
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)

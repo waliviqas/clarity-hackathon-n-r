@@ -794,3 +794,11 @@ def test_model_check_stops_when_unreachable():
     with pytest.raises(SystemExit) as stop:
         check_model(url, "dispatcher", timeout_s=2)
     assert "can't read" in str(stop.value.code) and "--no-model" in str(stop.value.code)
+
+
+def test_warm_up_sends_one_request_and_never_raises():
+    from dispatcher.run import warm_up
+    llm = Fake(GOOD)
+    warm_up(llm)
+    assert llm.calls == 1
+    warm_up(Fake(TimeoutError("cold")))  # a failed warm-up is logged, not raised
