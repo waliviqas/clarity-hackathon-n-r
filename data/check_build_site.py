@@ -8,11 +8,16 @@
 (b) New format (approach + crime + 2 path + exit, no clock, no decoy; plus a no-clock take with a decoy): the
     output passes contracts/validate.py (needs jsonschema in this Python) and has the expected links,
     directions, travel times, run-clock path and clip start times; --run-speed scales only the lat/lon hops.
+    Per-take --run-offset (1=10,2=0) moves each take by its own offset, and --site-truth writes the ground truth
+    to data/ground_truth/<site>/ only.
 (c) Errors stop the build and write nothing: a take without an exit, a hop with neither travel_s nor lat/lon,
-    and a take whose clock is on only some route rows. A camera with two neighbors in the same 8-way direction
-    (clip 8's raw GPS) builds with a warning.
-(d) The committed logs rebuild the committed site files exactly, without warnings: data/staged/clip_log_take1.csv
-    the clip-8 site (annex), data/staged/clip_log_take3.csv the clip-1 site (annex_clip1, crime at run-clock 5 s).
+    a take whose clock is on only some route rows, and a bad --run-offset. A camera with two neighbors in the
+    same 8-way direction (clip 8's raw GPS) builds with a warning.
+(d) The committed logs rebuild the committed site files exactly, without warnings, and write no other files:
+    data/staged/clip_log_take1.csv the clip-8 site (annex), data/staged/clip_log_take3.csv the clip-1 site
+    (annex_clip1, crime at run-clock 5 s), and clip_log_take2.csv + clip_log_take3.csv the two-crime site
+    (annex_multi: clip 7's crime 7 s after clip 1's, ground truth in data/ground_truth/annex_multi/). On
+    annex_multi no link joins the two takes, and the clip-1 cameras equal annex_clip1's.
 Exit code 0 if every check passes, 1 if any fails.
 """
 from __future__ import annotations
@@ -91,14 +96,23 @@ SAME_WAY_LOG = HEADER + """
 1,purse_snatch,path,cam_02,,,35.7744,-78.6386,,a2.mp4,,,1.25,2.5,3,
 1,purse_snatch,exit,cam_03,,,35.7746,-78.6386,,a3.mp4,,,1.5,4.1,6,
 """  # clip 8's raw GPS: cam_02 is south of both its neighbors
-# committed log: (the flags it is built with, the committed files it must rebuild exactly)
+BAD_OFFSETS = {"4=0": "take must be one of", "2=-1": "expected seconds >= 0"}  # --run-offset: error text
+# committed logs: (the logs, the flags they are built with, the committed files they must rebuild exactly)
 COMMITTED = {
-    "clip_log_take1.csv": ((), ("data/sites/annex/cameras.json", "data/ground_truth/take1.json",
-                                "data/manifests/annex.json")),
-    "clip_log_take3.csv": (("--site", "annex_clip1", "--site-name", "Red Hat Annex (staged clip 1)",
+    "clip_log_take1.csv": (("clip_log_take1.csv",), (),
+                           ("data/sites/annex/cameras.json", "data/ground_truth/take1.json",
+                            "data/manifests/annex.json")),
+    "clip_log_take3.csv": (("clip_log_take3.csv",),
+                           ("--site", "annex_clip1", "--site-name", "Red Hat Annex (staged clip 1)",
                             "--run-offset", "0"),
                            ("data/sites/annex_clip1/cameras.json", "data/ground_truth/take3.json",
                             "data/manifests/annex_clip1.json")),
+    "clip_log_take2.csv + clip_log_take3.csv": (
+        ("clip_log_take2.csv", "clip_log_take3.csv"),
+        ("--site", "annex_multi", "--site-name", "Red Hat Annex (staged clips 1 and 7)",
+         "--run-offset", "3=0,2=7", "--site-truth"),
+        ("data/sites/annex_multi/cameras.json", "data/ground_truth/annex_multi/take2.json",
+         "data/ground_truth/annex_multi/take3.json", "data/manifests/annex_multi.json")),
 }
 
 failures: list[str] = []
@@ -206,6 +220,28 @@ def check_new_format(tmp: Path) -> None:
         got_links = links_of({c["camera_id"]: c for c in read_json(slow_root / "data/sites/annex/cameras.json")["cameras"]})
         check(got_links == SLOW_LINKS, "new format, --run-speed 2: lat/lon hops take twice as long, travel_s hops stay",
               f"got {got_links}")
+    check_take_offsets(log, tmp / "swapped")
+
+
+def check_take_offsets(log: Path, root: Path) -> None:
+    """--run-offset 1=10,2=0 swaps the takes' default offsets (0 / 10), so each path moves by its own amount;
+    --site-truth puts the ground truth under data/ground_truth/<site>/ and nowhere else."""
+    offsets = {1: 10.0, 2: 0.0}
+    result = run(BUILD, log, "--root", root, "--site", "two_takes", "--run-offset", "1=10,2=0", "--site-truth")
+    if not check(result.returncode == 0, "new format, --run-offset 1=10,2=0 --site-truth: builds", result.stderr):
+        return
+    for take, path in PATHS.items():
+        truth = read_json(root / f"data/ground_truth/two_takes/take{take}.json")
+        shift = offsets[take] - (0.0 if take == 1 else 10.0)  # PATHS use the default offsets
+        want = [(cam, round(t_in + shift, 2), round(t_out + shift, 2)) for cam, t_in, t_out in path]
+        got = [(hop["camera_id"], hop["t_enter"], hop["t_exit"]) for hop in truth["path"]]
+        check(got == want and truth["run_offset_s"] == offsets[take],
+              f"per-take --run-offset: take {take} moved to its own offset ({offsets[take]:g} s)",
+              f"got {got}, run_offset_s {truth['run_offset_s']}; want {want}")
+    written = sorted(p.relative_to(root).as_posix() for p in root.rglob("*.json"))
+    want_files = ["data/ground_truth/two_takes/take1.json", "data/ground_truth/two_takes/take2.json",
+                  "data/manifests/two_takes.json", "data/sites/two_takes/cameras.json"]
+    check(written == want_files, "--site-truth: ground truth only in data/ground_truth/<site>/", str(written))
 
 
 def check_errors(tmp: Path) -> None:
@@ -219,6 +255,16 @@ def check_errors(tmp: Path) -> None:
               f"error, {name}: exit 1, says {needle!r}, writes nothing",
               f"exit {result.returncode}, wrote {len(wrote)} file(s)\n{result.stdout}{result.stderr}")
 
+    log = tmp / "offsets.csv"
+    log.write_text(NEW_LOG, encoding="utf-8")
+    for i, (value, needle) in enumerate(BAD_OFFSETS.items()):
+        root = tmp / f"bad_offset{i}"
+        result = run(BUILD, log, "--root", root, "--run-offset", value)
+        wrote = list(root.rglob("*")) if root.exists() else []
+        check(result.returncode == 1 and needle in result.stderr and not wrote,
+              f"error, --run-offset {value}: exit 1, says {needle!r}, writes nothing",
+              f"exit {result.returncode}, wrote {len(wrote)} file(s)\n{result.stdout}{result.stderr}")
+
     log = tmp / "same_way.csv"
     log.write_text(SAME_WAY_LOG, encoding="utf-8")
     result = run(BUILD, log, "--root", tmp / "same_way")
@@ -230,9 +276,9 @@ def check_errors(tmp: Path) -> None:
 
 
 def check_committed_log(tmp: Path) -> None:
-    for i, (name, (flags, files)) in enumerate(COMMITTED.items()):
+    for i, (name, (logs, flags, files)) in enumerate(COMMITTED.items()):
         root = tmp / f"committed{i}"
-        result = run(BUILD, REPO / "data" / "staged" / name, "--root", root, *flags)
+        result = run(BUILD, *(REPO / "data" / "staged" / log for log in logs), "--root", root, *flags)
         if not check(result.returncode == 0, f"committed log: {name} builds", result.stderr):
             continue
         check("WARNING" not in result.stdout, f"committed log: {name} builds without warnings", result.stdout)
@@ -240,6 +286,21 @@ def check_committed_log(tmp: Path) -> None:
             want, got = read_text(REPO / out), read_text(root / out)
             diff = "".join(list(difflib.unified_diff(want.splitlines(True), got.splitlines(True), out, "rebuilt"))[:30])
             check(want == got, f"committed log: {name} rebuilds {out} exactly", diff)
+        written = sorted(p.relative_to(root).as_posix() for p in root.rglob("*.json"))
+        check(written == sorted(files), f"committed log: {name} writes no other files", str(written))
+    check_multi_site()
+
+
+def check_multi_site() -> None:
+    """annex_multi: the two takes' cameras never link (no relay crosses from one crime to the other), and its
+    clip-1 cameras are annex_clip1's, so both sites play clip 1 on the same run clock."""
+    multi = {c["camera_id"]: c for c in read_json(REPO / "data/sites/annex_multi/cameras.json")["cameras"]}
+    crossing = [f"{cam_id}-{nb['camera_id']}" for cam_id, cam in multi.items() for nb in cam["neighbors"]
+                if multi.get(nb["camera_id"], {}).get("take") != cam["take"]]
+    check(not crossing, "annex_multi: no link between the two takes' cameras", str(crossing))
+    clip1 = read_json(REPO / "data/sites/annex_clip1/cameras.json")["cameras"]
+    differ = [c["camera_id"] for c in clip1 if multi.get(c["camera_id"]) != c]
+    check(not differ, "annex_multi: clip-1 cameras identical to annex_clip1's", f"differ: {differ}")
 
 
 def main() -> int:
