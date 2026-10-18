@@ -1,0 +1,35 @@
+{
+  "site_id": "annex_lookout",
+  "clips": {
+    "cam_07": {
+      "take": 3,
+      "clip_file": "clip1_cam1.mp4",
+      "uri": "data/raw/staged/take3/clip1_cam1.mp4",
+      "start_ts": 0.8
+    },
+    "cam_08": {
+      "take": 3,
+      "clip_file": "clip1_cam2.mp4",
+      "uri": "data/raw/staged/take3/clip1_cam2.mp4",
+      "start_ts": 14.0
+    },
+    "cam_09": {
+      "take": 3,
+      "clip_file": "clip1_cam3.mp4",
+      "uri": "data/raw/staged/take3/clip1_cam3.mp4",
+      "start_ts": 22.6
+    },
+    "cam_10": {
+      "take": 3,
+      "clip_file": "clip1_cam4.mp4",
+      "uri": "data/raw/staged/take3/clip1_cam4.mp4",
+      "start_ts": 30.76
+    },
+    "cam_14": {
+      "take": 1,
+      "clip_file": "clip8_cam2.mp4",
+      "uri": "data/raw/staged/take1/clip8_cam2.mp4",
+      "start_ts": 2304.8
+    }
+  }
+}
