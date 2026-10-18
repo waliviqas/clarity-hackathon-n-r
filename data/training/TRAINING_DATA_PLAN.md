@@ -1,6 +1,6 @@
 # Spotter training data: what we need and where to get it
 
-For Wali's next fine-tune of the spotter (Qwen3-VL-2B). Status: **researched, nothing downloaded yet**. Sources were checked on Sat Oct 17, about 23:40 to 00:15, by Claude Code's researcher agent in a browser. Licenses were read on each source's own page; the links are below. Anything marked UNVERIFIED wasn't confirmed.
+For Wali's next fine-tune of the spotter (Qwen3-VL-2B). Status: **113 clips cut; 30 labeled for training in `labels_public.csv`** (assault and normal clips are cut but not labeled yet). Sources were checked on Sat Oct 17, about 23:40 to 00:15, by Claude Code's researcher agent in a browser. Licenses were read on each source's own page; the links are below. Anything marked UNVERIFIED wasn't confirmed.
 
 ## 1. The ask (spec from the team, Sat Oct 17 ~23:35)
 
@@ -159,6 +159,8 @@ Page URLs: `https://mixkit.co/free-stock-video/<slug>/` and `https://www.pexels.
 2. **CHAD's data license** isn't stated apart from the repo's Apache-2.0. Use it as Apache-2.0, or ask the authors?
 3. **Stock sites:** may we use hand-picked downloads despite the "no scraping for machine learning" clauses? Pexels also says identifiable people may not appear "in a bad light", so use Pexels for normals only.
 4. **Real-incident datasets** stay out (our footage rule).
+
+Until Wali decides, the AIRTLab and Mixkit rows are included. Each source can be left out by its clip prefix in `labels_public.csv`: `airt_` (AIRTLab), `mixkit_` (Mixkit), `meva_` (MEVA).
 
 ## 7. Next steps
 

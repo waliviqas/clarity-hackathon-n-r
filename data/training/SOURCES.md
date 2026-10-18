@@ -48,10 +48,10 @@ training set; flag it if anyone redistributes derived frames.
 
 - **Bus Violence** (zenodo.org/records/7044203): license field says CC BY 4.0, description says "non-commercial use". Has staged fights and theft-from-person on 3 bus cameras. Ask the authors or treat as NC.
 - **CHAD** (github.com/TeCSAR-UNCC/CHAD): repo is Apache-2.0 but the README doesn't say it covers the videos. Has staged fighting, theft, pick-pocketing, 4 cameras. Ask authors.
-- **AIRTLab, BEHAVE, PETS, VIRAT, MNNIT shoplifting:** research-only, no license, or not confirmed.
+- **BEHAVE, PETS, VIRAT, MNNIT shoplifting:** research-only, no license, or not confirmed. (AIRTLab is now used, research and education only, link-only and never re-hosted: see the public-clips section.)
 - **Pexels / Pixabay:** terms ban automated collection "for machine learning purposes" and showing identifiable people "in a bad light". Fails the ML check, and crime labels on actors hit the second clause.
 - **Coverr, Videvo/Magnific:** explicitly ban AI training.
-- **Mixkit:** Free License allows copy/modify/commercial and says nothing about AI; points to User Terms and an AUP we could not read. **License-pending**, not counted. If the team confirms the AUP allows it, these would fill purse_snatch (ground-level angle, not CCTV):
+- **Mixkit:** Free License allows copy/modify/commercial and says nothing about AI; points to User Terms and an AUP we could not read. Now used for 5 stealing clips (link-only, never re-hosted). We read the Free License (copy, modify, distribute, no attribution required) and the User Terms (no re-hosting on a stock basis); neither mentions AI training. The Acceptable Use Policy is still unread, so this stays a team decision: drop the `mixkit_` rows if it rules out training. If the team confirms the AUP allows it, these would fill purse_snatch (ground-level angle, not CCTV):
   - https://mixkit.co/free-stock-video/thief-steals-a-womans-purse-on-the-street-31359/ (Free License confirmed on page, 8 s, file https://assets.mixkit.co/videos/31359/31359-720.mp4)
   - https://mixkit.co/free-stock-video/woman-is-robbed-of-her-cell-phone-by-a-thief-31395/
   - https://mixkit.co/free-stock-video/balaclava-assailant-steals-computer-from-car-31363/
@@ -100,3 +100,7 @@ Local labeling copies: `data/raw/training_public/clips/`, frames + contact sheet
   `aws s3 ls --no-sign-request --recursive s3://mevadata-public-01/drop-4-hadcv22/ | grep 14-55-00.15-00-00.bus.G331`.
   ex085's video (`15-10-00.15-15-00.bus.G331`) is never used (external check).
 - The G421 theft at frame 7748 shows the same outfit (grey hoodie, camouflage pants) as a bystander in ex085.
+
+## Excluded from training (keeps the ex085 external check clean)
+- MEVA 2018-03-05 13-15 bus G331, frames 6207-6334: the same camera as ex085.
+- MEVA 2018-03-15 14-50 school G421, frames 7748-7880: the thief's outfit matches a bystander in ex085.
