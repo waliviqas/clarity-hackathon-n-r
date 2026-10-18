@@ -99,8 +99,14 @@ def plan(args) -> None:
         if k not in seen:
             seen.add(k)
             unique.append(e)
-    quota = {"person_steals_object": 99, "person_embraces_person": args.hugs, "hand_interacts_with_person": args.hands}
+    if args.only_cameras:  # second pass: only viewpoints where people are big enough to see (from the first review)
+        unique = [e for e in unique if e["camera"] in set(args.only_cameras.split(","))]
+    quota = {"person_steals_object": 99 if not args.no_thefts else 0,
+             "person_embraces_person": args.hugs, "hand_interacts_with_person": args.hands}
     chosen, files, used_windows = [], {}, defaultdict(list)
+    for prev in args.skip_jobs or []:  # never re-cut a window from an earlier batch
+        for j in json.loads(Path(prev).read_text())["jobs"]:
+            used_windows[j["key"]].append((j["clip_start_s"], j["clip_len_s"]))
     combo_count = Counter()
     # thefts first (all of them), then hugs, then hand interactions; prefer sources already being downloaded,
     # then rare site/camera combinations, to spread people and places
@@ -127,7 +133,7 @@ def plan(args) -> None:
             chosen.append({**e, "clip_start_s": start, "clip_len_s": length})
             taken += 1
     ok_files = [k for k, v in files.items() if v]
-    for i, c in enumerate(chosen, 1):
+    for i, c in enumerate(chosen, args.start_index):
         tag = {"person_embraces_person": "hug", "hand_interacts_with_person": "hand", "person_steals_object": "theft"}
         c["clip"] = f"meva_{tag[c['activity']]}_{i:03d}"
     Path(args.out).write_text(json.dumps({"bucket": BUCKET, "jobs": chosen}, indent=1))
@@ -190,6 +196,10 @@ def main() -> None:
     p.add_argument("--max-files", type=int, default=30)
     p.add_argument("--per-file", type=int, default=3)
     p.add_argument("--min-frames", type=int, default=45, help="skip events shorter than this (1.5 s)")
+    p.add_argument("--only-cameras", default="", help="comma-separated MEVA camera ids to draw from, e.g. G299,G330")
+    p.add_argument("--skip-jobs", nargs="*", help="earlier jobs.json files whose clip windows must not be reused")
+    p.add_argument("--start-index", type=int, default=1, help="first clip number (continue an earlier batch)")
+    p.add_argument("--no-thefts", action="store_true", help="leave out thefts (already cut in an earlier batch)")
     c = sub.add_parser("cut")
     c.add_argument("--jobs", required=True)
     c.add_argument("--root", default="~/meva_batch")
