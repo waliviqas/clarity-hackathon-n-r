@@ -175,13 +175,16 @@ def gate(case: SubjectCase, cfg: RuleConfig) -> Gate:
     known = [c for c in confs if c is not None]
 
     # High-severity activity is never auto-ignored, however weak the detection. A missing confidence is
-    # unknown, not 0: it can't get an incident ignored (or auto-alerted), so it goes to the model.
+    # unknown, not 0: it can't get an incident ignored.
     weak = bool(known) and len(known) == len(confs) and max(known) < cfg.ignore_max_confidence
     if sev < cfg.alert_min_severity and (sev <= cfg.ignore_max_severity or weak):
         return "ignore"
     uncertain = any(v["decision"] == "uncertain" for v in case.of_type("agent_verdict"))
-    if (sev >= cfg.alert_min_severity and len({d["activity"] for d in dets}) == 1 and len(known) == len(confs)
-            and min(known) >= cfg.alert_min_confidence and not uncertain):
+    # High severity (stabbing) alerts at once unless there's evidence against it: a known confidence below the
+    # threshold, mixed activities, or an "uncertain" verdict. An unknown confidence alone doesn't hold it back
+    # (team decision: the operator confirms every alert, and a missed stabbing costs more than a false alarm).
+    if (sev >= cfg.alert_min_severity and len({d["activity"] for d in dets}) == 1 and not uncertain
+            and all(c >= cfg.alert_min_confidence for c in known)):
         return "alert"
     return "ambiguous"
 

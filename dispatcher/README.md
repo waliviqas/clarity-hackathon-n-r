@@ -44,7 +44,7 @@ Every emitted dispatch is checked in tests against the v0.1 required fields and 
 | `status`, `priority`, `recommendation`, `reason`, `evidence_event_ids` | rules template (clear cases) or the model (ambiguous), always verified |
 | `requires_human_confirm` | `true` until an `operator_action` arrives |
 
-Priorities (team decision): `stabbing` → high · `fistfight` (assault) → medium · `purse_snatch` → low · `none` → no incident. Stabbing is alerted by rules immediately; fistfight / purse_snatch get the model (capped at their priority) and switch to `alert` once a camera agent confirms a `match` downstream, so the operator always gets a Confirm/Dismiss decision. A missing `activity_confidence` falls back to the detection's `confidence`; with neither, the incident goes to the model instead of being dropped.
+Priorities (team decision): `stabbing` → high · `fistfight` (assault) → medium · `purse_snatch` → low · `none` → no incident. Stabbing is alerted by rules immediately, even when the spotter gives no confidence (only a known low confidence, mixed activities, or an `uncertain` verdict send it to the model); fistfight / purse_snatch get the model (capped at their priority) and switch to `alert` once a camera agent confirms a `match` downstream, so the operator always gets a Confirm/Dismiss decision. A missing `activity_confidence` falls back to the detection's `confidence`; with neither, the incident goes to the model instead of being dropped.
 
 ## Procedure guidance (hard-coded)
 

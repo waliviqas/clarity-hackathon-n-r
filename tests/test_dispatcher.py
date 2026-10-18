@@ -686,9 +686,28 @@ def test_placeholder_confidence_is_treated_as_unknown(graph):
     d = {**det("det_1", "cam_03", 0, "stabbing"), "confidence": 0.5, "confidence_known": False}
     from dispatcher.rules import activity_conf
     assert activity_conf(d) is None
-    assert gate(case_from([d]), CFG) == "ambiguous"  # unknown confidence: no rules auto-alert, goes to the model
     out = Dispatcher(graph, None).process([d, rel("rel_1", 1, "cam_03", "cam_05", "subj_1", ["det_1"])])
     assert "(conf" not in out[-1]["reason"]
+
+
+def test_stabbing_with_unknown_confidence_alerts_immediately(graph):
+    """Team decision (Mina, Sun ~5 AM): a missed stabbing costs more than a false alarm; the operator confirms."""
+    d = {**det("det_1", "cam_03", 0, "stabbing"), "confidence": 0.5, "confidence_known": False}
+    assert gate(case_from([d]), CFG) == "alert"
+    llm = Fake(GOOD)
+    out = Dispatcher(graph, llm).process([d, rel("rel_1", 1, "cam_03", "cam_05", "subj_1", ["det_1"])])
+    assert out[0]["status"] == "alert" and out[0]["priority"] == "high" and out[0]["requires_human_confirm"] is True
+    assert llm.calls == 0  # rules, no model wait
+
+
+def test_stabbing_with_known_low_confidence_still_goes_to_model():
+    assert gate(case_from([det("det_1", "cam_03", 0, "stabbing", 0.3)]), CFG) == "ambiguous"
+
+
+def test_stabbing_with_uncertain_verdict_still_goes_to_model():
+    msgs = [{**det("det_1", "cam_03", 0, "stabbing"), "confidence_known": False},
+            ver("ver_1", 5, "cam_05", "subj_7", "uncertain", [])]
+    assert gate(case_from(msgs), CFG) == "ambiguous"
 
 
 def test_known_confidence_still_used():
