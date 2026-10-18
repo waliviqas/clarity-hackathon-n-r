@@ -3,8 +3,9 @@
 The Clarity team filmed this footage during the NVIDIA x Red Hat Small Models Hack. It is our main open-data contribution. The hackathon counts staged (synthetic) data as open data only if both the clips and the method are published, so this page describes how we filmed, labeled and processed every clip. It is written so anyone can check the data or reuse it.
 
 - **Download (published):** https://huggingface.co/datasets/WilwilMina/clarity-clip8 (Hugging Face: clip 8's three blurred camera views `cam1.mp4` to `cam3.mp4`, the clip log, the ground truth and a dataset card)
+- **Download (published), clip 1:** https://huggingface.co/datasets/WilwilMina/clarity-clip1 (Hugging Face: the live demo's four camera views `cam1.mp4` to `cam4.mp4`, the clip log, the ground truth and a dataset card)
 - **License:** CC BY 4.0 (see [License and attribution](#license-and-attribution))
-- **Status (Sun Oct 18):** clip 8 is published. Test clip 1 is the live demo; it is not published yet, because a teammate's bystander check comes first (see [Clip 1: the live demo site](#clip-1-the-live-demo-site)). Clips 4, 11 and 12 are not published.
+- **Status (Sun Oct 18):** clip 8 is published. Test clip 1, the live demo, is published too (see [Clip 1: the live demo site](#clip-1-the-live-demo-site)). Clips 4, 11 and 12 are not published.
 
 ## What it is
 
@@ -22,7 +23,7 @@ cam_01 bus shelter (the snatch) ──► cam_02 sidewalk by tree grate ──�
 
 There is no decoy: no camera films an empty path, so the footage never gives the camera agents a real "no match" view.
 
-The published dataset holds clip 8, a test clip. Test clip 1, the live demo, has a site of its own and is not published yet: a teammate's bystander check comes first (see [Clip 1: the live demo site](#clip-1-the-live-demo-site)). Clips 4, 11 and 12 from the same filming session are not published.
+The published datasets hold test clips 8 and 1. Test clip 1, the live demo, has a site of its own (see [Clip 1: the live demo site](#clip-1-the-live-demo-site)). Clips 4, 11 and 12 from the same filming session are not published.
 
 Clip 8 (a phone snatch) contains no stabbing. Other clips from the session include mimed stabbings, acted with empty hands: we found no openly licensed stabbing footage, and we never stage scenes with knives or anything that looks like one.
 
@@ -141,7 +142,7 @@ The processing scripts are code, not data. Their license is set in the repo's ma
 
 Test clip 1 is another staged incident from the same session and the **live demo**. It has a site of its own (`data/sites/annex_clip1/`, cameras `cam_07` to `cam_10`), which the bus serves by default.
 
-**It is not published yet.** Both people on screen agreed to be filmed (the team asked them; confirmed Oct 18). Our coding assistant (Claude Code) looked at whole-frame review sheets of the four views (`python data/review_sheets.py data/raw/staged/take3`, two frames per second, written to the gitignored `data/raw/review/take3/`) and found no recognizable bystanders. A teammate's check of the same sheets is still pending, and publishing waits for it. Like clip 8, clip 1 counts as open data only once its clips are published with this method.
+**Published** as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (CC BY 4.0, uploaded Oct 18; built by `data/publish_clip1.py`: no blur needed, no audio, no file metadata). Both people on screen agreed to be filmed (the team asked them; confirmed Oct 18). Our coding assistant (Claude Code) looked at whole-frame review sheets of the four views (`python data/review_sheets.py data/raw/staged/take3`, two frames per second, written to the gitignored `data/raw/review/take3/`) and found no recognizable bystanders; a teammate checked the same sheets before upload.
 
 - **What happens:** on a sidewalk, the suspect walks up to a person and mimes a stabbing with empty hands (no prop); the person falls and the suspect runs off. Label `stabbing`; suspect outfit: black hoodie, dark grey trousers.
 - **Route:** `cam_07` sidewalk by street parking (the attack) ──► `cam_08` sidewalk by painted parklet ──► `cam_09` crosswalk corner ──► `cam_10` sidewalk by building column (exit). No decoy.
@@ -158,6 +159,6 @@ Test clip 1 is another staged incident from the same session and the **live demo
 | `cam_10` | sidewalk by building column | 35.7756, -78.6368 | ±5 m | 35.77555, -78.63671 (about 10 m southeast of `cam_09`, estimate) |
 
 - **Run clock:** built with `--run-offset 0`, so the attack plays at run-clock 5 s like clip 8's snatch. The suspect is in view at 5.0–7.9 s (`cam_07`), 14.9–16.6 s (`cam_08`), 22.6–27.91 s (`cam_09`) and 30.91–34.8 s (`cam_10`). As with clip 8, these are four separate runs of the scene placed on one clock by the estimated travel times.
-- **Background people:** distant passers-by and passing drivers appear in some views (for example on the far sidewalk in `cam_09`). None was recognizable in the frame-by-frame look; the teammate's check decides whether any of them needs blurring before the clips are published.
+- **Background people:** distant passers-by and passing drivers appear in some views (for example on the far sidewalk in `cam_09`). None was recognizable in the frame-by-frame look or the teammate's check, so nothing is blurred.
 - **Build:** `python data/build_site.py data/staged/clip_log_take3.csv --site annex_clip1 --site-name "Red Hat Annex (staged clip 1)" --run-offset 0 --check-clips data/raw/staged`, then `contracts/validate.py` and `feeds.replay --check` on `data/sites/annex_clip1/cameras.json`. It writes `data/sites/annex_clip1/cameras.json`, `data/ground_truth/take3.json` and `data/manifests/annex_clip1.json`; the clip-8 files are untouched.
 - **Recorded model answers:** `data/answers/clip1_system_v3_checker.json` holds the answers of Wali's final system on these four views (the fine-tuned spotter v3 decides crime and type, Nemotron Nano 12B v2 VL describes the suspect; 3 NeMo Gym runs per view, converted by `data/gym_answers.py`). `python -m agents.run --answers data/answers/clip1_system_v3_checker.json --cameras data/sites/annex_clip1/cameras.json` replays the chase from them without a GPU. The spotter calls the attack an assault in all 3 runs, so the camera agents report a `fistfight` at `cam_07`, not a stabbing.

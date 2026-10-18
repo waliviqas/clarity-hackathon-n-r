@@ -14,7 +14,7 @@ Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17
 | Base vs. fine-tuned | Full system 0.723 → **0.821**; spotter alone 0.374 → **0.456** (NeMo Gym, 18 held-out test views × 3 runs): [Results](#results) <!-- source: hf_model/README.md; mean reward of results/nemo_gym/clarity_system_before_gym_8f, clarity_system_8f_v2, clarity_before_gym_8f and clarity_after_gym_8f (.jsonl), Wali's commit e710f89 --> |
 | Models and size | Spotter 2.13B + checker 13.18B + coordinator 8.89B = **24.20B**, under the 33B cap: [Models](#models-and-parameter-budget) <!-- source: exact counts in dispatcher/README.md ("Models and the 33B cap"), Michael's commit 56712cc --> |
 | Demo | Live run on test clip 1: **pending** (the pipeline, checker included, is wired; the run on the GPU box is still to be recorded). The same chase already runs from the final system's recorded answers, without a GPU. Fallback: a [scripted replay of clip 8](#fallback-a-scripted-replay-of-clip-8). **TODO (live run):** demo video and screen-capture links |
-| Open data | Test clip 8 published as [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) (CC BY 4.0), with the [filming method](data/staged/README.md). Test clip 1 is being packaged as `WilwilMina/clarity-clip1` (upload pending) |
+| Open data | Test clip 8 published as [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) (CC BY 4.0), with the [filming method](data/staged/README.md). Test clip 1, the live demo, published as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (CC BY 4.0) |
 | Bounty write-ups | [Best Use of Red Hat vLLM](#best-use-of-red-hat-vllm) · [Best Model Improvement with NeMo Gym](#best-model-improvement-with-nemo-gym) |
 
 > **Names.** On screen and in this README the AI dispatcher agent is the **coordinator**; in code and message contracts it is `dispatcher`. "Dispatcher" in the opening line means the human at the console. The **spotter** is our fine-tuned 2B model; the **checker** is Nemotron Nano 12B v2 VL.
@@ -39,7 +39,7 @@ Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17
 
 ### Live demo: test clip 1 (run pending)
 
-Test clip 1 (take 3 in our clip log) is a mimed stabbing on a sidewalk, staged by our team with empty hands and no prop, and seen by 4 camera views along the suspect's escape: `cam_07` (the attack) → `cam_08` → `cam_09` → `cam_10`. It is a test clip, so the spotter never trained on it. Each view is a separate run of the scene, filmed one after another with one phone and replayed together as live cameras ([how](#how-the-staged-clips-were-made)). Its clips are not public yet: they are being packaged as `WilwilMina/clarity-clip1` on Hugging Face (upload pending). <!-- source: data/staged/README.md ("Clip 1: a second demo site"); labels.csv (split = test), Wali's commit e710f89; upload status from the main session -->
+Test clip 1 (take 3 in our clip log) is a mimed stabbing on a sidewalk, staged by our team with empty hands and no prop, and seen by 4 camera views along the suspect's escape: `cam_07` (the attack) → `cam_08` → `cam_09` → `cam_10`. It is a test clip, so the spotter never trained on it. Each view is a separate run of the scene, filmed one after another with one phone and replayed together as live cameras ([how](#how-the-staged-clips-were-made)). Its four views are published as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (CC BY 4.0; no audio, no file metadata; [dataset card](data/staged/DATASET_CARD_clip1.md)). <!-- source: data/staged/README.md ("Clip 1: a second demo site"); labels.csv (split = test), Wali's commit e710f89; upload status from the main session -->
 
 **Status:** every part of the live pipeline is built, and the camera agents now call both the spotter and the checker. The live run on the GPU box has not been recorded yet.
 
@@ -155,11 +155,11 @@ flowchart LR
 | Camera agents and spotter adapter | `agents/` | Mina's side (with Claude Code), Wali's OK | Built: they call the spotter, then the checker on flagged cameras; unit tests in `agents/tests` |
 | Camera graph (`graph.predict_next`) | — | Wali | Not merged; the coordinator uses its built-in fallback (unvisited neighbors of the last camera, weighted by direction) |
 | Coordinator (rules, model, verifier) | `dispatcher/` | Michael | Built |
-| Model serving on vLLM | `infra/` | Michael | Built: coordinator (port 8003), fine-tuned spotter (8005) and checker (8002) on one A100, base spotter (8001) for the comparison. The checker's exact serve line is UNVERIFIED here (waiting on Wali) |
+| Model serving on vLLM | `infra/` | Michael | Built: coordinator (port 8003), fine-tuned spotter (8005) and checker (8002) on one A100, base spotter (8001) for the comparison. The checker runs from Wali's `infra/serve_checker.sh`; the three models haven't run side by side on the box yet |
 | Message contracts and validator | `contracts/` | shared | Built |
 | Event bus (server, client, scripted scenario, replay, run metrics) | `bus/` | Mina | Built |
 | Camera feeds (clips replayed as cameras) | `feeds/` | Mina | Built |
-| Staged clips, camera maps, ground truth, recorded answers | `data/` | Mina | Clip 8 published; clip 1's site built, its clips being packaged (upload pending) |
+| Staged clips, camera maps, ground truth, recorded answers | `data/` | Mina | Clips 8 and 1 published; clip 1's site built |
 | Dashboard | `dashboard/` | Mina | Built |
 | Lookup (RAG with Nemotron Embed + Rerank) | — | Michael | Cut; replaced by fixed procedure lines |
 
@@ -333,7 +333,7 @@ The hackathon cap is **33B parameters in total** across all generative language 
 | Role | Model | Parameters[^params] | In the final system | Served |
 |---|---|---|---|---|
 | Spotter, fine-tuned by us: crime, fleeing or nothing and the crime type, on every camera | `Qwen/Qwen3-VL-2B-Instruct` with our LoRA (v3) merged in | 2,127,532,032 | Yes | vLLM, port 8005, as `spotter-ft` (0.2 of the A100, ~14.8 GB measured) |
-| Checker: describes the suspect on flagged cameras | `nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16` | 13,181,860,358 | Yes | vLLM, port 8002, as `checker` (planned 0.40 of the A100; exact serve line UNVERIFIED, waiting on Wali) |
+| Checker: describes the suspect on flagged cameras | `nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16` | 13,181,860,358 | Yes | vLLM, port 8002, as `checker` (0.40 of the A100, `infra/serve_checker.sh`) |
 | Coordinator: recommends where to send officers | `nvidia/NVIDIA-Nemotron-Nano-9B-v2` | 8,888,227,328 | Yes | vLLM, `127.0.0.1:8003`, as `dispatcher` (0.30 of the A100, ~26.8 GB measured) |
 | Base spotter, for the before/after only | `Qwen/Qwen3-VL-2B-Instruct` | 2,127,532,032 | No | vLLM, port 8001 (0.2 of the A100, ~14.8 GB measured); off during the live run |
 
@@ -392,7 +392,7 @@ vLLM serves every model the pipeline runs: the coordinator's model, our fine-tun
 
 | Source | How we use it | License | Attribution |
 |---|---|---|---|
-| **Our staged clips** (13 clips, 34 camera views, filmed by the team on Oct 17) | Spotter training (train split) and testing (test split), kept apart; the demo's camera views (clip 1 live, clip 8 fallback); ground truth. **Published:** clip 8 as [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) (passers-by blurred, no audio, no file metadata; [dataset card](data/staged/DATASET_CARD.md)). Clip 1 (the live demo) is being packaged as `WilwilMina/clarity-clip1` (upload pending). The rest, except clips 4, 11 and 12, are to follow after a bystander check (clips 2, 5 and 6 show passers-by) | CC BY 4.0 (clip 8) | Credit line below |
+| **Our staged clips** (13 clips, 34 camera views, filmed by the team on Oct 17) | Spotter training (train split) and testing (test split), kept apart; the demo's camera views (clip 1 live, clip 8 fallback); ground truth. **Published:** clip 8 as [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) (passers-by blurred, no audio, no file metadata; [dataset card](data/staged/DATASET_CARD.md)). Clip 1 (the live demo) as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (no blur needed, no audio, no file metadata; [dataset card](data/staged/DATASET_CARD_clip1.md)). The rest, except clips 4, 11 and 12, are to follow after a bystander check (clips 2, 5 and 6 show passers-by) | CC BY 4.0 (clips 8 and 1) | Credit line below |
 | **CAVIAR** (8 acted clips from one lobby camera) | First set aside to check the spotter on footage filmed elsewhere; added to training in v2 ([see below](#what-the-final-spotter-was-trained-on)) | CC BY-SA | Below |
 | **MEVA** | 3 example clips: as for CAVIAR. Cut clips (ours, and a batch Michael cut with `scripts/meva_training_clips.py`): extra training clips; MEVA cuts went into v4 and v5, not the final model | CC BY 4.0 | Below |
 | **AIRTLab** violence dataset (staged clips by non-professional actors, 2 viewpoints) | Extra training clips, used in v4 and v5, not in the final model | Research/education only; a model trained on them must say so on its model card. Link only, never re-hosted | Below |
@@ -416,14 +416,14 @@ Clip names, license checks and caveats are in [`data/README.md`](data/README.md)
 
 The full method, with clip 8's and clip 1's positions and timing, is in [`data/staged/README.md`](data/staged/README.md). The short version:
 
-- **Who and what:** our team staged one incident per clip, or a scene where nothing happens; no weapons or weapon-like props, and stabbings are mimed with empty hands. Clip 8's two actors are team members who agreed to publication; for clip 1, a teammate's review of the actors and passers-by comes before its upload.
+- **Who and what:** our team staged one incident per clip, or a scene where nothing happens; no weapons or weapon-like props, and stabbings are mimed with empty hands. Clip 8's two actors are team members who agreed to publication; both people in clip 1 agreed to be filmed, and a teammate checked its views for bystanders before upload.
 - **The 13 clips:** test clips are mimed stabbings (1, 3, 4), a pickpocket (7), a phone snatch (8), an assault (13) and a scene with nothing happening (12). Training clips are mimed stabbings (2, 5), an assault with a theft (6), a car theft (9), an assault (10) and a scene with nothing happening (11). <!-- source: labels.csv, Wali's commit e710f89 -->
 - **Where and when:** sidewalks, a plaza, a cafe patio, a bus shelter and a parking garage around the Red Hat Annex in Raleigh, plus a few indoor views, on Oct 17 between about 4:05 and 5:40 PM. <!-- source: the team's camera-position sheet, camera_positions.csv (recorded_at, spot_name), kept with Wali's raw clips outside this repo -->
 - **Filmed separately, replayed together.** One handheld iPhone filmed each clip's views one after another: the scene was acted once per view, and the phone moved to the next spot along the suspect's path between runs. 1 to 4 views per clip, 34 in total. For the demo, a clip's views are replayed on one shared clock as if several cameras watched the same escape; each view is placed on that clock by the estimated running time from the previous spot, because the runs share no clock. <!-- source: data/staged/README.md ("How it was filmed", "Three runs, replayed as one", "Clip 1: a second demo site"); labels.csv -->
 - **Camera positions:** GPS fixes from each clip's metadata, accurate to 5–189 m (worse indoors). Clip 8's fixes (±14–28 m) are less precise than the 11–22 m between its cameras, so its cameras are placed by hand in route order. Clip 1's first three cameras stay at their GPS fixes (about 24 m and 21 m apart, already in route order); `cam_10` shares `cam_09`'s rounded fix, so it is placed about 10 m further southeast with a 3 s running time, both our estimates. The raw GPS stays in the clip logs. <!-- source: data/staged/README.md ("Raw GPS vs placed positions", "Clip 1: a second demo site"); camera_positions.csv -->
 - **Clip format:** [`data/convert_clips.py`](data/convert_clips.py) (ffmpeg) makes a 720p, constant 10 fps, H.264 copy of each iPhone clip with the audio removed, so every clip decodes the same way and no bystander voices are kept.
 - **Ground truth for replay:** [`data/build_site.py`](data/build_site.py) turns a committed clip log into a camera map (`cameras.json`), ground truth and clip manifest: `data/sites/annex/` for clip 8 and `data/sites/annex_clip1/` for clip 1.
-- **Published:** clip 8, CC BY 4.0: the three views (passers-by blurred, file metadata removed), the clip log and the ground truth. Clip 1 follows as `WilwilMina/clarity-clip1` (upload pending).
+- **Published:** clip 8, CC BY 4.0: the three views (passers-by blurred, file metadata removed), the clip log and the ground truth. Clip 1, CC BY 4.0: the four views (no blur needed, file metadata removed), the clip log and the ground truth, as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1).
 
 ### Attribution
 
@@ -522,7 +522,7 @@ python -m feeds.replay --cameras data/sites/annex_clip1/cameras.json           #
 
 #### 3. Site data from the staged clips
 
-Clips live in `data/raw/staged/take<N>/` on the GPU box and are never committed. Clip 8's published views can be downloaded (see [Reproduce the demo](#reproduce-the-demo), step 2); clip 1's upload is pending. The site files below are already committed; these commands rebuild them.
+Clips live in `data/raw/staged/take<N>/` on the GPU box and are never committed. Clip 8's and clip 1's published views can be downloaded (see [Reproduce the demo](#reproduce-the-demo), step 2). The site files below are already committed; these commands rebuild them.
 
 ```bash
 sudo apt-get install -y ffmpeg                       # convert_clips.py needs ffmpeg on PATH
@@ -602,11 +602,11 @@ pip install -r requirements.txt -r bus/requirements.txt -r feeds/requirements.tx
 
 **2. Copy the clips** (they are gitignored and never committed).
 
-- **Clip 1** (the live demo) is not published yet, so copy its four views from a teammate's machine, running these from the repo root there:
+- **Clip 1** (the live demo): download `cam1.mp4` to `cam4.mp4` from [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) into `data/raw/staged/take3/` as `clip1_cam1.mp4` to `clip1_cam4.mp4`, from the repo root on the GPU box:
 
   ```bash
-  ssh <instance> 'mkdir -p ~/clarity-hackathon-n-r/data/raw/staged/take3'
-  scp data/raw/staged/take3/clip1_cam*.mp4 <instance>:~/clarity-hackathon-n-r/data/raw/staged/take3/
+  mkdir -p data/raw/staged/take3
+  for i in 1 2 3 4; do curl -L -o "data/raw/staged/take3/clip1_cam$i.mp4" "https://huggingface.co/datasets/WilwilMina/clarity-clip1/resolve/main/cam$i.mp4"; done
   ```
 
 - **Clip 8** (the fallback): download `cam1.mp4`, `cam2.mp4` and `cam3.mp4` from [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) into `data/raw/staged/take1/` as `clip8_cam1.mp4`, `clip8_cam2.mp4` and `clip8_cam3.mp4` (see the dataset card).
@@ -659,6 +659,7 @@ The same agents command with every setting spelled out, from the repo root:
 SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=http://localhost:8002/v1 CHECKER_MODEL=checker python -m agents.run --live --save-answers "runs/$CLARITY_RUN_ID/answers.json"
 ```
 
+- **Dry run first.** Before the recorded take, run the agents once without publishing: `python -m agents.run --live --no-publish --out /tmp/dry_run.jsonl`. It warms both models (the checker's first request takes 15-60 s) and shows whether the spotter calls a crime at `cam_07` on these exact files: the NeMo Gym scores came from Wali's copies of the clips, while the live run reads our 720p, 10 fps conversions, so the same answer isn't guaranteed.
 - **The coordinator** uses its model on port 8003 as `dispatcher` by default and stops at startup if that model isn't served. `--no-model` runs it on rules only; label any recording made that way "coordinator: rules mode". <!-- source: main session report of Michael's commit b99d126 -->
 - **The camera agents** send each camera's clip to the spotter once it has played on the run clock, then ask the checker (`describe()` in `src/checker.py`) about every camera the spotter flags (crime or fleeing), 8 frames each. Before publishing anything, `--live` checks that both models are served under the names in `SPOTTER_MODEL` and `CHECKER_MODEL` (the checker must be served as `checker`) and stops with one line if not. `--no-checker` runs the spotter alone. The site defaults to clip 1's (`data/sites/annex_clip1/cameras.json`). <!-- source: agents/run.py and agents/README.md (commit d6c8aaf) -->
 - `--save-answers` keeps the answers, so `--answers <file>` can replay the same take later without a GPU. `--relay-uncertain` keeps a chase going when descriptions are thin: an uncertain look at someone running is relayed onward too.
@@ -680,7 +681,7 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 
 ## Known limitations
 
-- **The live run is still to come.** The pipeline is wired end to end, checker included, but no live run on the GPU box has been recorded yet, and the checker's exact serve line is UNVERIFIED in this README. Until then the demo runs from the final system's recorded answers or from scripts: in the fallback run `run_1018-0028_r2s`, a script stands in for the spotter and camera agents, and the coordinator runs in rules mode.
+- **The live run is still to come.** The pipeline is wired end to end, checker included, but no live run on the GPU box has been recorded yet, and the three models haven't run side by side on the box yet. Until then the demo runs from the final system's recorded answers or from scripts: in the fallback run `run_1018-0028_r2s`, a script stands in for the spotter and camera agents, and the coordinator runs in rules mode.
 - **Modest scores.** v3 makes the right call in 89% of answers but names the crime type right in only 33%. It misses the crime on clip 8's crime camera in all 3 runs, and calls clip 1's mimed stabbing an assault, so the demo incident is reported as a fistfight. <!-- source: results/history.csv after_nemo_gym_v3_8f; clarity_system_8f_v2.jsonl (Wali's commit e710f89) -->
 - **Small, familiar test set.** 18 test views from the same afternoon, site and people as the training clips, also used to compare versions; only 2 views show nothing happening, so the false-alarm rate rests on very few answers.
 - **No check on footage filmed elsewhere.** The public clips we set aside for that may have gone into v3's training ([details](#what-the-final-spotter-was-trained-on)).
@@ -692,7 +693,7 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 - **Fixed procedure text.** The coordinator's guidance is a fixed line per crime type, not a search over an agency's real procedures (we cut the lookup step).
 - **Not on agency hardware yet.** The demo runs on a rented Brev cloud GPU box standing in for the agency's server, with the dashboard on a laptop over a port-forward.
 - **No login on the bus or the model servers.** None of them has user accounts or an API key. The bus and the coordinator's server bind to `127.0.0.1` on the GPU box and are reached through a port-forward; the runbook starts the other model servers the same way (the spotter servers running during the hack get `--host 127.0.0.1` at their next restart). <!-- source: bus/server.py; infra/serve_dispatcher.sh and VLLM_BOUNTY.md (Michael's commit 56712cc) -->
-- **Not all staged clips are published.** Only clip 8 so far. Clip 1, the live demo clip, is being packaged as `WilwilMina/clarity-clip1` (upload pending; distant passers-by appear in some of its views, and a teammate's bystander check comes first), and clips 4, 11 and 12 will not be published.
+- **Not all staged clips are published.** Clips 8 and 1 so far (clip 1 has distant passers-by in some views, none recognizable), and clips 4, 11 and 12 will not be published.
 - **Raw clips in a working branch's history.** This branch holds no raw video, but Wali's working branch (`wali-branch`) still has raw videos of our staged clips in its git history; removing them is an open item.
 - **Public training clips with limited terms.** AIRTLab is for research and education only, and Mixkit's Acceptable Use Policy is unread. Both were used only in v4 and v5, not in the final model, and neither is re-hosted.
 
@@ -701,7 +702,7 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 - Record the live clip-1 run on the GPU box and use it for the video.
 - Score the system on footage filmed elsewhere that was never used in training.
 - Get the crime type right more often (stabbing vs. assault) and fix misses like clip 8's, with more varied training data: other places, times of day and people.
-- Finish publishing clip 1, publish the other staged clips after a bystander check, and remove the raw clips from `wali-branch`'s history.
+- Publish the other staged clips after a bystander check, and remove the raw clips from `wali-branch`'s history.
 - Rerun the load tests with v3 at 8 frames and with the checker on the same GPU.
 - Run several overlapping incidents on real footage.
 - Compare our camera agents with one model doing the whole job.
@@ -744,7 +745,7 @@ The code has no license file yet. Test clip 8 is CC BY 4.0. The fine-tuned model
 | `hf_model/` | The fine-tuned model's card |
 | `labels.csv`, `labels_external.csv` | Wali's per-camera labels for our clips and the 11 public clips |
 | `dispatcher/` | Coordinator: rules, model calls, verifier, procedure lines |
-| `infra/` | vLLM serving (`serve_dispatcher.sh`) |
+| `infra/` | vLLM serving (`serve_dispatcher.sh`, Michael; `serve_checker.sh`, Wali) |
 | `scripts/` | Coordinator load test, MEVA clip cutter |
 | `runs/run_1018-0028_r2s/` | The recorded fallback run: events and `RUN.md` |
 | `VLLM_BOUNTY.md` | Michael's full vLLM write-up |
