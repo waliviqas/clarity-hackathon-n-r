@@ -98,9 +98,7 @@ Local labeling copies: `data/raw/training_public/clips/`, frames + contact sheet
   direct file link. MEVA `2018-03-15.14-55-00.15-00-00.bus.G331` is not under `drops-123-r13` (HTTP 404):
   pending, find it on Brev with
   `aws s3 ls --no-sign-request --recursive s3://mevadata-public-01/drop-4-hadcv22/ | grep 14-55-00.15-00-00.bus.G331`.
-  ex085's video (`15-10-00.15-15-00.bus.G331`) is never used (external check).
-- The G421 theft at frame 7748 shows the same outfit (grey hoodie, camouflage pants) as a bystander in ex085.
+  ex085's video (`15-10-00.15-15-00.bus.G331`) is never used.
 
-## Excluded from training (keeps the ex085 external check clean)
-- MEVA 2018-03-05 13-15 bus G331, frames 6207-6334: the same camera as ex085.
-- MEVA 2018-03-15 14-50 school G421, frames 7748-7880: the thief's outfit matches a bystander in ex085.
+## ex085 and two MEVA thefts (Wali, Sun Oct 18 ~00:55)
+ex085 is no longer used for training or the external check (its MEVA example video has the activity labels burned in). So the two MEVA thefts that overlapped it are back in training: bus G331 frames 6207-6334 (the same camera as ex085) and school G421 frames 7748-7880 (the thief's outfit matches a bystander in ex085).

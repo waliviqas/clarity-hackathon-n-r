@@ -1,6 +1,6 @@
 # Spotter training data: what we need and where to get it
 
-For Wali's next fine-tune of the spotter (Qwen3-VL-2B). Status: **113 clips cut; 30 labeled for training in `labels_public.csv`** (assault and normal clips are cut but not labeled yet). Sources were checked on Sat Oct 17, about 23:40 to 00:15, by Claude Code's researcher agent in a browser. Licenses were read on each source's own page; the links are below. Anything marked UNVERIFIED wasn't confirmed.
+For Wali's next fine-tune of the spotter (Qwen3-VL-2B). Status: **115 clips cut; 32 labeled for training in `labels_public.csv`**. Wali labels the 83 assault and normal clips himself. Sources were checked on Sat Oct 17, about 23:40 to 00:15, by Claude Code's researcher agent in a browser. Licenses were read on each source's own page; the links are below. Anything marked UNVERIFIED wasn't confirmed.
 
 ## 1. The ask (spec from the team, Sat Oct 17 ~23:35)
 
@@ -94,7 +94,7 @@ The annotations are in the [Kitware repo](https://gitlab.kitware.com/meva/meva-d
 | 2018-03-15.14-50-00.14-55-00.school.G421 | 6544–6684 and 7748–7880 | 2 thefts |
 | 2018-03-05.13-15-01.13-20-01.bus.G331 | 6207–6334 | theft |
 | 2018-03-15.14-55-00.15-00-00.bus.G331 | 3434–3582 | theft |
-| 2018-03-15.15-10-00.15-15-00.bus.G331 | 6319–6444 | **ex085, our external-check clip: never train on it** |
+| 2018-03-15.15-10-00.15-15-00.bus.G331 | 6319–6444 | ex085 (burned-in labels): not used for training or the external check |
 
 Hugs, 11 clips, each from a different camera and date (frame spans are the annotation spans, some long):
 - 2018-03-12.11-05-01.11-10-01.school.G423, frames 5405–5769
@@ -160,7 +160,7 @@ Page URLs: `https://mixkit.co/free-stock-video/<slug>/` and `https://www.pexels.
 3. **Stock sites:** may we use hand-picked downloads despite the "no scraping for machine learning" clauses? Pexels also says identifiable people may not appear "in a bad light", so use Pexels for normals only.
 4. **Real-incident datasets** stay out (our footage rule).
 
-Until Wali decides, the AIRTLab and Mixkit rows are included. Each source can be left out by its clip prefix in `labels_public.csv`: `airt_` (AIRTLab), `mixkit_` (Mixkit), `meva_` (MEVA).
+**Wali decided (Sun Oct 18, ~00:55):** AIRTLab yes, disclosed on the model card; cam2 rows kept; he labels the 83 assault and normal clips himself. Mixkit stays in; its Acceptable Use Policy is still unread. Each source can be left out by its clip prefix in `labels_public.csv`: `airt_` (AIRTLab), `mixkit_` (Mixkit), `meva_` (MEVA).
 
 ## 7. Next steps
 
