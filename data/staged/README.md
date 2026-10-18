@@ -55,11 +55,11 @@ Clip 8 (a phone snatch) contains no stabbing. Other clips from the session inclu
 
 - **Only consenting teammates are on camera.** Everyone who acts is a member of the team, and all three team members agreed to publication under CC BY 4.0 (confirmed by the team on Oct 17). Clip 8 shows two of them: the suspect and the person robbed.
 - **No weapons and no weapon-like props.**
-- **No bystanders.** Any clip where a bystander's face could be recognized is re-filmed, blurred before publishing, or not published. Blurred for publishing and for the demo, with `data/publish_clip8.py` (moving boxes, heavy 3-pass box blur; every blurred frame checked on full-resolution contact sheets):
+- **No bystanders.** Any clip where a bystander's face could be recognized is re-filmed, blurred before publishing, or not published. Blurred for publishing and for the demo, with `data/publish_clip8.py` (moving boxes, heavy 3-pass box blur, applied once to the unblurred converted clips; the script refuses clips it already blurred. Every blurred frame was checked on full-resolution contact sheets, and whole frames, two per second, for anyone left unblurred):
   - `cam_03`: two passers-by walking away (seen from behind), frames 0–38 (0–3.9 s); at frames 21–22 the suspect runs right past them, and one tight box touches the edge of the suspect's head.
   - `cam_01`: one stranger's lower legs at the top edge, frames 0–44 (0–4.5 s).
   - `cam_02`: nobody but the suspect; unchanged.
-- **No audio.** The conversion step strips the audio track, because it could carry bystanders' voices. The published clips have no audio stream (checked with ffprobe).
+- **No audio and no file metadata.** The conversion step strips the audio track, because it could carry bystanders' voices. `data/publish_clip8.py` also writes the published clips without file metadata, because phone clips can carry the GPS position, recording time and phone model there. ffprobe confirms that each published clip has one video stream, no audio, and no location, date or device tags. The rounded GPS fixes are published on purpose, in the clip log (see [Raw GPS vs placed positions](#raw-gps-vs-placed-positions)).
 - **Clip files are never in git.** Raw video lives in `data/raw/` (gitignored). The clips are published only through the dataset link.
 
 ## Three runs, replayed as one

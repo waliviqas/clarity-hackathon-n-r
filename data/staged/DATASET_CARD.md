@@ -19,19 +19,26 @@ size_categories:
 <!--
 Clarity team: publishing checklist (HTML comment, so it doesn't show on Hugging Face)
 
-1. Rebuild the package from the repo root (blurs, copies, checks; also copies this card in as README.md):
+1. Build the package from the repo root (blurs, strips metadata, checks; also copies this card in as README.md):
      python data/publish_clip8.py --sheets
-   Look at data/raw/publish/review/*.png: every non-actor person must be a blur in every frame.
-2. Replace <org> in this card with the Hugging Face account or org name, then copy ONLY the card into the package:
+   It reads the UNBLURRED converted clips in data/raw/staged_unblurred/take1/ (--src picks another folder) and
+   refuses data/raw/staged/take1/ (the demo plays blurred copies from there) and any clip it already processed, so
+   no clip is blurred twice. Every clip must print "ok". Then a teammate checks the sheets in data/raw/publish/review/:
+     cam1/cam2/cam3_full_frames.png  whole frames, 2 per second: anyone who isn't an actor must be a blur
+     cam1/cam3_blurred_frames.png    every blurred frame, cropped around the boxes: no face, hair or clothing detail
+   After the check, replace the "TODO: a teammate confirms this before upload." sentence in "Consent and privacy"
+   (for example: "A teammate checked the same sheets before upload.").
+2. After any later edit to this card, copy ONLY the card into the package:
      cp data/staged/DATASET_CARD.md data/raw/publish/clarity-clip8/README.md
-   Don't run step 1 again on this laptop: data/raw/staged/take1/ already holds the blurred clips (the demo plays them),
-   so a second run would blur and re-encode them twice. The unblurred converted clips are in data/raw/staged_unblurred/take1/.
-3. Upload data/raw/publish/clarity-clip8/ (cam1-3.mp4, take1.json, clip_log_take1.csv, README.md). Either:
-   a. Web UI, no install: huggingface.co -> New dataset -> name clarity-clip8, license cc-by-4.0, Public ->
-      Files and versions -> Add file -> Upload files -> drag in all files from the folder -> Commit.
+   (Running step 1 again is also safe: it always starts from the unblurred clips.)
+3. Upload the six files in data/raw/publish/clarity-clip8/ (README.md, cam1.mp4, cam2.mp4, cam3.mp4,
+   clip_log_take1.csv, take1.json). Either:
+   a. Web UI, no install: signed in as WilwilMina, open huggingface.co/new-dataset -> Owner WilwilMina, name
+      clarity-clip8, license cc-by-4.0, Public -> Create dataset -> Files and versions -> Add file -> Upload files
+      -> drag in the six files (the files, not the folder) -> Commit changes to main.
    b. CLI (needs `pip install huggingface_hub`, which isn't installed here, plus `huggingface-cli login`
       with a write token; never commit the token):
-        huggingface-cli upload <org>/clarity-clip8 data/raw/publish/clarity-clip8 --repo-type dataset
+        huggingface-cli upload WilwilMina/clarity-clip8 data/raw/publish/clarity-clip8 --repo-type dataset
       (newer huggingface_hub versions name the command `hf upload`; same arguments)
 4. Put the dataset link into data/staged/README.md (the "Download" line and the attribution line).
 5. The GitHub links below point at main, so they only work after the branch is merged to main.
@@ -55,9 +62,9 @@ The three views are **three separate runs of the same scene**, filmed one after 
 | `cam2.mp4` | `cam_02` | sidewalk by a tree grate | 3.3 s, 33 frames | 1.25 to 2.5 s (runs past) |
 | `cam3.mp4` | `cam_03` | covered walkway: the exit | 4.3 s, 43 frames | 1.5 s to the end (still in view when the clip ends) |
 | `take1.json` | | | | Ground truth: crime type, suspect outfit, and the suspect's path across the three cameras on one run clock |
-| `clip_log_take1.csv` | | | | The per-view log the ground truth was built from: spot, placed position and raw GPS, clip file, enter/exit seconds, estimated travel time, notes |
+| `clip_log_take1.csv` | | | | The per-view log the ground truth was built from: spot, position (`lat`, `lon`: placed by hand; `gps_lat`, `gps_lon`, `gps_accuracy_m`: the raw GPS, see [Camera positions](#camera-positions)), clip file, enter/exit seconds, estimated travel time, notes |
 
-All three videos are 1280x720, a constant 10 fps, H.264 (8-bit 4:2:0), with **no audio** and no location or device metadata. They were converted from the phone's 1080p, 30 fps originals (`IMG_7380`, `IMG_7381`, `IMG_7382`).
+All three videos are 1280x720, a constant 10 fps, H.264 (8-bit 4:2:0), with **no audio** and no file metadata about where, when or on which device they were filmed. They were converted from the phone's 1080p, 30 fps originals (`IMG_7380`, `IMG_7381`, `IMG_7382`).
 
 **File names:** the clip log and the Clarity code call the files `clip8_cam1.mp4` to `clip8_cam3.mp4`. To run them through the Clarity pipeline, copy them into `data/raw/staged/take1/` under those names (`cam1.mp4` becomes `clip8_cam1.mp4`, and so on), then follow the method page.
 
@@ -87,7 +94,7 @@ The raw GPS comes from each clip's metadata. Its error (±14 to 28 m) is larger 
   - `cam1.mp4`: the lower legs of one person on the far sidewalk, at the very top edge of the frame, frames 0 to 44 (0 to 4.5 s).
   - `cam2.mp4`: no one but the suspect, so this clip is unchanged.
   
-  Our coding assistant (Claude Code) checked every blurred frame on contact sheets at full resolution: no face, hair or clothing detail is left, only soft color patches. TODO: a teammate confirms this before upload.
+  Our coding assistant (Claude Code) checked every blurred frame on contact sheets at full resolution: no face, hair or clothing detail is left, only soft color patches. It also checked whole frames, two per second, for anyone left unblurred. TODO: a teammate confirms this before upload.
 - **Cars:** passing and parked cars appear in the background. No licence plate is readable, and no driver can be recognized.
 - **No audio:** the conversion removed the sound track, which could carry bystanders' voices.
 
@@ -99,7 +106,7 @@ In short:
 1. One iPhone filmed the three spots one after another. The teammates acted the scene once per spot.
 2. `data/convert_clips.py` converted each clip to 720p, constant 10 fps, H.264 with no audio.
 3. Enter and exit times were read from contact sheets (by Claude Code, see above) and typed into the clip log. `data/build_site.py` turned the log into `take1.json` and the camera map.
-4. [`data/publish_clip8.py`](https://github.com/waliviqas/clarity-hackathon-n-r/blob/main/data/publish_clip8.py) applied the passer-by blur and built this package. It lists every blur box as frames plus a pixel rectangle; each box is cut out, blurred with a 3-pass box blur (radius up to 30 px) and put back for those frames only. `cam1` and `cam3` were re-encoded (H.264, CRF 18); `cam2` is byte-identical to the converted clip.
+4. [`data/publish_clip8.py`](https://github.com/waliviqas/clarity-hackathon-n-r/blob/main/data/publish_clip8.py) applied the passer-by blur and built this package. It lists every blur box as frames plus a pixel rectangle; each box is cut out, blurred with a 3-pass box blur (radius up to 30 px) and put back for those frames only. `cam1` and `cam3` were re-encoded (H.264, CRF 18). `cam2` has nothing to blur, so its video stream was copied without re-encoding (the same frames as the converted clip). All three files were written without file metadata, because phone clips can carry the GPS position, recording time and phone model there; ffprobe confirmed one video stream per file, no audio, and no location, date or device tags. The script refuses to blur a clip twice.
 
 ## Limitations
 
@@ -121,14 +128,14 @@ In short:
 
 ## How to cite
 
-> Clarity staged incident, three camera views (Raleigh, Oct 17, 2026), by the Clarity team, NVIDIA x Red Hat Small Models Hack. CC BY 4.0. https://huggingface.co/datasets/<org>/clarity-clip8
+> Clarity staged incident, three camera views (Raleigh, Oct 17, 2026), by the Clarity team, NVIDIA x Red Hat Small Models Hack. CC BY 4.0. https://huggingface.co/datasets/WilwilMina/clarity-clip8
 
 ```bibtex
 @misc{clarity_clip8_2026,
   title        = {Clarity clip 8: a staged phone snatch seen by three cameras},
   author       = {{The Clarity team}},
   year         = {2026},
-  howpublished = {\url{https://huggingface.co/datasets/<org>/clarity-clip8}},
+  howpublished = {\url{https://huggingface.co/datasets/WilwilMina/clarity-clip8}},
   note         = {NVIDIA x Red Hat Small Models Hack, Raleigh, NC. CC BY 4.0}
 }
 ```
