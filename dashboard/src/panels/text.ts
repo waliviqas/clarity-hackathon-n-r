@@ -7,11 +7,13 @@
 //   recommendation  Operator review needed. Send officer to Route 1: north corner (cam_03); fistfight at
 //                   Route 1: south walkway (cam_01) Procedure: separate the parties, check for injuries, …
 //   reason          fistfight detected (conf 0.80); subject confirmed at 3 camera(s)
+//                   (no confidence: "fistfight detected; subject confirmed at 3 camera(s)")
 // which reads
 //   card title      Fistfight at Route 1: south walkway
 //   card            Send officer to Route 1: north corner.          (the clause repeating the title goes)
 //                   Procedure: separate the parties, check for injuries, request EMS if needed.
 //   card meta       Medium priority. Fistfight (80% confidence), seen at 3 cameras. Suspect: male, red hoodie, …
+//                   (no confidence: "Medium priority. Fistfight, seen at 3 cameras. Suspect: …", no made-up 0%)
 //   receipt         Send officer to Route 1: north corner; fistfight at Route 1: south walkway   (full text)
 //   receipt detail  Medium priority. Fistfight detected (80% confidence); subject confirmed at 3 cameras. …
 // Scripted text (bus/fake_scenario.py) has no codes, prefix or procedure, so it comes out unchanged, and
@@ -43,9 +45,10 @@ const PROCEDURE_LABEL = 'Procedure:';
 const CONFIDENCE = /\bconf(?:idence)?\b\s*[:=]?\s*(1(?:\.0+)?|0?\.\d+|0)(?!\d)(?!\.\d)/gi;
 /** "3 camera(s)" */
 const PLURAL = /\b(\d+)\s+([A-Za-z]+)\(s\)/g;
-/** The dispatcher's "<what> detected (80% confidence); subject confirmed at 3 cameras" (after reasonText),
- *  shortened on cards to "<what> (80% confidence), seen at 3 cameras" so the one-line meta fits at 1920 px. */
-const TEMPLATE_REASON = /\s+detected \((\d+% confidence)\);\s*subject confirmed at (\d+ cameras?)\b/gi;
+/** The dispatcher's "<what> detected (80% confidence); subject confirmed at 3 cameras" (after reasonText), or
+ *  "<what> detected; subject confirmed at 3 cameras" when it has no confidence, shortened on cards to
+ *  "<what> (80% confidence), seen at 3 cameras" / "<what>, seen at 3 cameras" so the one-line meta fits at 1920 px. */
+const TEMPLATE_REASON = /\s+detected(?: \((\d+% confidence)\))?;\s*subject confirmed at (\d+ cameras?)\b/gi;
 
 const PRIORITY_LABEL: Readonly<Record<string, string>> = {
   high: 'High priority',
@@ -194,6 +197,13 @@ export function reasonText(reason: unknown, cameraName: CameraNamer): string {
   return capitalize(t);
 }
 
+/** A reasonText reason as the card shows it: the dispatcher's template shortened (TEMPLATE_REASON), the
+ *  confidence only when it sent one; any other reason unchanged. */
+function cardReason(reason: string): string {
+  return reason.replace(TEMPLATE_REASON, (_all: string, confidence: string | undefined, cameras: string) =>
+    `${confidence ? ` (${confidence})` : ''}, seen at ${cameras}`);
+}
+
 export interface CardText {
   /** The card's title ("Fistfight at Route 1: south walkway"), its type and place. */
   heading: CardHeading;
@@ -221,7 +231,7 @@ export function cardText(
   const priority = own(PRIORITY_LABEL, d.priority);
   const look = typeof d.subject_appearance === 'string' ? d.subject_appearance.trim().replace(/\.+$/, '') : '';
   const suspect = look ? sentence(`Suspect: ${look}`) : '';
-  const reason = sentence(reasonText(d.reason, cameraName).replace(TEMPLATE_REASON, ' ($1), seen at $2'));
+  const reason = sentence(cardReason(reasonText(d.reason, cameraName)));
   const parts = d.source === SCRIPTED_SOURCE ? [suspect, reason] : [reason, suspect];
   return {
     heading,

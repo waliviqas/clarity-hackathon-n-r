@@ -5,7 +5,8 @@
 //   npm run check:text -- --events ../runs/<id>/events.jsonl    + every dispatch of a recorded run: no camera
 //                                                               code or doubled name left, no "Operator review
 //                                                               needed." on a card, procedure split off, no card
-//                                                               recommendation that repeats its title
+//                                                               recommendation that repeats its title, every
+//                                                               rules.py reason in its short card form
 //   ... --cameras ../data/sites/<site>/cameras.json             cameras for --events (default: placeholder site)
 //
 // Real dispatcher text (dispatcher/rules.py + guidance.py) gets tidied; scripted text (bus/fake_scenario.py)
@@ -52,6 +53,16 @@ const ctx = (namer: CameraNamer) => ({ cameraName: namer, detectionSubjects: {},
 const REAL_1 = 'Operator review needed. Send officer to Route 1: north corner (cam_03); fistfight at Route 1: south walkway (cam_01) Procedure: separate the parties, check for injuries, request EMS if needed';
 const REAL_2 = "Operator review needed. Send officer to Route 3: west sidewalk (cam_11); purse snatch at Route 3: bike rack (cam_09) Procedure: take the victim's statement and broadcast the suspect description";
 const REAL_REASON = 'fistfight detected (conf 0.80); subject confirmed at 3 camera(s)';
+// dispatcher/rules.py template() (branch Michael, cdac7b5) writes its reason with two f-strings (lines 185, 191):
+//   seen = f"{what} detected (conf {conf:.2f})" if conf is not None else f"{what} detected"
+//   "reason": f"{seen}; subject confirmed at {len(cam_path)} camera(s)"
+// with what = the activity, "_" -> " ". Before cdac7b5 an unknown confidence was written as "conf 0.00".
+function rulesReason(activity: string, conf: number | null, cameras: number): string {
+  const what = activity.replace(/_/g, ' ');
+  const seen = conf !== null ? `${what} detected (conf ${conf.toFixed(2)})` : `${what} detected`;
+  return `${seen}; subject confirmed at ${cameras} camera(s)`;
+}
+const OLD_UNKNOWN_REASON = 'fistfight detected (conf 0.00); subject confirmed at 3 camera(s)';
 // bus/fake_scenario.py on the placeholder site.
 const SCRIPTED = [
   'Watch Route 1: west door; send an officer toward Route 1: south walkway.',
@@ -172,6 +183,12 @@ function reasons(): void {
   same(r('Confirmed at Route 1: west door, moving north.'), 'Confirmed at Route 1: west door, moving north.',
     '"Confirmed" is not "conf"');
   for (const s of SCRIPTED_REASONS) same(r(s), s, `scripted: unchanged ("${s.slice(0, 32)}…")`);
+  // rulesReason gives exactly the strings rules.py sends.
+  same(rulesReason('fistfight', 0.8, 3), REAL_REASON, 'rules.py f-string, confidence known: the reason the dispatcher sent');
+  same(rulesReason('purse_snatch', null, 1), 'purse snatch detected; subject confirmed at 1 camera(s)', 'rules.py f-string, no confidence');
+  same(rulesReason('fistfight', 0, 3), OLD_UNKNOWN_REASON, 'rules.py f-string, a real zero: same text as the old unknown');
+  same(r(rulesReason('fistfight', null, 3)), 'Fistfight detected; subject confirmed at 3 cameras', 'no confidence: none invented, plural');
+  same(r(rulesReason('purse_snatch', null, 1)), 'Purse snatch detected; subject confirmed at 1 camera', 'no confidence, one camera: singular');
   same(r('  '), '', 'blank -> empty');
   same(r(undefined), '', 'undefined -> empty');
 }
@@ -250,6 +267,31 @@ function cards(): void {
   same(meta({ priority: 'high', reason: 'Two cameras saw cam_01 (Route 1: south walkway) fight; heading north' }),
     'High priority. Two cameras saw Route 1: south walkway fight; heading north. Suspect: male, red hoodie, blue jeans.',
     "a model's own reason: also first, only codes tidied");
+  // rules.py's reason with and without a confidence (cdac7b5): every card gets the short form, with the
+  // confidence only when the dispatcher sent one.
+  const LOOK = ' Suspect: male, red hoodie, blue jeans.';
+  same(meta({ reason: rulesReason('fistfight', 0.8, 3) }), `Medium priority. Fistfight (80% confidence), seen at 3 cameras.${LOOK}`,
+    'rules.py, confidence known: as before');
+  same(meta({ reason: rulesReason('fistfight', 0.8, 1) }), `Medium priority. Fistfight (80% confidence), seen at 1 camera.${LOOK}`,
+    'rules.py, confidence known, 1 camera: singular');
+  same(meta({ reason: rulesReason('fistfight', null, 3) }), `Medium priority. Fistfight, seen at 3 cameras.${LOOK}`,
+    'rules.py, no confidence: short form, no confidence text');
+  same(meta({ reason: rulesReason('fistfight', null, 1) }), `Medium priority. Fistfight, seen at 1 camera.${LOOK}`,
+    'rules.py, no confidence, 1 camera: singular');
+  same(meta({ priority: 'low', incident_type: 'purse_snatch', subject_appearance: null, reason: rulesReason('purse_snatch', null, 2) }),
+    'Low priority. Purse snatch, seen at 2 cameras.', 'rules.py, no confidence, two-word activity, no suspect');
+  same(meta({ reason: OLD_UNKNOWN_REASON }), `Medium priority. Fistfight (0% confidence), seen at 3 cameras.${LOOK}`,
+    'old form "conf 0.00": short form, shown as sent (rules.py now writes 0.00 only for a real zero)');
+  const noConf = ['stabbing', 'fistfight', 'purse_snatch', 'car_theft'].flatMap((a) =>
+    [1, 2, 3].map((n) => meta({ reason: rulesReason(a, null, n) })));
+  const unshortened = noConf.filter((m) => !/, seen at \d cameras?\./.test(m) || /%|conf|detected|\(\s*\)/i.test(m));
+  check(unshortened.length === 0, `rules.py, no confidence, 4 activities x 1-3 cameras: short form, no "%", "conf", "detected" or "()"${
+    unshortened.length ? `\n        got: ${JSON.stringify(unshortened[0])}` : ''}`);
+  same(meta({ reason: 'fistfight detected near cam_01; subject confirmed at 2 camera(s)' }),
+    `Medium priority. Fistfight detected near Route 1: south walkway; subject confirmed at 2 cameras.${LOOK}`,
+    'no confidence: still only the exact dispatcher phrase is shortened');
+  same(meta({ reason: 'fistfight detected; heading north' }), `Medium priority. Fistfight detected; heading north.${LOOK}`,
+    '"detected;" without "subject confirmed at": not shortened');
   check(!(c1.meta + c2.meta).includes('·') && /^[A-Z]/.test(c1.meta), 'meta: sentence case, no middle-dot separators');
 
   // Scripted (bus/fake_scenario.py, source "fake_scenario"): all nine dispatches read exactly as before:
@@ -357,6 +399,10 @@ function receipts(): void {
     'Medium priority. Fistfight detected (80% confidence); subject confirmed at 1 camera. Procedure: separate the parties, check for injuries, request EMS if needed.',
     'real tracking: detail');
   same(rr.get('op_1')?.text ?? '', 'Operator confirmed the purse snatch at Route 3: bike rack', 'operator_action line unchanged');
+  const noConf = rowsByKey([dispatch('dsp_n', 5, { recommendation: REAL_1, reason: rulesReason('fistfight', null, 3) })]);
+  same(noConf.get('dsp_n')?.detail ?? '',
+    'Medium priority. Fistfight detected; subject confirmed at 3 cameras. Procedure: separate the parties, check for injuries, request EMS if needed.',
+    'receipt detail, rules.py with no confidence: the full reason, no confidence invented');
   const hyphen = rowsByKey([dispatch('dsp_h', 5, { recommendation: 'Watch cam_02-cam_03. Procedure: a. Procedure: b.', reason: '' })]);
   same(hyphen.get('dsp_h')?.text ?? '', 'Coordinator needs your decision: watch Route 1: west door – Route 1: north corner',
     'receipt: hyphen-joined codes named, split at the first "Procedure:"');
@@ -397,6 +443,8 @@ function recorded(path: string, camerasPath: string | undefined): void {
     if (/^operator review needed\s*[.!:]\s*\S/i.test(c.reco)) bad.push(`${d.event_id}: card starts with the review prefix`);
     if (/\sProcedure:/.test(c.reco)) bad.push(`${d.event_id}: procedure left in the card recommendation`);
     if (/\(conf\s|\d\s*\w+\(s\)/i.test(c.meta)) bad.push(`${d.event_id}: raw "conf" or "(s)" in the meta line`);
+    if (typeof d.reason === 'string' && /\sdetected(?: \(conf [01]\.\d\d\))?; subject confirmed at \d+ camera\(s\)/i.test(d.reason)
+      && !/, seen at \d+ cameras?\b/.test(c.meta)) bad.push(`${d.event_id}: rules.py reason not in its short form on the card`);
     if (c.reco.toLowerCase().replace(/[.\s]+$/, '').endsWith(`; ${c.heading.title.toLowerCase()}`)) {
       bad.push(`${d.event_id}: card recommendation repeats its title`);
     }
