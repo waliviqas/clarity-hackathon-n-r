@@ -1,0 +1,66 @@
+{
+  "run_dir": "runs/run_live_1025",
+  "run_id": "run_live_1025",
+  "scripted": false,
+  "scripted_events": 0,
+  "label": "No fake_scenario events. (If this run was made with bus.replay, wall timings show the replay pace, not the pipeline.)",
+  "events_total": 13,
+  "duplicate_lines": 0,
+  "arrivals_lines": 13,
+  "arrivals_match_log": true,
+  "events_without_arrival": 0,
+  "whole_run_wall_s": 35.646,
+  "by_type": {
+    "detection": 4,
+    "relay": 3,
+    "agent_verdict": 3,
+    "dispatch": 3
+  },
+  "by_source": {
+    "agents": 10,
+    "dispatcher": 3
+  },
+  "max_incidents_at_once_run_clock": 1,
+  "while_overlapping_wall": {
+    "seconds": 0,
+    "events": 0,
+    "events_per_s": null
+  },
+  "while_overlapping_run_clock": {
+    "seconds": 0,
+    "events": 0,
+    "events_per_s": null
+  },
+  "incidents": [
+    {
+      "incident_id": "inc_r0db5_1",
+      "subject_ids": [
+        "subj_afb1c_1"
+      ],
+      "incident_type": "fistfight",
+      "crime_detection_id": "det_afb1c_1",
+      "crime_camera_id": "cam_07",
+      "first_dispatch_id": "dsp_r0db5_01",
+      "first_alert_id": "dsp_r0db5_01",
+      "to_first_dispatch_wall_s": 21.887,
+      "to_first_dispatch_run_s": 0.0,
+      "to_first_alert_wall_s": 21.887,
+      "to_first_alert_run_s": 0.0,
+      "events": 13,
+      "decisions": 9,
+      "decisions_by_type": {
+        "relay": 3,
+        "agent_verdict": 3,
+        "dispatch": 3
+      },
+      "run_span": [
+        8.9,
+        34.96
+      ],
+      "wall_span": [
+        1792319123.768812,
+        1792319159.415233
+      ]
+    }
+  ]
+}
