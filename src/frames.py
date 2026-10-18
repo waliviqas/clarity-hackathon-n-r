@@ -14,6 +14,9 @@ def sample_frames(video_path: str, count: int = 4, width: int = 640) -> list[byt
         raise ValueError(f"Could not open video: {video_path}")
 
     total = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total <= 0:
+        video.release()
+        raise ValueError(f"Video reports no frames (live streams aren't supported here): {video_path}")
     # Centre each sample in its slice of the video, e.g. 12.5%, 37.5%, 62.5%, 87.5% for 4.
     positions = [int(total * (i + 0.5) / count) for i in range(count)]
 
@@ -24,7 +27,7 @@ def sample_frames(video_path: str, count: int = 4, width: int = 640) -> list[byt
         if not ok:
             continue
         if image.shape[1] > width:  # only shrink; never upscale small videos
-            height = int(image.shape[0] * width / image.shape[1])
+            height = max(1, int(image.shape[0] * width / image.shape[1]))
             image = cv2.resize(image, (width, height))
         ok, jpeg = cv2.imencode(".jpg", image)
         if ok:
