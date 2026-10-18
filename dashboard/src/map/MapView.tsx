@@ -53,11 +53,13 @@ export default function MapView() {
   }, [focused, chase.segments, chase.arrows, chase.predictions, posById]);
   // A focus with no chase on this map (stale after a bus restart, or unknown) counts as no focus.
   const focus = focused && focusIds.length > 0 ? focused : null;
-  const focusKey = focus ? `${focus}|${focusIds.join(',')}` : '';
+  // The map flies only when the focus itself changes, not when the focused chase grows.
+  const focusKey = focus ?? '';
+  const focusIdsKey = focus ? focusIds.join(',') : '';
   const focusBounds = useMemo(
     () => boundsOf(placed.filter((p) => focusIds.includes(p.camera.camera_id))),
-    // focusKey stands for focusIds.
-    [placed, focusKey],
+    // focusIdsKey stands for focusIds.
+    [placed, focusIdsKey],
   );
 
   if (!site) return <MapNote>Waiting for the camera list from the event bus.</MapNote>;

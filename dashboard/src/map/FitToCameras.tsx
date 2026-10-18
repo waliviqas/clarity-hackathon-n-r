@@ -34,7 +34,7 @@ export function FitToCameras({ bounds, fitKey, focusBounds = null, focusKey = ''
   fitKey: string;
   /** The focused suspect's cameras (chase path + predicted next); null = no focus, fit every camera. */
   focusBounds?: LatLngBoundsLiteral | null;
-  /** Changes when the focus (or its camera set) changes: the map flies there. */
+  /** Changes when the focused suspect changes (or is cleared): the map flies there once. */
   focusKey?: string;
 }) {
   const map = useMap();
@@ -58,6 +58,17 @@ export function FitToCameras({ bounds, fitKey, focusBounds = null, focusKey = ''
     userMoved.current = false;
     fitRef.current(true);
   }, [focusKey]);
+
+  // The focused chase grows: stay put, unless one of its cameras is now outside the view (then a gentle fit).
+  const boundsFocus = useRef(focusKey);
+  useEffect(() => {
+    // A new focus is the fly above's job (calling it again here would restart that flight).
+    if (boundsFocus.current !== focusKey) { boundsFocus.current = focusKey; return; }
+    if (!focusBounds || userMoved.current) return;
+    const size = map.getSize();
+    if (size.x === 0 || size.y === 0) return;
+    if (!map.getBounds().contains(focusBounds)) fitRef.current(true);
+  }, [map, focusBounds, focusKey]);
 
   // New layout: fit, and forget any earlier pan/zoom.
   useEffect(() => {

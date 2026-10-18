@@ -213,3 +213,41 @@
 @media (prefers-reduced-motion: reduce) {
   .feeds-empty-dot { animation: none; }
 }
+
+/* Handled crimes (the operator confirmed or dismissed): a divider, then compact rows that open like a bar. */
+.feeds-handled-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.feeds-handled-divider::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.feed.is-handled { border-width: 1px; animation: feed-handled-in 220ms ease-out; }
+.feed.is-handled .feed-head { padding: 6px 10px; font-size: var(--fs-small); }
+.feed.is-handled .feed-dot { width: 8px; height: 8px; }
+.feed.is-handled .feed-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@keyframes feed-handled-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.feeds-calm {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.feeds-calm > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.feeds-calm-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+@media (prefers-reduced-motion: reduce) {
+  .feed.is-handled { animation: none; }
+}

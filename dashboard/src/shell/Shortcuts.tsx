@@ -1,5 +1,5 @@
 // Operator keyboard shortcuts:
-//   1-9  jump to crime N (same order as the crime bars: each subject's first relay), on its newest camera
+//   1-9  jump to open crime N (the Nth bar above "Handled", first-seen order), on its newest camera
 //   ?    toggle the help card (Esc closes it; Esc on the map already clears the focus)
 // Reads the event store only when a key is pressed (getState), so it never re-renders on new events.
 import { useEffect, useState } from 'react';
@@ -55,7 +55,12 @@ export default function Shortcuts() {
       }
       if (ev.key >= '1' && ev.key <= '9' && ev.key.length === 1) {
         if (ev.repeat) return;
-        const crime = deriveCrimes(getState().events)[Number(ev.key) - 1];
+        const { events, incidents } = getState();
+        // Open crimes only (the bars above "Handled"): like LiveFeeds, a subject's latest incident in the list
+        // decides; it is handled once that incident has an operator_action.
+        const latest = new Map(incidents.map((i) => [i.subject_id, i]));
+        const open = deriveCrimes(events).filter((c) => !latest.get(c.subjectId)?.action);
+        const crime = open[Number(ev.key) - 1];
         if (!crime) return;
         ev.preventDefault();
         requestClip(crime.subjectId, crime.cameraId);
@@ -69,7 +74,7 @@ export default function Shortcuts() {
     <div className="shortcuts">
       {open && (
         <div className="shortcuts-card" role="dialog" aria-label="Keyboard shortcuts">
-          <div className="shortcuts-row"><span className="shortcuts-keys"><kbd>1</kbd>–<kbd>3</kbd></span><span>Jump to a crime</span></div>
+          <div className="shortcuts-row"><span className="shortcuts-keys"><kbd>1</kbd>–<kbd>3</kbd></span><span>Jump to an open crime</span></div>
           <div className="shortcuts-row"><span className="shortcuts-keys"><kbd>Esc</kbd></span><span>Show all</span></div>
           <div className="shortcuts-row"><span className="shortcuts-keys"><kbd>Click</kbd> a camera</span><span>Its clip</span></div>
           <div className="shortcuts-row"><span className="shortcuts-keys"><kbd>?</kbd></span><span>This help</span></div>
