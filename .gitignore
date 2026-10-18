@@ -274,3 +274,19 @@ notes/
 
 # Procedure-lookup data (parked on Michael's local branch lookup-rag); never commit the source PDF or extracted text
 data/procedures/
+
+# Integration: never commit local setup, raw video, model weights or frame-embedding results (any clone)
+CLAUDE.local.md
+.claude/
+private/
+.agent-logs/
+/progress.md
+/video-data/
+/models/
+/lora/
+*.safetensors
+nemo_gym/clarity_spotter/data/
+results/nemo_gym/*materialized_inputs*.jsonl
+results/nemo_gym/clarity_before_gym.jsonl
+results/nemo_gym/clarity_after_gym.jsonl
+runs/run_dev/
