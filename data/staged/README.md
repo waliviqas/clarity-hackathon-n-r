@@ -5,7 +5,7 @@ The Clarity team filmed this footage during the NVIDIA x Red Hat Small Models Ha
 - **Download (published):** https://huggingface.co/datasets/WilwilMina/clarity-clip8 (Hugging Face: clip 8's three blurred camera views `cam1.mp4` to `cam3.mp4`, the clip log, the ground truth and a dataset card)
 - **Download (published), clip 1:** https://huggingface.co/datasets/WilwilMina/clarity-clip1 (Hugging Face: the live demo's four camera views `cam1.mp4` to `cam4.mp4`, the clip log, the ground truth and a dataset card)
 - **License:** CC BY 4.0 (see [License and attribution](#license-and-attribution))
-- **Status (Sun Oct 18):** clip 8 is published. Test clip 1, the live demo, is published too (see [Clip 1: the live demo site](#clip-1-the-live-demo-site)). Clips 4, 11 and 12 are not published.
+- **Status (Sun Oct 18):** clip 8 is published. Test clip 1, the live demo, is published too (see [Clip 1: the live demo site](#clip-1-the-live-demo-site)). We haven't made copies of the other clips.
 
 ## What it is
 
@@ -23,7 +23,7 @@ cam_01 bus shelter (the snatch) ──► cam_02 sidewalk by tree grate ──�
 
 There is no decoy: no camera films an empty path, so the footage never gives the camera agents a real "no match" view.
 
-The published datasets hold test clips 8 and 1. Test clip 1, the live demo, has a site of its own (see [Clip 1: the live demo site](#clip-1-the-live-demo-site)). Clips 4, 11 and 12 from the same filming session are not published.
+The published datasets hold test clips 8 and 1. Test clip 1, the live demo, has a site of its own (see [Clip 1: the live demo site](#clip-1-the-live-demo-site)).
 
 Clip 8 (a phone snatch) contains no stabbing. Other clips from the session include mimed stabbings, acted with empty hands: we found no openly licensed stabbing footage, and we never stage scenes with knives or anything that looks like one.
 
@@ -57,7 +57,7 @@ Clip 8 (a phone snatch) contains no stabbing. Other clips from the session inclu
 
 - **Only consenting teammates are on camera.** Everyone who acts is a member of the team, and all three team members agreed to publication under CC BY 4.0 (confirmed by the team on Oct 17). Clip 8 shows two of them: the suspect and the person robbed.
 - **No weapons and no weapon-like props.**
-- **No bystanders.** Any clip where a bystander's face could be recognized is re-filmed, blurred before publishing, or not published. Blurred for publishing and for the demo, with `data/publish_clip8.py` (moving boxes, heavy 3-pass box blur, applied once to the unblurred converted clips; the script refuses clips it already blurred. Every blurred frame was checked on full-resolution contact sheets, and whole frames, two per second, for anyone left unblurred):
+- **Bystanders in our published copies.** In the copies we publish (clips 8 and 1), any bystander whose face could be recognized is blurred. Clip 8: blurred for publishing and for the demo, with `data/publish_clip8.py` (moving boxes, heavy 3-pass box blur, applied once to the unblurred converted clips; the script refuses clips it already blurred. Every blurred frame was checked on full-resolution contact sheets, and whole frames, two per second, for anyone left unblurred):
   - `cam_03`: two passers-by walking away (seen from behind), frames 0–38 (0–3.9 s); at frames 21–22 the suspect runs right past them, and one tight box touches the edge of the suspect's head.
   - `cam_01`: one stranger's lower legs at the top edge, frames 0–44 (0–4.5 s).
   - `cam_02`: nobody but the suspect; unchanged.

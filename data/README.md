@@ -9,7 +9,6 @@ Raw downloads and all video go in `data/raw/` (gitignored); clips are published 
 1. **Our staged clips (the main open data).** On Oct 17 the team filmed 13 staged incidents (clips 1 to 13, 34 camera views) in downtown Raleigh, near the Red Hat Annex. Wali's `labels.csv` (repo root) labels every view and splits them for the spotter fine-tune: clips 1, 3, 4, 7, 8, 12 and 13 are test clips (18 views, never used for training); clips 2, 5, 6, 9, 10 and 11 are training clips (16 views).
    - **Clip 8** (test; a phone snatch, 3 cameras) is **published** with its method: https://huggingface.co/datasets/WilwilMina/clarity-clip8 (method: [`staged/README.md`](staged/README.md)). The earlier scripted fallback run, `runs/run_1018-0028_r2s`, is on clip 8's site.
    - **Clip 1** (test; a mimed stabbing, 4 cameras) is the **live demo** (`data/sites/annex_clip1/`). Both people on screen agreed to be filmed. It is **published** as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (CC BY 4.0): a frame-by-frame look found no recognizable bystanders, and a teammate checked the same sheets before upload.
-   - **Clips 4, 11 and 12 are not published** (clip 11 is a training clip).
 2. **Public clips**, filmed elsewhere:
    - an **external check set** (CAVIAR and MEVA example clips) that tests the spotter on footage from outside our site;
    - **public training clips** (AIRTLab, Mixkit and MEVA cuts), which went only into the spotter versions v4 and v5. Both scored lower than v3 and were rejected.
@@ -40,7 +39,7 @@ The hackathon counts staged clips as open data only if we **publish the clips an
 - Everyone who acts in a scene agreed to be filmed. Passers-by appear in some clips, so every clip gets a bystander check before publishing, and nothing we publish shows a recognizable bystander (clip 8's passers-by are blurred).
 - No weapons and no props that look like weapons; stabbings are mimed with empty hands.
 - Each take is logged: cameras, positions, who did what, at what time. That log is the ground truth; the logs of the two demo sites are committed with `phone_owner` blank (`data/staged/clip_log_take1.csv`, `clip_log_take3.csv`).
-- Published: clip 8 with the method. Clip 1 (the live demo) with the same method: [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1). Clips 4, 11 and 12 are not published.
+- Published: clip 8 with the method. Clip 1 (the live demo) with the same method: [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1). We haven't made copies of the other clips.
 
 ## Building the demo sites from the clip logs
 
