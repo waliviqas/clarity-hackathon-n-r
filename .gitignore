@@ -287,6 +287,4 @@ private/
 *.safetensors
 nemo_gym/clarity_spotter/data/
 results/nemo_gym/*materialized_inputs*.jsonl
-results/nemo_gym/clarity_before_gym.jsonl
-results/nemo_gym/clarity_after_gym.jsonl
 runs/run_dev/
