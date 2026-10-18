@@ -1,13 +1,16 @@
-"""Where the camera agents get spotter answers: a recorded file (stand-in) or Wali's spotter (live).
+"""Where the camera agents get spotter answers: a recorded file (stand-in) or Wali's spotter + checker (live).
 
 Recorded files, any of:
-  - Wali's eval results (results/before.json, results/after.json):
-        {"model": ..., "cameras": [{"clip": "clip8", "cam": "cam1", "answers": [{...}, null, ...]}, ...]}
-    matched to cameras.json by clip file name (source.uri .../clip8_cam1.mp4 <-> clip8 + cam1);
-  - what `python -m agents.run --live --save-answers` writes: {"model": ..., "answers": {"cam_01": {...}}};
+  - Wali's eval-results format (results/before.json; data/gym_answers.py writes it too, e.g.
+    data/answers/clip1_system_v3_checker.json):
+        {"model": ..., "cameras": [{"clip": "clip1", "cam": "cam1", "answers": [{...}, null, ...]}, ...]}
+    matched to cameras.json by clip file name (source.uri .../clip1_cam1.mp4 <-> clip1 + cam1);
+  - what `python -m agents.run --live --save-answers` writes: {"model": ..., "answers": {"cam_01": {...}}}
+    (answers on flagged cameras already carry the checker's description, see agents/combine.py);
   - a bare {"cam_01": {...}, ...}.
-Live: Wali's spot(video_path, count) from src/spotter.py, imported unchanged from PYTHONPATH (see README);
-it reads SPOTTER_URL / SPOTTER_MODEL itself.
+Live: Wali's spot(video_path, count) from src/spotter.py and describe(video_path, count) from src/checker.py,
+imported unchanged from the repo's src/ (run from the repo root); they read SPOTTER_URL / SPOTTER_MODEL and
+CHECKER_BASE_URL / CHECKER_MODEL themselves.
 """
 from __future__ import annotations
 
@@ -48,21 +51,37 @@ def load_answers(path: str, cameras: list[dict], run: int | None = None) -> tupl
     return {k: v for k, v in mapping.items() if k in ids and isinstance(v, dict)}, model
 
 
-def save_answers(path: str, answers: dict[str, dict], model: str | None) -> None:
+def save_answers(path: str, answers: dict[str, dict], model: str | None, checker_model: str | None = None) -> None:
+    """The answers as --answers reads them. checker_model (when the checker ran) is also written at the top, as
+    data/gym_answers.py does; each answer it described carries description_by + checker_model itself."""
+    data = {"model": model, **({"checker_model": checker_model} if checker_model else {}),
+            "source": "agents.run --live", "answers": answers}
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(json.dumps({"model": model, "source": "agents.run --live", "answers": answers},
-                                     indent=2), encoding="utf-8")
+    Path(path).write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
 def live_spotter():
     """(spot, model name, base URL) from Wali's src/spotter.py, unchanged. The URL is the one his client
     calls (it reads SPOTTER_URL), so the startup check looks at the same server."""
     try:
-        from src import spotter  # Wali's code: git archive origin/wali-branch src | tar -x -C <dir>; PYTHONPATH=<dir>
+        from src import spotter  # Wali's code, src/ at the repo root
     except ImportError as e:
-        raise SystemExit(f"Wali's spotter isn't importable ({e}). Extract it with "
-                         "`git archive origin/wali-branch src | tar -x -C <dir>` and set PYTHONPATH=<dir> "
+        raise SystemExit(f"Wali's spotter isn't importable ({e}): run from the repo root; src/ ships with the repo "
                          "(it needs: pip install -r agents/requirements.txt).")
     url = getattr(getattr(spotter, "client", None), "base_url", None) or os.environ.get("SPOTTER_URL")
     model = getattr(spotter, "MODEL", None) or os.environ.get("SPOTTER_MODEL")
     return spotter.spot, model, str(url) if url else None
+
+
+def live_checker():
+    """(describe, model name, base URL) from Wali's src/checker.py, unchanged, loaded like live_spotter(). It
+    reads CHECKER_BASE_URL / CHECKER_MODEL itself (note: CHECKER_BASE_URL, while the spotter's is SPOTTER_URL)."""
+    try:
+        from src import checker  # Wali's code, next to src/spotter.py
+    except ImportError as e:
+        raise SystemExit(f"Wali's checker isn't importable ({e}): run from the repo root; src/ ships with the repo "
+                         "(it needs: pip install -r agents/requirements.txt). Or run the spotter alone with "
+                         "--no-checker.")
+    url = getattr(getattr(checker, "client", None), "base_url", None) or os.environ.get("CHECKER_BASE_URL")
+    model = getattr(checker, "MODEL", None) or os.environ.get("CHECKER_MODEL")
+    return checker.describe, model, str(url) if url else None
