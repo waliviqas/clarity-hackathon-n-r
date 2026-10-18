@@ -133,8 +133,3 @@ CLARITY_LLM_BASE_URL=http://localhost:8003/v1 CLARITY_LLM_MODEL=dispatcher pytho
 python -m dispatcher.demo --cameras cameras.json --messages events.jsonl --live   # replay a recorded run
 python scripts/bench_dispatcher.py --levels 1 4 8 16                              # vLLM load test
 ```
-
-## Not done yet (waiting on others)
-
-- **Wali's `predict_next`**: `dispatcher.run` imports `graph.predict_next` automatically once his `graph` package is merged.
-- **Bus runner** needs Mina's `bus/` + `contracts/` merged before it can run (it exits with a clear message until then).

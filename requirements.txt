@@ -1,2 +1,12 @@
-openai>=1.40
-pytest>=8
+# Everything Clarity needs, from the repo root: pip install -r requirements.txt
+# (each part's own list stays the source of truth)
+-r bus/requirements.txt
+-r feeds/requirements.txt
+-r agents/requirements.txt
+-r contracts/requirements.txt
+
+# Dispatcher (dispatcher/): talks to vLLM through the OpenAI client. Capped like agents/requirements.txt at the
+# newest release older than 2 weeks (hackathon rule: open-source dependencies public for 2+ weeks).
+openai>=1.40,<=3.24.0
+# Dispatcher tests (tests/)
+pytest>=8,<9
