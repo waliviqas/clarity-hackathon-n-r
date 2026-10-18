@@ -13,6 +13,13 @@ export const FIT_OPTIONS: FitBoundsOptions = {
   animate: false,
 };
 
+/** Seconds the map takes to fly to a focused suspect (and back). */
+const FOCUS_FLY_S = 0.6;
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
+
 /** Keys that pan or zoom a focused Leaflet map. */
 const MOVE_KEYS = new Set(['+', '-', '=', '_', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
@@ -22,18 +29,35 @@ const MOVE_KEYS = new Set(['+', '-', '=', '_', 'ArrowUp', 'ArrowDown', 'ArrowLef
  * or zoomed since. Operator moves are detected from what only a person does (drag, wheel, double-click,
  * the +/- buttons, keyboard, pinch), never from Leaflet's zoom events, which our own fits fire too.
  */
-export function FitToCameras({ bounds, fitKey }: { bounds: LatLngBoundsLiteral | null; fitKey: string }) {
+export function FitToCameras({ bounds, fitKey, focusBounds = null, focusKey = '' }: {
+  bounds: LatLngBoundsLiteral | null;
+  fitKey: string;
+  /** The focused suspect's cameras (chase path + predicted next); null = no focus, fit every camera. */
+  focusBounds?: LatLngBoundsLiteral | null;
+  /** Changes when the focus (or its camera set) changes: the map flies there. */
+  focusKey?: string;
+}) {
   const map = useMap();
   const boundsRef = useRef(bounds);
-  boundsRef.current = bounds;
+  boundsRef.current = focusBounds ?? bounds;
   const userMoved = useRef(false);
 
-  const fitRef = useRef(() => {
+  const fitRef = useRef((fly = false) => {
     const b = boundsRef.current;
     const size = map.getSize();
     if (!b || size.x === 0 || size.y === 0) return;
-    map.fitBounds(b, FIT_OPTIONS);
+    if (fly && !prefersReducedMotion()) map.flyToBounds(b, { ...FIT_OPTIONS, animate: true, duration: FOCUS_FLY_S });
+    else map.fitBounds(b, FIT_OPTIONS);
   });
+
+  // Focus changes (a suspect picked, or cleared): fly to its cameras / back to all of them.
+  const lastFocus = useRef(focusKey);
+  useEffect(() => {
+    if (lastFocus.current === focusKey) return;
+    lastFocus.current = focusKey;
+    userMoved.current = false;
+    fitRef.current(true);
+  }, [focusKey]);
 
   // New layout: fit, and forget any earlier pan/zoom.
   useEffect(() => {

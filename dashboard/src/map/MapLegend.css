@@ -1,0 +1,72 @@
+/* Map key (MapLegend.tsx): top-left overlay in .slot-map, above the Leaflet panes (400-700 for
+   panes/markers; controls sit at 800+ in their own corners). Swatches mirror map.css + IdleCameras.tsx. */
+.map-legend {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 500;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  font-family: var(--font-sign);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text);
+}
+
+.map-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* fixed-width swatch column so the labels line up */
+.map-legend-swatch {
+  flex: none;
+  width: 24px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* .cam-dot at legend scale: --rule fill, 2px --text border */
+.map-legend-dot {
+  position: relative;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--rule);
+  border: 2px solid var(--text);
+}
+/* .cam-alert-ring: a steady --alert ring around the dot */
+.map-legend-dot.is-alert::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--alert);
+}
+/* a confirmed subject: the dot fills with its chase color */
+.map-legend-dot.is-chase { background: var(--chase-1); }
+/* idle sidewalk camera: same colors as IdleCameras.tsx (#24384A fill, #8EA3B3 at 0.55, 1.5px) */
+.map-legend-dot.is-idle {
+  background: #24384A;
+  border: 1.5px solid rgba(142, 163, 179, 0.55);
+}
+
+/* suspect's path: ChaseLayer SegmentLine, solid, CHASE_STYLE.pathWeight 4, round caps, in a chase color */
+.map-legend-line { display: block; overflow: visible; }
+.map-legend-line line {
+  stroke: var(--chase-1);
+  stroke-width: 4;
+  stroke-linecap: round;
+}

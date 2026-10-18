@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="eye-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A9DDFB"/>
+      <stop offset="1" stop-color="#46B4F5"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="64" height="64" rx="14" ry="14" fill="#0E1A24"/>
+  <g transform="translate(32 32) scale(0.86) translate(-32 -20)">
+    <path d="M4 20 C14 5, 50 5, 60 20 C50 35, 14 35, 4 20 Z" fill="none" stroke="url(#eye-grad)" stroke-width="6" stroke-linejoin="round"/>
+    <circle cx="32" cy="20" r="8" fill="url(#eye-grad)"/>
+  </g>
+</svg>

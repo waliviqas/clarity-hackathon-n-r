@@ -244,3 +244,49 @@
   border: 1.5px solid rgba(142, 163, 179, 0.55);
   background: #24384A;
 }
+
+/* ---------- focus, hover, click ---------- */
+/* another suspect is focused: its markers fade with its lines */
+.cam { transition: opacity 200ms ease; }
+.cam.is-dimmed { opacity: 0.25; }
+/* hovering a faded marker shows it (and its tooltip) at full strength */
+.cam.is-dimmed.is-hovered { opacity: 1; }
+/* the ~28 px hover / click target around the dot (the icon box itself takes no pointer events) */
+.cam-hit {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.cam-hit:not(.is-clickable) { cursor: default; }
+/* hover pill, one line: name + what the camera last saw; flips below / hugs a side near the map edges */
+.cam-tip {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 12px;
+  max-width: 320px;
+  width: max-content;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: var(--font-sign);
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cam-tip-name { font-weight: 600; font-size: 14px; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cam-tip-word { color: var(--muted); flex: 0 0 auto; }
+.cam-tip.is-above { bottom: calc(100% + 14px); }
+.cam-tip.is-below { top: calc(100% + 14px); }
+.cam-tip.is-center { left: 50%; transform: translateX(-50%); }
+.cam-tip.is-left { left: -6px; }
+.cam-tip.is-right { right: -6px; }
+.cam.is-hovered .cam-label, .cam.is-hovered .cam-badge { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .cam { transition: none; }
+}

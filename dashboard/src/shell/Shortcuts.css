@@ -1,0 +1,72 @@
+/* Keyboard shortcuts: hint chip + help card, bottom-left of the map, above Leaflet's zoom control
+   (zoom: 10 px margin + 2 x 28 px buttons + border ~ 70 px tall from the bottom, so 96 px clears it). */
+.shortcuts {
+  position: fixed;
+  left: 12px;
+  bottom: 96px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  color: var(--text);
+  pointer-events: none; /* only the chip and card take clicks, not the gap between them */
+}
+
+.shortcuts-card,
+.shortcuts-chip { pointer-events: auto; }
+
+.shortcuts-card {
+  display: grid;
+  grid-template-columns: max-content max-content; /* keys | description, aligned across rows */
+  gap: 6px 12px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  white-space: nowrap;
+}
+
+.shortcuts-row { display: contents; }
+
+.shortcuts-keys { color: var(--muted); white-space: nowrap; align-self: center; }
+
+.shortcuts kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 6px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--text);
+  background: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-button);
+}
+
+.shortcuts-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font: inherit;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.shortcuts-chip:hover,
+.shortcuts-chip:focus-visible,
+.shortcuts-chip.is-open { opacity: 1; color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .shortcuts-chip { transition: none; }
+}

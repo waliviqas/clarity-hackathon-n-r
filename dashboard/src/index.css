@@ -48,6 +48,9 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
 .header-brand { font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.01em; }
 .header-site { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .header-spacer { flex: 1; }
+.header-summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.header-awaiting { color: var(--alert); font-weight: 600; }
+.header-clock { font-family: var(--font-sign); font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; flex: 0 0 auto; }
 .header-run { color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
 .conn { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-small); white-space: nowrap; }
 .conn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
@@ -185,7 +188,7 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
   transition: opacity 0.2s;
 }
 .demo-controls:hover, .demo-controls:focus-within { opacity: 1; }
-.demo-note { font-size: var(--fs-small); color: var(--text-muted, #8a94a6); max-width: 260px; }
+.demo-note { font-size: var(--fs-small); color: var(--muted); max-width: 260px; }
 .slot-feeds { flex: 1 1 auto; }
 
 /* ---------- brand eye: blinks faintly while a demo run is going ---------- */
@@ -215,5 +218,3 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
   background-clip: text;
   color: transparent;
 }
-/* the blink/glow animate only the eye, not the word */
-.header-brand-live svg { animation: eye-glow 2.4s ease-in-out infinite; }

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BUS_URL, cameraName, sendOperatorAction, useCameras, useEvents, useIncidents, useSubjectColors } from '../lib';
 import type { IncidentView } from '../lib';
 import type { ClarityEvent } from '../lib';
 import { clipUrl } from './clips.ts';
 import { setFeedProgress } from '../lib/feedProgress.ts';
+import { focusSubject, useClipRequest, useFocusedSubject } from '../lib/focus.ts';
 import './LiveFeeds.css';
 
 const CRIME_WORDS: Readonly<Record<string, string>> = {
@@ -91,11 +92,27 @@ export default function LiveFeeds() {
   const bySubject = useMemo(() => new Map(incidents.map((i) => [i.subject_id, i])), [incidents]);
   const [report, setReport] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const toggle = (id: string) => setExpanded((s) => {
-    const next = new Set(s);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
+  const focused = useFocusedSubject();
+  // Opening a bar focuses its chase on the map; closing the focused bar shows every chase again.
+  const toggle = (id: string) => {
+    const opening = !expanded.has(id);
+    setExpanded((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    if (opening) focusSubject(id); else if (focused === id) focusSubject(null);
+  };
+  // The newest suspect description per subject from the camera agents (relay / agent_verdict `appearance`).
+  const appearances = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of events) {
+      if (e.type !== 'relay' && e.type !== 'agent_verdict') continue;
+      const a = (e as { appearance?: unknown }).appearance;
+      if (typeof a === 'string' && a.trim()) m.set(e.subject_id, a.trim());
+    }
+    return m;
+  }, [events]);
   // The camera whose clip each feed shows when the operator picked one; no entry = follow the newest sighting.
   const [picked, setPicked] = useState<Readonly<Record<string, string>>>({});
   const pick = (subjectId: string, camera: string | null) => setPicked((p) => {
@@ -103,8 +120,57 @@ export default function LiveFeeds() {
     if (camera === null) delete next[subjectId]; else next[subjectId] = camera;
     return next;
   });
+  // Map -> crime bars: on each new clip request, open that suspect's bar on that camera and scroll it into view.
+  const clip = useClipRequest();
+  const lastNonce = useRef<number | null>(clip?.nonce ?? null);
+  const feedEls = useRef(new Map<string, HTMLElement>());
+  // Scroll one bar into view once the DOM has updated (no smooth scroll under reduced motion).
+  const scrollToFeed = (subjectId: string) => {
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => {
+      feedEls.current.get(subjectId)?.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    });
+  };
+  useEffect(() => {
+    if (!clip || clip.nonce === lastNonce.current) return;
+    lastNonce.current = clip.nonce;
+    const { subjectId, cameraId } = clip;
+    setExpanded((s) => (s.has(subjectId) ? s : new Set(s).add(subjectId)));
+    const feed = feeds.find((x) => x.subjectId === subjectId);
+    pick(subjectId, feed && feed.cameras[feed.cameras.length - 1] === cameraId ? null : cameraId);
+    scrollToFeed(subjectId);
+  }, [clip, feeds]);
+  // A new suspect opens its bar by itself (and focuses its chase), like a click. Subjects already there on mount are
+  // left alone; a batch of new ones (e.g. a snapshot of old crimes) opens only the newest. Operator choices stick.
+  const seen = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!feeds.length) {
+      // no crimes (fresh run, or the bus was reset / restarted): forget everything, so the next run starts clean
+      seen.current = new Set();
+      setExpanded((s) => (s.size ? new Set() : s));
+      setPicked((p) => (Object.keys(p).length ? {} : p));
+      focusSubject(null);
+      return;
+    }
+    if (seen.current === null) { seen.current = new Set(feeds.map((x) => x.subjectId)); return; }
+    const fresh = feeds.filter((x) => !seen.current!.has(x.subjectId)).map((x) => x.subjectId);
+    if (!fresh.length) return;
+    for (const id of fresh) seen.current.add(id);
+    const newest = fresh[fresh.length - 1];
+    setExpanded((s) => (s.has(newest) ? s : new Set(s).add(newest)));
+    focusSubject(newest);
+    scrollToFeed(newest);
+  }, [feeds]);
 
-  if (!feeds.length) return <div className="feeds-empty">Watching every camera. A bar appears here when a crime is seen.</div>;
+  if (!feeds.length) {
+    return (
+      <div className="feeds-empty">
+        <span className="feeds-empty-dot" aria-hidden="true" />
+        <strong>{list.length ? `All ${list.length} cameras watching` : 'Watching every camera'}</strong>
+        <span className="feeds-empty-note">A bar appears here when a crime is seen.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="feeds">
@@ -117,17 +183,31 @@ export default function LiveFeeds() {
         // picking the newest camera goes back to following new sightings
         const show = (i: number) => pick(f.subjectId, i >= f.cameras.length - 1 ? null : f.cameras[i]);
         const isOpen = expanded.has(f.subjectId);
+        const incident = bySubject.get(f.subjectId);
+        const decided = incident?.action?.action;
+        const desc = incident?.dispatch.subject_appearance?.trim() || appearances.get(f.subjectId) || '';
         return (
-          <section key={f.subjectId} className={`feed${isOpen ? ' is-open' : ''}`} style={{ borderColor: color }}>
+          <section key={f.subjectId}
+            ref={(el) => { if (el) feedEls.current.set(f.subjectId, el); else feedEls.current.delete(f.subjectId); }}
+            className={`feed${isOpen ? ' is-open' : ''}${focused === f.subjectId ? ' is-focused' : ''}`}
+            style={{ borderColor: color, ['--c' as string]: color }}>
             {/* the crime bar: click to open / close this incident's CCTV footage */}
             <header className="feed-head" role="button" tabIndex={0} aria-expanded={isOpen}
               onClick={() => toggle(f.subjectId)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(f.subjectId); } }}>
               <span className="feed-dot" style={{ background: color }} />
-              <strong style={{ color }}>{f.activity ? CRIME_WORDS[f.activity] ?? f.activity : 'Suspect'}</strong>
-              <span className="feed-cam">{f.cameras.length === 1 ? 'Crime camera' : `Camera ${f.cameras.length}`}</span>
-              <span className="feed-spacer" />
-              <button className={`dispatch-btn${bySubject.has(f.subjectId) ? ' is-ready' : ''}`}
+              <span className="feed-title">
+                <span className="feed-title-row">
+                  <strong style={{ color }}>{f.activity ? CRIME_WORDS[f.activity] ?? f.activity : 'Suspect'}</strong>
+                  <span className="feed-cam">{f.cameras.length === 1 ? 'Crime camera' : `Camera ${f.cameras.length}`}</span>
+                </span>
+                {isOpen && desc && <span className="feed-desc" title={desc}>{desc}</span>}
+              </span>
+              {decided && (
+                <span className={`feed-decided is-${decided}`}>{decided === 'confirm' ? '✓ Confirmed' : 'Dismissed'}</span>
+              )}
+              <button type="button"
+                className={`dispatch-btn${incident ? ' is-ready' : ''}${incident && !decided ? ' is-pending' : ''}`}
                 style={{ ['--c' as string]: color }} disabled={!bySubject.has(f.subjectId)}
                 onClick={(e) => { e.stopPropagation(); setReport(report === f.subjectId ? null : f.subjectId); }}>
                 Dispatch report
@@ -139,7 +219,7 @@ export default function LiveFeeds() {
                 cameraWords={routeWords(f.cameras[0], list)} />
             )}
             {isOpen ? (
-              <>
+              <div className="feed-body">
                 {/* key = subject + camera: a new camera remounts the player, and every clip plays from its
                     beginning (0:00), the crime camera's too. */}
                 <video key={`${f.subjectId}:${shown}`} className="feed-video" src={clipUrl(BUS_URL, shown)}
@@ -175,7 +255,7 @@ export default function LiveFeeds() {
                   ))}
                   <li className="feed-steps-spacer" aria-hidden="true" />
                 </ol>
-              </>
+              </div>
             ) : <ClosedTracker subjectId={f.subjectId} camera={current} />}
           </section>
         );
@@ -241,11 +321,11 @@ function DispatchReport({ incident, color, onClose, cameraWords }: {
         <span className="dispatch-decide">
           {decided ? <span className="dispatch-decided">{decided === 'confirm' ? 'Confirmed' : 'Dismissed'}</span> : (
             <>
-              <button disabled={sending} onClick={() => decide('confirm')}>Confirm</button>
-              <button disabled={sending} onClick={() => decide('dismiss')}>Dismiss</button>
+              <button type="button" className="dispatch-confirm" disabled={sending} onClick={() => decide('confirm')}>Confirm</button>
+              <button type="button" className="dispatch-dismiss" disabled={sending} onClick={() => decide('dismiss')}>Dismiss</button>
             </>
           )}
-          <button className="dispatch-close" onClick={onClose} aria-label="Close">×</button>
+          <button type="button" className="dispatch-close" onClick={onClose} aria-label="Close">×</button>
         </span>
       </header>
       <p className="dispatch-action">{action}</p>

@@ -6,6 +6,7 @@ import type { LatLngTuple } from 'leaflet';
 import type { MapContainerProps } from 'react-leaflet';
 import { AttributionControl, MapContainer, TileLayer, ZoomControl } from 'react-leaflet';
 import { TIMING, useCameras } from '../lib';
+import { useFocusedSubject } from '../lib/focus.ts';
 import { CameraLayer } from './CameraLayer.tsx';
 import { IdleCameras } from './IdleCameras.tsx';
 import { FIT_OPTIONS, FitToCameras } from './FitToCameras.tsx';
@@ -39,6 +40,25 @@ export default function MapView() {
   );
   const known = useMemo(() => new Set(posById.keys()), [posById]);
   const chase = useChase(known);
+  const focused = useFocusedSubject();
+
+  // The focused suspect's cameras: its chase path, relay arrows and predicted next cameras.
+  const focusIds = useMemo(() => {
+    if (!focused) return [];
+    const ids = new Set<string>();
+    for (const x of [...chase.segments, ...chase.arrows, ...chase.predictions]) {
+      if (x.subjectId === focused) { ids.add(x.from); ids.add(x.to); }
+    }
+    return [...ids].filter((id) => posById.has(id)).sort();
+  }, [focused, chase.segments, chase.arrows, chase.predictions, posById]);
+  // A focus with no chase on this map (stale after a bus restart, or unknown) counts as no focus.
+  const focus = focused && focusIds.length > 0 ? focused : null;
+  const focusKey = focus ? `${focus}|${focusIds.join(',')}` : '';
+  const focusBounds = useMemo(
+    () => boundsOf(placed.filter((p) => focusIds.includes(p.camera.camera_id))),
+    // focusKey stands for focusIds.
+    [placed, focusKey],
+  );
 
   if (!site) return <MapNote>Waiting for the camera list from the event bus.</MapNote>;
 
@@ -67,9 +87,9 @@ export default function MapView() {
       <TileLayer url={TILE_URL} attribution={OSM_ATTRIBUTION} className="map-tiles" maxNativeZoom={19} maxZoom={20} />
       <AttributionControl position="bottomright" prefix={false} />
       <ZoomControl position="bottomleft" />
-      <FitToCameras bounds={bounds} fitKey={fitKey} />
+      <FitToCameras bounds={bounds} fitKey={fitKey} focusBounds={focus ? focusBounds : null} focusKey={focusKey} />
       <IdleCameras siteId={site.site_id} segments={chase.segments} posById={posById} />
-      <CameraLayer placed={placed} posById={posById} chase={chase} />
+      <CameraLayer placed={placed} posById={posById} chase={chase} focused={focus} />
     </MapContainer>
   );
 }

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LatLngTuple, Map as LeafletMap } from 'leaflet';
 import { useMap, useMapEvents } from 'react-leaflet';
 import { cameraName, getState, isCrimeActivity, LABELS, select, useCameraStatus, useEvents, useLiveDetections } from '../lib';
-import type { Camera, CameraHealth } from '../lib';
+import type { Camera, CameraHealth, ClarityEvent } from '../lib';
 import { ALERT_RING_R, CameraMarker, LABEL_FONT, MARKER_PX } from './CameraMarker.tsx';
+import { focusSubject } from '../lib/focus.ts';
 import { BADGE } from './sizes.ts';
 import type { ChaseView } from './chase.ts';
 import type { Circle } from './chaseGeometry.ts';
@@ -28,7 +29,23 @@ interface CameraLayerProps {
   /** camera_id -> [lat, lon] of the placed cameras. */
   posById: ReadonlyMap<string, LatLngTuple>;
   chase: ChaseView;
+  /** The focused suspect (lib/focus.ts): other suspects' markers and lines fade. null = no focus. */
+  focused?: string | null;
 }
+
+/** What a camera last saw, for its hover tooltip, and the suspect a click opens. */
+interface CameraSeen {
+  /** Newest of: crime seen here, or this camera agent's verdict. */
+  word: { text: string; ts: number } | null;
+  /** Newest suspect seen here (crime camera or a match verdict), for the click; null = click does nothing. */
+  clipSubject: string | null;
+  /** Newest suspect tied to this camera at all (path step, relay sent, verdict): decides the focus fade. */
+  subject: string | null;
+}
+
+/** Crime words as the crime bars say them (panels/LiveFeeds.tsx CRIME_WORDS): purse_snatch reads "Pickpocket". */
+const CRIME_WORD = { stabbing: 'Stabbing', fistfight: 'Fistfight', purse_snatch: 'Pickpocket' } as const;
+const VERDICT_WORD = { match: 'Suspect matched', no_match: 'No match', uncertain: 'Uncertain' } as const;
 
 const NO_AVOID: ChaseAvoid = { rects: [], circles: [] };
 /** Demo: the map shows only the crime word at crime cameras, not every camera's name. */
@@ -39,7 +56,7 @@ const SHOW_CAMERA_NAMES = false;
  * other or other markers, then the paths / arrows / predictions underneath (their "70%" labels keep
  * clear of the camera labels). Lives inside <MapContainer> because placement needs the map's zoom and size.
  */
-export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
+export function CameraLayer({ placed, posById, chase, focused = null }: CameraLayerProps) {
   const map = useMap();
   const status = useCameraStatus();
   const live = useLiveDetections();
@@ -50,10 +67,17 @@ export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
     for (const e of events) if (e.type === 'detection' && isCrimeActivity(e.activity)) m.set(e.camera_id, e.activity);
     return m;
   }, [events]);
+  const seenAt = useMemo(() => cameraSeen(events), [events]);
   const viewTick = useMapViewTick(map);
   const fontTick = useFontsTick();
-  // A click on the empty map clears the selection (lines and arrows stop their clicks from reaching it).
-  useMapEvents({ click: () => { if (getState().selection !== null) select(null); } });
+  // A click on the empty map clears the selection and the focus (lines, arrows and markers stop their clicks).
+  useMapEvents({ click: () => { if (getState().selection !== null) select(null); focusSubject(null); } });
+  // Esc clears the focus too.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') focusSubject(null); };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); };
+  }, []);
 
   const cams = placed.map(({ camera, lat, lon }) => {
     const seen = live.get(camera.camera_id);
@@ -91,8 +115,11 @@ export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
   const avoid = layout ? layout.avoid : NO_AVOID;
   return (
     <>
-      <ChaseLayer chase={chase} posById={posById} avoid={avoid} viewTick={viewTick} />
-      {cams.map((c, i) => (
+      <ChaseLayer chase={chase} posById={posById} avoid={avoid} viewTick={viewTick} focused={focused} />
+      {cams.map((c, i) => {
+        const seen = seenAt.get(c.camera.camera_id);
+        const fill = chase.cameras.get(c.camera.camera_id)?.fill ?? null;
+        return (
         <CameraMarker
           key={c.camera.camera_id}
           name={specs[i].name}
@@ -105,13 +132,63 @@ export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
           label={layout?.layout.byId.get(c.camera.camera_id) ?? null}
           badgeSide={layout?.badges.get(c.camera.camera_id) ?? null}
           small={layout?.layout.small ?? false}
-          fill={chase.cameras.get(c.camera.camera_id)?.fill ?? null}
+          fill={fill}
           highlighted={chase.cameras.get(c.camera.camera_id)?.highlighted ?? false}
           badge={chase.cameras.get(c.camera.camera_id)?.badge ?? null}
+          tipName={cameraName(c.camera)}
+          tipWord={seen?.word?.text ?? 'Watching'}
+          cameraId={c.camera.camera_id}
+          clipSubject={seen?.clipSubject ?? null}
+          dimmed={focused !== null && (fill !== null || c.crimeActivity !== null)
+            && (seen?.subject ?? null) !== null && seen?.subject !== focused}
         />
-      ))}
+        );
+      })}
     </>
   );
+}
+
+/** Per camera: what it last saw (words for the tooltip) and the newest suspect seen there. */
+function cameraSeen(events: readonly ClarityEvent[]): Map<string, CameraSeen> {
+  const out = new Map<string, CameraSeen & { subjectTs: number; clipTs: number; crime: boolean }>();
+  const at = (id: string) => {
+    let c = out.get(id);
+    if (!c) { c = { word: null, clipSubject: null, subject: null, subjectTs: -Infinity, clipTs: -Infinity, crime: false }; out.set(id, c); }
+    return c;
+  };
+  const word = (id: string, text: string, ts: number) => {
+    const c = at(id);
+    if (!c.word || ts >= c.word.ts) c.word = { text, ts };
+  };
+  const subject = (id: string, subj: string, ts: number, clip: boolean) => {
+    const c = at(id);
+    if (ts >= c.subjectTs) { c.subject = subj; c.subjectTs = ts; }
+    if (clip && ts >= c.clipTs) { c.clipSubject = subj; c.clipTs = ts; }
+  };
+  for (const e of events) {
+    if (e.type === 'detection' && isCrimeActivity(e.activity)) {
+      word(e.camera_id, `${CRIME_WORD[e.activity]} seen here`, e.ts);
+      at(e.camera_id).crime = true;
+    } else if (e.type === 'agent_verdict' && typeof e.camera_id === 'string') {
+      const w = VERDICT_WORD[e.decision];
+      if (w) word(e.camera_id, w, e.ts);
+      if (typeof e.subject_id === 'string') subject(e.camera_id, e.subject_id, e.ts, e.decision === 'match');
+    }
+  }
+  // A crime camera's suspect: the relays it sent and the coordinator's path steps there.
+  for (const e of events) {
+    if (e.type === 'relay' && typeof e.from_camera === 'string' && typeof e.subject_id === 'string') {
+      const c = out.get(e.from_camera);
+      subject(e.from_camera, e.subject_id, e.ts, c?.crime === true);
+    } else if (e.type === 'dispatch' && typeof e.subject_id === 'string' && Array.isArray(e.path)) {
+      for (const step of e.path) {
+        if (typeof step?.camera_id !== 'string') continue;
+        const c = out.get(step.camera_id);
+        subject(step.camera_id, e.subject_id, step.ts ?? e.ts, c?.crime === true);
+      }
+    }
+  }
+  return out;
 }
 
 function healthWord(health: CameraHealth | undefined): string {

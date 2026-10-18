@@ -1,15 +1,23 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { divIcon } from 'leaflet';
+import { DomEvent, divIcon } from 'leaflet';
 import type { LatLngTuple } from 'leaflet';
-import { Marker } from 'react-leaflet';
+import { Marker, useMap } from 'react-leaflet';
 import { LABELS } from '../lib';
+import { requestClip } from '../lib/focus.ts';
 import type { Activity, CameraHealth } from '../lib';
 import type { CameraBadge } from './chase.ts';
 import { BADGE_GAP, OPPOSITE_SIDE, sideAnchor } from './labels.ts';
 import type { LabelPlacement, LabelSide } from './labels.ts';
 import { ALERT_RING_R, MARKER_PX } from './sizes.ts';
+
+/** Hover / click target around the dot (px), bigger than the dot itself. */
+const HIT_PX = 28;
+/** Room the tooltip needs above the marker before it flips below (px). */
+const TIP_ROOM_Y = 64;
+/** Half the widest tooltip, roughly: closer than this to a side edge, it hugs that side (px). */
+const TIP_ROOM_X = 170;
 
 export { ALERT_RING_R, LABEL_FONT, MARKER_PX } from './sizes.ts';
 
@@ -41,7 +49,18 @@ export interface CameraMarkerProps {
   badge: CameraBadge | null;
   /** Where the badge goes (from the layout: away from the label, clear of others); null = across from the label. */
   badgeSide: LabelSide | null;
+  /** Hover tooltip: the camera's name (always shown there, even when the map hides names). */
+  tipName: string;
+  /** Hover tooltip: what this camera last saw, in words ("Fistfight seen here", "No match", "Watching"). */
+  tipWord: string;
+  cameraId: string;
+  /** Newest suspect seen here (crime or match): a click opens that suspect's clip here. null = click does nothing. */
+  clipSubject: string | null;
+  /** Another suspect is focused: this marker fades. */
+  dimmed: boolean;
 }
+
+type TipPlace = { below: boolean; h: 'center' | 'left' | 'right' };
 
 /**
  * One camera on the map. Leaflet owns the marker element; React renders its contents through a
@@ -49,8 +68,20 @@ export interface CameraMarkerProps {
  * and CSS animations aren't cut short by unrelated re-renders).
  */
 export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps) {
-  const { name, lat, lon, health, pulseId, pulseCrime, crimeActivity, label, small, fill, highlighted, badge, badgeSide } = props;
+  const { name, lat, lon, health, pulseId, pulseCrime, crimeActivity, label, small, fill, highlighted, badge, badgeSide,
+    tipName, tipWord, cameraId, clipSubject, dimmed } = props;
+  const map = useMap();
   const [container] = useState(() => document.createElement('div'));
+  const [tip, setTip] = useState<TipPlace | null>(null);
+  // Leaflet would also see the click as a click on the empty map (which clears the focus): stop that.
+  const hitRef = useCallback((el: HTMLSpanElement | null) => { if (el) DomEvent.disableClickPropagation(el); }, []);
+  const showTip = () => {
+    // Keep the pill inside the map: flip below near the top edge, hug a side near the left / right edge.
+    const p = map.latLngToContainerPoint([lat, lon]);
+    const size = map.getSize();
+    setTip({ below: p.y < TIP_ROOM_Y, h: p.x < TIP_ROOM_X ? 'left' : p.x > size.x - TIP_ROOM_X ? 'right' : 'center' });
+  };
+  const onClick = () => { if (clipSubject) requestClip(clipSubject, cameraId); };
   const icon = useMemo(() => divIcon({
     html: container,
     className: 'cam-icon',
@@ -61,7 +92,7 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
 
   const offline = health !== undefined && health !== 'online';
   const cls = ['cam', offline ? 'is-offline' : '', crimeActivity ? 'is-alert' : '', fill ? 'is-filled' : '',
-    highlighted ? 'is-highlighted' : ''].filter(Boolean).join(' ');
+    highlighted ? 'is-highlighted' : '', dimmed ? 'is-dimmed' : '', tip ? 'is-hovered' : ''].filter(Boolean).join(' ');
   const labelCls = ['cam-label', small ? 'is-small' : ''].filter(Boolean).join(' ');
   const leader = label?.leader;
 
@@ -72,7 +103,7 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
         icon={icon}
         interactive={false}
         keyboard={false}
-        zIndexOffset={crimeActivity ? 1000 : 0}
+        zIndexOffset={tip ? 5000 : crimeActivity ? 1000 : 0}
       />
       {createPortal(
         <div className={cls}>
@@ -103,6 +134,21 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
             <span key={badge.verdictId} className={`cam-badge is-${badge.kind.replace('_', '-')}`}
               style={badgeStyle(badgeSide, label, crimeActivity !== null)}>
               {LABELS.verdictBadge[badge.kind]}
+            </span>
+          )}
+          <span
+            ref={hitRef}
+            className={`cam-hit${clipSubject ? ' is-clickable' : ''}`}
+            style={{ width: HIT_PX, height: HIT_PX, left: HALF - HIT_PX / 2, top: HALF - HIT_PX / 2 }}
+            onMouseEnter={showTip}
+            onMouseLeave={() => setTip(null)}
+            onClick={onClick}
+            aria-label={`${tipName}: ${tipWord}`}
+          />
+          {tip && (
+            <span className={`cam-tip is-${tip.below ? 'below' : 'above'} is-${tip.h}`} role="tooltip">
+              <span className="cam-tip-name">{tipName}</span>
+              <span className="cam-tip-word">{tipWord}</span>
             </span>
           )}
         </div>,

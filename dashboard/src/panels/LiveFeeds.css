@@ -12,7 +12,7 @@
   place-items: center;
   padding: 24px;
   text-align: center;
-  color: var(--text-muted, #8a94a6);
+  color: var(--muted);
 }
 .feed {
   flex: 0 0 auto;
@@ -34,7 +34,7 @@
   overflow: hidden;
 }
 .feed-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-.feed-cam { color: var(--text-muted, #8a94a6); overflow: hidden; text-overflow: ellipsis; }
+.feed-cam { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .feed-video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
 .feed-steps {
   display: flex;
@@ -145,3 +145,81 @@
 .feed-step { all: unset; cursor: pointer; }
 .feed-step:focus-visible, .feed-nav:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .feed-steps { flex-wrap: wrap; }
+
+/* Bar title + one-line suspect description; the decision chip and the button never shrink. */
+.feed-title { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.feed-title-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.feed-title-row strong { flex: 0 0 auto; }
+.feed-cam { min-width: 0; }
+.feed-desc {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-decided {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+.feed-decided.is-confirm { color: var(--ok); }
+.feed-decided.is-dismiss { color: var(--muted); }
+
+/* The focused chase (the map is zoomed to it): a subtle glow in its color. */
+.feed.is-focused { box-shadow: 0 0 0 1px var(--c), 0 0 7px color-mix(in srgb, var(--c) 50%, transparent); }
+
+/* Dispatch waiting for the operator: keep pulsing until Confirm / Dismiss. */
+.dispatch-btn.is-pending { animation: dispatch-ready 1.6s ease-out infinite; }
+.feed-head:focus-visible { outline: 2px solid var(--c, currentColor); outline-offset: -2px; }
+.dispatch-btn:focus-visible, .dispatch-report button:focus-visible { outline: 2px solid var(--c, currentColor); outline-offset: 1px; }
+
+/* Opening the footage: a short fade / slide in. */
+.feed-body { animation: feed-open 180ms ease-out; }
+@keyframes feed-open {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Hover: camera chips and the ‹ › buttons. */
+.feed-steps li:not(.now):not(.feed-steps-spacer):hover { opacity: 1; background: color-mix(in srgb, var(--c) 18%, transparent); }
+.feed-steps li { transition: opacity 120ms, background-color 120ms; }
+.feed-nav { transition: background-color 120ms; }
+.feed-nav:not(:disabled):hover { background: color-mix(in srgb, currentColor 16%, transparent); }
+
+/* Dispatch report: Confirm is the primary action, Dismiss a quiet outline; priority neutral unless high. */
+.dispatch-confirm, .dispatch-dismiss { font-size: var(--fs-small); padding: 3px 12px; border-radius: 6px; cursor: pointer; }
+.dispatch-confirm { background: var(--ok); color: var(--ink); border: 1px solid var(--ok); font-weight: 700; }
+.dispatch-confirm:not(:disabled):hover { filter: brightness(1.1); }
+.dispatch-dismiss { background: none; color: var(--muted); border: 1px solid var(--rule); }
+.dispatch-dismiss:not(:disabled):hover { color: var(--text); border-color: var(--muted); }
+.dispatch-confirm:disabled, .dispatch-dismiss:disabled { opacity: 0.5; cursor: default; }
+.dispatch-priority.is-medium, .dispatch-priority.is-low { background: var(--rule); color: var(--text); }
+.dispatch-priority.is-high { background: var(--alert); color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dispatch-btn.is-ready, .dispatch-btn.is-pending, .feed-body { animation: none; }
+  .feed-steps li, .feed-nav { transition: none; }
+}
+
+/* Empty state: a soft "watching" pulse, the camera count, and what to expect. */
+.feeds-empty { place-items: center; place-content: center; gap: 6px; color: var(--text); }
+.feeds-empty-dot {
+  width: 12px;
+  height: 12px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: feeds-watching 2.4s ease-out infinite;
+}
+@keyframes feeds-watching {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); }
+  100% { box-shadow: 0 0 0 12px transparent; }
+}
+.feeds-empty-note { color: var(--muted); font-size: var(--fs-small); }
+@media (prefers-reduced-motion: reduce) {
+  .feeds-empty-dot { animation: none; }
+}

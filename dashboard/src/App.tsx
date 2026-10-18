@@ -8,6 +8,8 @@ import MapView from './map/MapView.tsx';
 import { GraphPlaceholder, IncidentsPlaceholder, RawEventsPlaceholder } from './shell/placeholders.tsx';
 import { DemoControls } from './shell/DemoControls.tsx';
 import LiveFeeds from './panels/LiveFeeds.tsx';
+import MapLegend from './map/MapLegend.tsx';
+import Shortcuts from './shell/Shortcuts.tsx';
 
 // Slots filled by the other builders, picked up automatically when the file exists
 // (an eager glob of a missing file is just {}). Each file default-exports a component with no props:
@@ -37,6 +39,7 @@ export default function App() {
         {/* Each slot has its own error boundary: one panel throwing never blanks the whole screen. */}
         <section className="slot slot-map" aria-label="Map">
           <SlotBoundary name="map"><MapView /></SlotBoundary>
+          <MapLegend />
         </section>
         <aside className="right">
           {!SHOW_PANELS && (
@@ -58,6 +61,7 @@ export default function App() {
         </aside>
       </main>
       <DemoControls />
+      <Shortcuts />
     </div>
   );
 }

@@ -23,7 +23,12 @@ interface Props {
   avoid: ChaseAvoid;
   /** Bumps after zoom / pan / resize (arrow trims and label spots are in screen px). */
   viewTick: number;
+  /** The focused suspect: every other suspect's lines and arrows fade to FOCUS_DIM. null = no focus. */
+  focused?: string | null;
 }
+
+/** Opacity of the other suspects' chases while one suspect is focused. */
+export const FOCUS_DIM = 0.25;
 
 // Panes keep the drawing order fixed: predictions under paths under arrows under labels, all under
 // the camera markers (Leaflet's marker pane is 600).
@@ -33,7 +38,7 @@ const PANES = { predict: 410, path: 420, arrow: 430, labels: 450 } as const;
  * The chases on the map: each incident's path (solid, chase color), predicted next cameras (dashed,
  * with probability), and relay arrows (travelling dash while live). Click any of them to select its event.
  */
-export function ChaseLayer({ chase, posById, avoid, viewTick }: Props) {
+export function ChaseLayer({ chase, posById, avoid, viewTick, focused = null }: Props) {
   const map = useMap();
   const { selection } = useSelection();
   const toggle = (id: string) => select(selection === id ? null : id);
@@ -69,22 +74,23 @@ export function ChaseLayer({ chase, posById, avoid, viewTick }: Props) {
   }, [map, posById, chase.predictions, avoid, viewTick]);
 
   const dim = chase.dim;
+  const faded = (subjectId: string) => focused !== null && subjectId !== focused;
   return (
     <>
       <Pane name="chase-predict" style={{ zIndex: PANES.predict }}>
         {SHOW_PREDICTIONS && chase.predictions.map((p) => (
-          <PredictionLine key={p.key} p={p} posById={posById} dim={dim} onSelect={toggle} />
+          <PredictionLine key={p.key} p={p} posById={posById} dim={dim} faded={faded(p.subjectId)} onSelect={toggle} />
         ))}
       </Pane>
       <Pane name="chase-path" style={{ zIndex: PANES.path }}>
         {chase.segments.map((s) => (
-          <SegmentLine key={s.key} s={s} posById={posById} dim={dim} onSelect={toggle} />
+          <SegmentLine key={s.key} s={s} posById={posById} dim={dim} faded={faded(s.subjectId)} onSelect={toggle} />
         ))}
       </Pane>
       <Pane name="chase-arrow" style={{ zIndex: PANES.arrow }}>
         {chase.arrows.map((a) => {
           const geo = arrowGeo.get(a.key);
-          return geo ? <RelayArrow key={a.key} a={a} geo={geo} dim={dim} onSelect={toggle} /> : null;
+          return geo ? <RelayArrow key={a.key} a={a} geo={geo} dim={dim} faded={faded(a.subjectId)} onSelect={toggle} /> : null;
         })}
       </Pane>
       {/* Demo: no "predicted next" percent badges (SHOW_PROB_LABELS brings them back). */}
@@ -94,7 +100,7 @@ export function ChaseLayer({ chase, posById, avoid, viewTick }: Props) {
           const at = probSpots.get(p.key);
           return at ? (
             <ProbLabel key={p.key} at={at} text={probText(p.probability)} color={p.color}
-              highlighted={p.highlighted} dimmed={dim && !p.highlighted} />
+              highlighted={p.highlighted} dimmed={faded(p.subjectId) || (dim && !p.highlighted)} />
           ) : null;
         })}
       </Pane>
@@ -155,13 +161,14 @@ function ClickableLine({ positions, style, className, eventId, onSelect }: {
 
 const HIT_STYLE: PathOptions = { color: '#000', opacity: 0, weight: CHASE_STYLE.hitWeight, lineCap: 'round' };
 
-function opacityFor(base: number, highlighted: boolean, dim: boolean): number {
+function opacityFor(base: number, highlighted: boolean, dim: boolean, faded = false): number {
+  if (faded) return Math.min(base, FOCUS_DIM);
   if (highlighted) return Math.min(1, base + 0.3);
   return dim ? Math.min(base, CHASE_STYLE.dimOpacity) : base;
 }
 
-const SegmentLine = memo(function SegmentLine({ s, posById, dim, onSelect }: {
-  s: ChaseSegment; posById: ReadonlyMap<string, LatLngTuple>; dim: boolean; onSelect: (id: string) => void;
+const SegmentLine = memo(function SegmentLine({ s, posById, dim, faded, onSelect }: {
+  s: ChaseSegment; posById: ReadonlyMap<string, LatLngTuple>; dim: boolean; faded: boolean; onSelect: (id: string) => void;
 }) {
   const a = posById.get(s.from), b = posById.get(s.to);
   const positions = useMemo(() => (a && b ? [a, b] : null), [a, b]);
@@ -169,15 +176,15 @@ const SegmentLine = memo(function SegmentLine({ s, posById, dim, onSelect }: {
   const style: PathOptions = {
     color: s.color,
     weight: CHASE_STYLE.pathWeight + (s.highlighted ? CHASE_STYLE.highlightExtra : 0),
-    opacity: opacityFor(1, s.highlighted, dim),
+    opacity: opacityFor(1, s.highlighted, dim, faded),
     lineCap: 'round',
     lineJoin: 'round',
   };
   return <ClickableLine positions={positions} style={style} className="chase-path" eventId={s.eventId} onSelect={onSelect} />;
 });
 
-const PredictionLine = memo(function PredictionLine({ p, posById, dim, onSelect }: {
-  p: ChasePrediction; posById: ReadonlyMap<string, LatLngTuple>; dim: boolean; onSelect: (id: string) => void;
+const PredictionLine = memo(function PredictionLine({ p, posById, dim, faded, onSelect }: {
+  p: ChasePrediction; posById: ReadonlyMap<string, LatLngTuple>; dim: boolean; faded: boolean; onSelect: (id: string) => void;
 }) {
   const a = posById.get(p.from), b = posById.get(p.to);
   const positions = useMemo(() => (a && b ? [a, b] : null), [a, b]);
@@ -185,17 +192,17 @@ const PredictionLine = memo(function PredictionLine({ p, posById, dim, onSelect 
   const style: PathOptions = {
     color: p.color,
     weight: CHASE_STYLE.predictWeight + (p.highlighted ? 0.5 : 0),
-    opacity: opacityFor(CHASE_STYLE.predictOpacity, p.highlighted, dim),
+    opacity: opacityFor(CHASE_STYLE.predictOpacity, p.highlighted, dim, faded),
     dashArray: CHASE_STYLE.predictDash,
     lineCap: 'butt',
   };
   return <ClickableLine positions={positions} style={style} className="chase-predict" eventId={p.eventId} onSelect={onSelect} />;
 });
 
-const RelayArrow = memo(function RelayArrow({ a, geo, dim, onSelect }: {
-  a: ChaseArrow; geo: ArrowGeo; dim: boolean; onSelect: (id: string) => void;
+const RelayArrow = memo(function RelayArrow({ a, geo, dim, faded, onSelect }: {
+  a: ChaseArrow; geo: ArrowGeo; dim: boolean; faded: boolean; onSelect: (id: string) => void;
 }) {
-  const opacity = opacityFor(1, a.highlighted, dim);
+  const opacity = opacityFor(1, a.highlighted, dim, faded);
   const weight = CHASE_STYLE.arrowWeight + (a.highlighted ? CHASE_STYLE.highlightExtra * 0.75 : 0);
   // Class names are fixed when Leaflet creates the path; a.key changes with the state, so a new state
   // means a new layer (and a fresh CSS animation).
@@ -274,7 +281,7 @@ function FillingRelay({ a, geo, weight, opacity }: { a: ChaseArrow; geo: ArrowGe
       )}
       {/* where the suspect is now */}
       <CircleMarker center={tip} radius={7} interactive={false}
-        pathOptions={{ color: '#E6EDF2', weight: 2, fillColor: a.color, fillOpacity: 1 }} />
+        pathOptions={{ color: '#E6EDF2', weight: 2, opacity, fillColor: a.color, fillOpacity: opacity }} />
     </>
   );
 }
