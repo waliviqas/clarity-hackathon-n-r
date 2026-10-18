@@ -1,0 +1,23 @@
+{
+  "site_id": "annex",
+  "clips": {
+    "cam_01": {
+      "take": 1,
+      "clip_file": "clip8_cam1.mp4",
+      "uri": "data/raw/staged/take1/clip8_cam1.mp4",
+      "start_ts": 1.75
+    },
+    "cam_02": {
+      "take": 1,
+      "clip_file": "clip8_cam2.mp4",
+      "uri": "data/raw/staged/take1/clip8_cam2.mp4",
+      "start_ts": 11.25
+    },
+    "cam_03": {
+      "take": 1,
+      "clip_file": "clip8_cam3.mp4",
+      "uri": "data/raw/staged/take1/clip8_cam3.mp4",
+      "start_ts": 18.25
+    }
+  }
+}

@@ -1,0 +1,191 @@
+{
+  "schema_version": "0.1",
+  "site_id": "demo2",
+  "site_name": "Red Hat Annex (two crimes)",
+  "map": {
+    "center": {
+      "lat": 35.775552,
+      "lon": -78.637154
+    },
+    "zoom": 18,
+    "site_image": null
+  },
+  "cameras": [
+    {
+      "camera_id": "cam_01",
+      "name": "E Davie St at Domino's (north side)",
+      "take": 1,
+      "position": {
+        "lat": 35.775593,
+        "lon": -78.637447
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 10.0,
+          "direction": "east"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip3_cam1.mp4",
+        "start_ts": 17.0
+      }
+    },
+    {
+      "camera_id": "cam_02",
+      "name": "E Davie St at Amorino (north side)",
+      "take": 1,
+      "position": {
+        "lat": 35.775593,
+        "lon": -78.637245
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_01",
+          "travel_time_s": 10.0,
+          "direction": "west"
+        },
+        {
+          "camera_id": "cam_03",
+          "travel_time_s": 6.0,
+          "direction": "west"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip3_cam2.mp4",
+        "start_ts": 34.0
+      }
+    },
+    {
+      "camera_id": "cam_03",
+      "name": "E Davie St at Domino's (north side)",
+      "take": 1,
+      "position": {
+        "lat": 35.775593,
+        "lon": -78.637447
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 6.0,
+          "direction": "east"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip3_cam3.mp4",
+        "start_ts": 43.1
+      }
+    },
+    {
+      "camera_id": "cam_07",
+      "name": "E Davie St at The Davie (south side)",
+      "take": 3,
+      "position": {
+        "lat": 35.77545,
+        "lon": -78.637095
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 7.0,
+          "direction": "east"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam1.mp4",
+        "start_ts": 0.8
+      }
+    },
+    {
+      "camera_id": "cam_08",
+      "name": "E Davie St & S Blount St (SW corner)",
+      "take": 3,
+      "position": {
+        "lat": 35.77545,
+        "lon": -78.636873
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_07",
+          "travel_time_s": 7.0,
+          "direction": "west"
+        },
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 6.0,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam2.mp4",
+        "start_ts": 14.0
+      }
+    },
+    {
+      "camera_id": "cam_09",
+      "name": "E Davie St & S Blount St (NW corner)",
+      "take": 3,
+      "position": {
+        "lat": 35.775593,
+        "lon": -78.636873
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 6.0,
+          "direction": "south"
+        },
+        {
+          "camera_id": "cam_10",
+          "travel_time_s": 3.0,
+          "direction": "west"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam3.mp4",
+        "start_ts": 22.6
+      }
+    },
+    {
+      "camera_id": "cam_10",
+      "name": "E Davie St at Sir Walter Coffee (north side)",
+      "take": 3,
+      "position": {
+        "lat": 35.775593,
+        "lon": -78.637095
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 3.0,
+          "direction": "east"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam4.mp4",
+        "start_ts": 30.76
+      }
+    }
+  ]
+}

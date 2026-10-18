@@ -1,0 +1,33 @@
+{
+  "site_id": "annex",
+  "take": 1,
+  "run_offset_s": 0.0,
+  "incident_id": "inc_take1",
+  "subject_id": "subj_take1",
+  "activity": "fistfight",
+  "appearance": "red hoodie, jeans",
+  "path": [
+    {
+      "camera_id": "cam_01",
+      "t_enter": 5.0,
+      "t_exit": 13.5
+    },
+    {
+      "camera_id": "cam_02",
+      "t_enter": 22.0,
+      "t_exit": 27.5
+    },
+    {
+      "camera_id": "cam_03",
+      "t_enter": 39.0,
+      "t_exit": 45.0
+    }
+  ],
+  "decoy_camera_id": "cam_04",
+  "camera_roles": {
+    "cam_01": "crime",
+    "cam_02": "junction",
+    "cam_03": "exit",
+    "cam_04": "decoy"
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarity/dispatch.schema.json",
+  "title": "Dispatch update",
+  "description": "Current state of one incident for the operator. Send a new one whenever it changes; the dashboard keeps the latest per incident_id. Producer/owner: Michael (dispatcher). Contract v0.1.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "dispatch"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^dsp_[A-Za-z0-9_-]+$",
+      "description": "Unique ID, prefix 'dsp_'."
+    },
+    "ts": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds on the run clock (replay: video time; live: unix epoch)."
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Optional: groups events from one replay/live run."
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional: component that emitted it, e.g. 'perception'."
+    },
+    "incident_id": {
+      "type": "string",
+      "pattern": "^inc_[A-Za-z0-9_-]+$"
+    },
+    "subject_id": {
+      "type": "string",
+      "pattern": "^subj_[A-Za-z0-9_-]+$"
+    },
+    "incident_type": {
+      "enum": [
+        "stabbing",
+        "fistfight",
+        "purse_snatch",
+        "none"
+      ]
+    },
+    "subject_appearance": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "enum": [
+        "tracking",
+        "alert",
+        "resolved"
+      ]
+    },
+    "priority": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "path": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "camera_id": {
+            "type": "string",
+            "pattern": "^cam_[a-z0-9_]+$",
+            "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+          },
+          "ts": {
+            "type": "number"
+          },
+          "event_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "camera_id",
+          "ts"
+        ]
+      }
+    },
+    "predicted_next": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "camera_id": {
+            "type": "string",
+            "pattern": "^cam_[a-z0-9_]+$",
+            "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+          },
+          "probability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "camera_id",
+          "probability"
+        ]
+      },
+      "description": "From Wali's graph.predict_next(camera_id, direction)."
+    },
+    "recommendation": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "evidence_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "event_ids of earlier events that justify this one (the receipts trail)."
+    },
+    "requires_human_confirm": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "type",
+    "schema_version",
+    "event_id",
+    "ts",
+    "incident_id",
+    "subject_id",
+    "incident_type",
+    "status",
+    "priority",
+    "path",
+    "predicted_next",
+    "recommendation",
+    "reason",
+    "evidence_event_ids",
+    "requires_human_confirm"
+  ],
+  "additionalProperties": true
+}

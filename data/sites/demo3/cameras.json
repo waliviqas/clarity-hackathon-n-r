@@ -1,0 +1,265 @@
+{
+  "schema_version": "0.1",
+  "site_id": "demo3",
+  "site_name": "Red Hat Annex (clips 1, 3, 4)",
+  "map": {
+    "center": {
+      "lat": 35.7755,
+      "lon": -78.637019
+    },
+    "zoom": 18,
+    "site_image": null
+  },
+  "cameras": [
+    {
+      "camera_id": "cam_01",
+      "name": "Route 1: patio by plant pots",
+      "take": 1,
+      "position": {
+        "lat": 35.77575,
+        "lon": -78.637
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 10.0,
+          "direction": "southwest"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip3_cam1.mp4",
+        "start_ts": 5.0
+      }
+    },
+    {
+      "camera_id": "cam_02",
+      "name": "Route 1: sidewalk by cafe planters",
+      "take": 1,
+      "position": {
+        "lat": 35.7755,
+        "lon": -78.6373
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_01",
+          "travel_time_s": 10.0,
+          "direction": "northeast"
+        },
+        {
+          "camera_id": "cam_03",
+          "travel_time_s": 6.0,
+          "direction": "northeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip3_cam2.mp4",
+        "start_ts": 22.0
+      }
+    },
+    {
+      "camera_id": "cam_03",
+      "name": "Route 1: patio walkway",
+      "take": 1,
+      "position": {
+        "lat": 35.7756,
+        "lon": -78.6371
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 6.0,
+          "direction": "southwest"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip3_cam3.mp4",
+        "start_ts": 31.1
+      }
+    },
+    {
+      "camera_id": "cam_04",
+      "name": "Route 2: parking garage aisle",
+      "take": 2,
+      "position": {
+        "lat": 35.7753,
+        "lon": -78.6371
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_05",
+          "travel_time_s": 3.0,
+          "direction": "south"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/clip4_cam1.mp4",
+        "start_ts": 9.0
+      }
+    },
+    {
+      "camera_id": "cam_05",
+      "name": "Route 2: garage ramp bay",
+      "take": 2,
+      "position": {
+        "lat": 35.7752,
+        "lon": -78.6371
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_04",
+          "travel_time_s": 3.0,
+          "direction": "north"
+        },
+        {
+          "camera_id": "cam_06",
+          "travel_time_s": 3.0,
+          "direction": "northeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/clip4_cam2.mp4",
+        "start_ts": 15.5
+      }
+    },
+    {
+      "camera_id": "cam_06",
+      "name": "Route 2: garage far aisle",
+      "take": 2,
+      "position": {
+        "lat": 35.7753,
+        "lon": -78.63698
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_05",
+          "travel_time_s": 3.0,
+          "direction": "southwest"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/clip4_cam3.mp4",
+        "start_ts": 26.0
+      }
+    },
+    {
+      "camera_id": "cam_07",
+      "name": "Route 3: sidewalk by street parking",
+      "take": 3,
+      "position": {
+        "lat": 35.7755,
+        "lon": -78.6371
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 7.0,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam1.mp4",
+        "start_ts": 0.8
+      }
+    },
+    {
+      "camera_id": "cam_08",
+      "name": "Route 3: sidewalk by painted parklet",
+      "take": 3,
+      "position": {
+        "lat": 35.7757,
+        "lon": -78.637
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_07",
+          "travel_time_s": 7.0,
+          "direction": "south"
+        },
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 6.0,
+          "direction": "southeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam2.mp4",
+        "start_ts": 14.0
+      }
+    },
+    {
+      "camera_id": "cam_09",
+      "name": "Route 3: crosswalk corner",
+      "take": 3,
+      "position": {
+        "lat": 35.7756,
+        "lon": -78.6368
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 6.0,
+          "direction": "northwest"
+        },
+        {
+          "camera_id": "cam_10",
+          "travel_time_s": 3.0,
+          "direction": "southeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam3.mp4",
+        "start_ts": 22.6
+      }
+    },
+    {
+      "camera_id": "cam_10",
+      "name": "Route 3: sidewalk by building column",
+      "take": 3,
+      "position": {
+        "lat": 35.77555,
+        "lon": -78.63671
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 3.0,
+          "direction": "northwest"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/clip1_cam4.mp4",
+        "start_ts": 30.76
+      }
+    }
+  ]
+}

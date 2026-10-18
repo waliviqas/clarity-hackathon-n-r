@@ -1,0 +1,13 @@
+take,activity,role,camera_id,phone_owner,spot_description,lat,lon,heading_deg,clip_file,clock_shown_at_s,clock_reading_hhmmss,suspect_enter_s,suspect_exit_s,travel_s,notes
+1,fistfight,crime,cam_01,,,,,,take1_cam01.mov,,,,,,suspect outfit:
+1,fistfight,junction,cam_02,,,,,,take1_cam02.mov,,,,,,
+1,fistfight,exit,cam_03,,,,,,take1_cam03.mov,,,,,,
+1,fistfight,decoy,cam_04,,,,,,take1_cam04.mov,,,,,,empty path; walk junction->decoy stopwatch s:
+2,purse_snatch,crime,cam_05,,,,,,take2_cam05.mov,,,,,,suspect outfit:
+2,purse_snatch,junction,cam_06,,,,,,take2_cam06.mov,,,,,,
+2,purse_snatch,exit,cam_07,,,,,,take2_cam07.mov,,,,,,
+2,purse_snatch,decoy,cam_08,,,,,,take2_cam08.mov,,,,,,empty path; walk junction->decoy stopwatch s:
+3,purse_snatch,crime,cam_09,,,,,,take3_cam09.mov,,,,,,suspect outfit: ; phone grab
+3,purse_snatch,junction,cam_10,,,,,,take3_cam10.mov,,,,,,
+3,purse_snatch,exit,cam_11,,,,,,take3_cam11.mov,,,,,,
+3,purse_snatch,decoy,cam_12,,,,,,take3_cam12.mov,,,,,,empty path; walk junction->decoy stopwatch s:

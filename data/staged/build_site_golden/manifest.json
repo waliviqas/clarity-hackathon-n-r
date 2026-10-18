@@ -1,0 +1,77 @@
+{
+  "site_id": "annex",
+  "clips": {
+    "cam_01": {
+      "take": 1,
+      "clip_file": "take1_cam01.mp4",
+      "uri": "data/raw/staged/take1/take1_cam01.mp4",
+      "start_ts": -5.0
+    },
+    "cam_02": {
+      "take": 1,
+      "clip_file": "take1_cam02.mp4",
+      "uri": "data/raw/staged/take1/take1_cam02.mp4",
+      "start_ts": 0.5
+    },
+    "cam_03": {
+      "take": 1,
+      "clip_file": "take1_cam03.mp4",
+      "uri": "data/raw/staged/take1/take1_cam03.mp4",
+      "start_ts": 9.0
+    },
+    "cam_04": {
+      "take": 1,
+      "clip_file": "take1_cam04.mp4",
+      "uri": "data/raw/staged/take1/take1_cam04.mp4",
+      "start_ts": 0.5
+    },
+    "cam_05": {
+      "take": 2,
+      "clip_file": "take2_cam05.mp4",
+      "uri": "data/raw/staged/take2/take2_cam05.mp4",
+      "start_ts": 11.0
+    },
+    "cam_06": {
+      "take": 2,
+      "clip_file": "take2_cam06.mp4",
+      "uri": "data/raw/staged/take2/take2_cam06.mp4",
+      "start_ts": 13.5
+    },
+    "cam_07": {
+      "take": 2,
+      "clip_file": "take2_cam07.mp4",
+      "uri": "data/raw/staged/take2/take2_cam07.mp4",
+      "start_ts": 41.25
+    },
+    "cam_08": {
+      "take": 2,
+      "clip_file": "take2_cam08.mp4",
+      "uri": "data/raw/staged/take2/take2_cam08.mp4",
+      "start_ts": 13.5
+    },
+    "cam_09": {
+      "take": 3,
+      "clip_file": "take3_cam09.mp4",
+      "uri": "data/raw/staged/take3/take3_cam09.mp4",
+      "start_ts": 19.0
+    },
+    "cam_10": {
+      "take": 3,
+      "clip_file": "take3_cam10.mp4",
+      "uri": "data/raw/staged/take3/take3_cam10.mp4",
+      "start_ts": 30.5
+    },
+    "cam_11": {
+      "take": 3,
+      "clip_file": "take3_cam11.mp4",
+      "uri": "data/raw/staged/take3/take3_cam11.mp4",
+      "start_ts": 47.5
+    },
+    "cam_12": {
+      "take": 3,
+      "clip_file": "take3_cam12.mp4",
+      "uri": "data/raw/staged/take3/take3_cam12.mp4",
+      "start_ts": 30.5
+    }
+  }
+}

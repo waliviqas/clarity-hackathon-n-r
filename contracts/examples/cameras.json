@@ -1,0 +1,83 @@
+{
+  "schema_version": "0.1",
+  "site_id": "example_site",
+  "site_name": "EXAMPLE ONLY - replace with real cameras",
+  "map": {
+    "center": null,
+    "zoom": 18,
+    "site_image": null
+  },
+  "cameras": [
+    {
+      "camera_id": "cam_01",
+      "name": "Lobby",
+      "position": null,
+      "site_xy": {
+        "x": 0.2,
+        "y": 0.7
+      },
+      "heading_deg": 0,
+      "neighbors": [
+        {
+          "camera_id": "cam_03",
+          "travel_time_s": 25,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/example/cam_01.mp4",
+        "start_ts": 1700.0
+      }
+    },
+    {
+      "camera_id": "cam_03",
+      "name": "North hallway",
+      "position": null,
+      "site_xy": {
+        "x": 0.25,
+        "y": 0.4
+      },
+      "heading_deg": 180,
+      "neighbors": [
+        {
+          "camera_id": "cam_01",
+          "travel_time_s": 25,
+          "direction": "south"
+        },
+        {
+          "camera_id": "cam_05",
+          "travel_time_s": 40,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/example/cam_03.mp4",
+        "start_ts": 1700.0
+      }
+    },
+    {
+      "camera_id": "cam_05",
+      "name": "North exit",
+      "position": null,
+      "site_xy": {
+        "x": 0.3,
+        "y": 0.1
+      },
+      "heading_deg": 180,
+      "neighbors": [
+        {
+          "camera_id": "cam_03",
+          "travel_time_s": 40,
+          "direction": "south"
+        }
+      ],
+      "source": {
+        "kind": "live",
+        "uri": "phone://iphone-1",
+        "start_ts": null
+      }
+    }
+  ]
+}

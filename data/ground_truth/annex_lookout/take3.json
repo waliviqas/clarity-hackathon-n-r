@@ -1,0 +1,45 @@
+{
+  "site_id": "annex_lookout",
+  "take": 3,
+  "run_offset_s": 0.0,
+  "incident_id": "inc_take3",
+  "subject_id": "subj_take3",
+  "activity": "stabbing",
+  "appearance": "black hoodie, dark grey trousers",
+  "path": [
+    {
+      "camera_id": "cam_07",
+      "t_enter": 5.0,
+      "t_exit": 7.9
+    },
+    {
+      "camera_id": "cam_08",
+      "t_enter": 14.9,
+      "t_exit": 16.6
+    },
+    {
+      "camera_id": "cam_09",
+      "t_enter": 22.6,
+      "t_exit": 27.91
+    },
+    {
+      "camera_id": "cam_10",
+      "t_enter": 30.91,
+      "t_exit": 34.8
+    },
+    {
+      "camera_id": "cam_14",
+      "t_enter": 2306.05,
+      "t_exit": 2307.3
+    }
+  ],
+  "decoy_camera_id": null,
+  "camera_roles": {
+    "cam_07": "crime",
+    "cam_08": "path",
+    "cam_09": "path",
+    "cam_10": "exit",
+    "cam_14": "lookout"
+  },
+  "notes": "take 3 (test clip 1) as in data/ground_truth/take3.json, plus a far re-sighting at cam_14 (role lookout, scripted with bus.fake_scenario --lookout cam_14). cam_14: Placed on Hillsborough St for this scripted story; footage: clip 8 cam2, filmed 38 min after clip 1 (16:43:28 vs 16:05:04) about 200 m from it, not on Hillsborough St."
+}

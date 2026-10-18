@@ -1,0 +1,155 @@
+/* Incident cards (src/panels/IncidentCards.tsx). Colors, type and shape come from src/tokens.css only.
+   Quiet by design: 6px radius, 4px left bar in the subject's chase color, no shadows, no gradients,
+   nothing animates. A card that needs a decision gets an --alert border and a faint flat tint.
+   Compact by design (3 decision cards + buttons fit in ~430 px at 1920x1080):
+     needs your decision  122 px   title row / recommendation (18px, 2 lines max) beside the button
+                                   group (Confirm Dismiss, then Watch last sighting under them) / meta
+                                   (107 px when there's no sighting to watch)
+     tracking, alert      ~85 px   title row / recommendation (15px, 1 line) + Watch / meta line
+                                   (with Confirm / Dismiss: 122 px, recommendation up to 2 lines)
+     resolved             ~44 px   one line (title, status, reco, Watch, tag); wraps to 2 when narrow
+   A dispatcher "Procedure: …" line (13px, 15 px tall, one line) sits under the recommendation on cards
+   with Confirm / Dismiss: 2 x 22 + 15 = 59 px, the button group's height, so the card doesn't grow.
+   A title too long for row 1 wraps to a second line (+22 px) instead of hiding the place name.     */
+
+.ic { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+
+.ic-head { display: flex; align-items: baseline; gap: 12px; padding: 10px 16px 6px; }
+.ic-title { font-size: var(--fs-title); font-weight: 600; margin: 0; }
+.ic-count { margin-left: auto; color: var(--alert); font-size: var(--fs-small); font-weight: 600; white-space: nowrap; }
+
+.ic-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px 8px; }
+.ic-empty { color: var(--muted); margin: 0; }
+
+.ic-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.ic-card {
+  border: 1px solid var(--rule);
+  border-left: var(--card-bar) solid var(--rule); /* color set inline: var(--chase-N) */
+  border-radius: var(--radius-card);
+  padding: 7px 12px 8px;
+  cursor: pointer;
+}
+.ic-card.is-decide {
+  border-color: var(--alert);
+  background: color-mix(in srgb, var(--alert) 7%, var(--panel));
+}
+.ic-card.is-line { padding: 10px 12px; }
+.ic-card.is-selected { border-color: var(--text); }
+
+/* Row 1: title, status, [sending], scripted tag. Everything else is 22 px tall and sits on the title's
+   first line; a long title wraps to a second line (clamped at 2, ellipsis only as a last resort).
+   One-line resolved cards also carry the inline reco and Watch here, and wrap the row instead of
+   squeezing the title: what doesn't fit (Watch, tag) moves to a second line, right-aligned. */
+.ic-top { display: flex; align-items: flex-start; gap: 10px; min-height: 22px; min-width: 0; }
+.ic-card.is-line .ic-top { flex-wrap: wrap; row-gap: 4px; }
+.ic-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  border: 0;
+  border-radius: 2px;
+  padding: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  line-height: 22px;
+  text-align: left;
+}
+.ic-name-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+.ic-status { flex: none; font-size: var(--fs-small); font-weight: 600; line-height: 22px; white-space: nowrap; }
+.ic-status.tone-tracking { color: var(--muted); }
+.ic-status.tone-alert { color: var(--alert); }
+.ic-status.tone-confirm { color: var(--ok); }
+.ic-status.tone-dismiss,
+.ic-status.tone-resolved { color: var(--muted); }
+.ic-sending { flex: none; color: var(--muted); font-size: var(--fs-small); line-height: 22px; white-space: nowrap; }
+.ic-top .tag { flex: none; margin-left: auto; }
+/* "Watch last sighting": a quiet secondary button (13px, 22 px tall, soft border), after Confirm /
+   Dismiss in the button group; on one-line resolved cards, at the right of the line before the tag. */
+.ic-watch {
+  flex: none;
+  padding: 0 8px;
+  line-height: 20px;
+  border-color: color-mix(in srgb, var(--muted) 55%, transparent);
+  white-space: nowrap;
+}
+.ic-watch:hover { background: color-mix(in srgb, var(--rule) 45%, transparent); }
+.ic-top .ic-watch { margin-left: auto; }
+.ic-top .ic-watch + .tag { margin-left: 0; }
+.ic-reco-inline {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  line-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Row 2: recommendation (+ procedure line), with the button group on the right of it. */
+.ic-body { display: flex; align-items: center; gap: 12px; margin-top: 3px; min-width: 0; }
+.ic-say { flex: 1; min-width: 0; }
+.ic-reco {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+}
+/* A tracking card with Confirm / Dismiss (the real dispatcher asks from the first update) has room for
+   a second 20 px line beside the 59 px button group: 2 x 20 + 15 (procedure) = 55 px. */
+.ic-card.has-decision .ic-reco {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.ic-card.is-decide .ic-reco {
+  font-size: var(--fs-title); /* 18px: smaller than --fs-reco so 3 decision cards fit; 2 lines max */
+  line-height: 22px;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+/* The dispatcher's fixed procedure guidance: quiet (muted, small), one line, full text on hover. */
+.ic-proc {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  line-height: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ic-proc-label { font-weight: 600; }
+/* Button group: Confirm, Dismiss side by side (the primary decision), then "Watch last sighting" on
+   its own line under them, as wide as the pair. Stacking keeps the group as narrow as Confirm +
+   Dismiss alone, so the recommendation keeps its full width: 33 + 4 + 22 = 59 px tall, i.e. +15 px
+   on a decision card. Tracking cards have only the Watch button here. */
+.ic-actions { flex: none; display: grid; grid-template-columns: auto auto; gap: 4px 8px; }
+.ic-actions .ic-watch { grid-column: 1 / -1; }
+.ic-btn { font-size: var(--fs-body); padding: 5px 14px; }
+.ic-btn-confirm { background: var(--text); border-color: var(--text); color: var(--ink); }
+
+/* Row 3: "High priority. Suspect: …. <reason>" as plain sentences, one line. */
+.ic-meta {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ic-error { color: var(--alert); font-size: var(--fs-small); font-weight: 600; line-height: 18px; margin: 3px 0 0; }

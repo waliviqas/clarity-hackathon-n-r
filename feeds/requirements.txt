@@ -1,0 +1,2 @@
+opencv-python-headless>=4.9   # clip decoding (headless: no GUI libraries needed on the Brev box)
+numpy>=1.26

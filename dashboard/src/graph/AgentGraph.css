@@ -1,0 +1,128 @@
+/* Agent graph panel. Colors come from src/tokens.css; timings are set inline from TIMING (src/lib). */
+
+.ag { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+
+.ag-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 16px 0;
+  min-width: 0;
+}
+.ag-title { font-size: var(--fs-title); font-weight: 600; margin: 0; white-space: nowrap; }
+.ag-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 14px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-small);
+  color: var(--muted);
+  min-width: 0;
+}
+.ag-legend li { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ag-legend svg { display: block; flex: none; }
+
+.ag-body { flex: 1 1 auto; min-height: 0; position: relative; }
+.ag-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.ag-empty { color: var(--muted); font-size: var(--fs-small); margin: 0; padding: 8px 16px; }
+
+/* ---------- text ---------- */
+.ag-svg text { font-family: var(--font-sign); font-variant-numeric: tabular-nums; }
+.ag-route { font-size: 15px; font-weight: 600; fill: var(--muted); }
+/* Camera names are free text: a panel-colored halo keeps a long one readable where a line passes under it. */
+.ag-label {
+  font-size: 14px; font-weight: 500; fill: var(--text); text-anchor: middle;
+  paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round;
+}
+.ag-node.is-offline .ag-label { fill: var(--muted); }
+.ag-coord-label { font-size: 15px; font-weight: 600; fill: var(--text); text-anchor: middle; }
+
+/* ---------- edges (camera-camera) and spokes (camera-coordinator) ---------- */
+.ag-line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ag-edge .ag-line { stroke-width: 3; }
+.ag-edge.is-on .ag-line { stroke-opacity: 0.8; }
+.ag-spoke .ag-line { stroke-width: 2; }
+.ag-spoke.is-match .ag-line { stroke-width: 2.5; stroke-opacity: 0.8; }
+.ag-spoke.is-no_match .ag-line { stroke-dasharray: 5 4; stroke-linecap: butt; }
+.ag-spoke.is-uncertain .ag-line { stroke-width: 2.5; stroke-dasharray: 0.5 4.5; }
+
+.ag-mark-bg { fill: var(--panel); }
+.ag-mark-q { font-size: 13px; font-weight: 600; text-anchor: middle; }
+
+/* selection: the selected event and everything it cites stand out, other messages step back */
+.is-hl .ag-line { stroke-opacity: 1; stroke-width: 4.5; }
+.ag-spoke.is-hl .ag-line { stroke-width: 3.5; }
+.is-dim { opacity: 0.3; }
+
+/* ---------- nodes ---------- */
+.ag-node-dot { stroke-width: 2; }
+.ag-ring { fill: none; stroke: var(--alert); stroke-width: 2; }
+.ag-halo { fill: none; stroke: var(--text); stroke-width: 1.5; }
+.ag-coord-box { fill: var(--ink); stroke-width: 2; }
+.ag-node.is-offline { opacity: 0.4; }
+.ag-node.is-offline .ag-node-dot { fill: none; stroke: var(--muted); stroke-dasharray: 3 3; }
+.ag-node.is-degraded .ag-node-dot { stroke-dasharray: 4 2; }
+
+/* ---------- interaction (static: nothing animates on hover) ---------- */
+.ag-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; }
+.ag-node-hit { fill: transparent; stroke: none; pointer-events: all; }
+.ag-click { cursor: pointer; outline: none; }
+.ag-click:hover .ag-line { stroke-opacity: 1; }
+.ag-click:focus-visible .ag-hit { stroke: color-mix(in srgb, var(--chase-2) 35%, transparent); }
+.ag-click:focus-visible .ag-node-hit { stroke: var(--chase-2); stroke-width: 1.5; }
+.ag-coord.ag-click:focus-visible .ag-coord-box { stroke: var(--chase-2); }
+
+/* ---------- live flashes (one shot each; duration + delay set inline) ---------- */
+.ag-fx {
+  pointer-events: none;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+}
+/* relay / match: the line draws from sender to receiver, holds, then fades into the steady color */
+.ag-fx-draw { fill: none; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 1 1; animation-name: ag-draw; }
+/* no match / uncertain: the dashed or dotted line blinks instead (visibly different from a match) */
+.ag-fx-blink { fill: none; stroke-width: 4; animation-name: ag-blink; }
+.ag-fx-blink.is-no_match { stroke-dasharray: 5 4; }
+.ag-fx-blink.is-uncertain { stroke-dasharray: 0.5 5; stroke-linecap: round; }
+/* dispatch: the coordinator's outline pulses outward */
+.ag-fx-pulse { fill: none; stroke-width: 3; transform-box: fill-box; transform-origin: center; animation-name: ag-pulse; }
+/* detection: the node lights, and a ring spreads from it */
+.ag-fx-light { animation-name: ag-light; }
+.ag-fx-ring { fill: none; stroke-width: 2.5; transform-box: fill-box; transform-origin: center; animation-name: ag-ring; }
+
+@keyframes ag-draw {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  45% { stroke-dashoffset: 0; opacity: 1; }
+  75% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes ag-blink {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  30% { opacity: 0.3; }
+  45% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes ag-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.18, 1.6); opacity: 0; }
+}
+@keyframes ag-light {
+  0% { opacity: 1; }
+  50% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+@keyframes ag-ring {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* Reduced motion: no flashes or pulses; the steady colors above still change the moment an event lands. */
+@media (prefers-reduced-motion: reduce) {
+  .ag-fx { display: none; }
+}

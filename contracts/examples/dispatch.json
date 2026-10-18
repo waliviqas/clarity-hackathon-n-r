@@ -1,0 +1,40 @@
+{
+  "type": "dispatch",
+  "schema_version": "0.1",
+  "event_id": "dsp_02",
+  "ts": 1777.0,
+  "run_id": "run_demo1",
+  "source": "dispatcher",
+  "incident_id": "inc_1",
+  "subject_id": "subj_7",
+  "incident_type": "purse_snatch",
+  "subject_appearance": "male, grey hoodie, dark pants",
+  "status": "tracking",
+  "priority": "high",
+  "path": [
+    {
+      "camera_id": "cam_03",
+      "ts": 1734.2,
+      "event_id": "det_8f2a"
+    },
+    {
+      "camera_id": "cam_05",
+      "ts": 1776.5,
+      "event_id": "ver_44b0"
+    }
+  ],
+  "predicted_next": [
+    {
+      "camera_id": "cam_08",
+      "probability": 0.7
+    }
+  ],
+  "recommendation": "Send a guard toward cam_08; check on the victim near cam_03.",
+  "reason": "Purse snatch at cam_03, subject confirmed moving north at cam_05.",
+  "evidence_event_ids": [
+    "det_8f2a",
+    "rel_1c9d",
+    "ver_44b0"
+  ],
+  "requires_human_confirm": true
+}

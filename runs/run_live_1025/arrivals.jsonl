@@ -1,0 +1,13 @@
+{"event_id": "det_afb1c_1", "type": "detection", "source": "agents", "ts": 8.9, "recv_wall": 1792319123.768812}
+{"event_id": "rel_afb1c_1", "type": "relay", "source": "agents", "ts": 8.9, "recv_wall": 1792319123.770282}
+{"event_id": "det_afb1c_2", "type": "detection", "source": "agents", "ts": 17.0, "recv_wall": 1792319135.760357}
+{"event_id": "ver_afb1c_1", "type": "agent_verdict", "source": "agents", "ts": 17.0, "recv_wall": 1792319135.761863}
+{"event_id": "rel_afb1c_2", "type": "relay", "source": "agents", "ts": 17.0, "recv_wall": 1792319135.762936}
+{"event_id": "dsp_r0db5_01", "type": "dispatch", "source": "dispatcher", "ts": 8.9, "recv_wall": 1792319145.655627}
+{"event_id": "det_afb1c_3", "type": "detection", "source": "agents", "ts": 28.1, "recv_wall": 1792319146.927405}
+{"event_id": "ver_afb1c_2", "type": "agent_verdict", "source": "agents", "ts": 28.1, "recv_wall": 1792319146.928733}
+{"event_id": "rel_afb1c_3", "type": "relay", "source": "agents", "ts": 28.1, "recv_wall": 1792319146.929804}
+{"event_id": "det_afb1c_4", "type": "detection", "source": "agents", "ts": 34.96, "recv_wall": 1792319153.949391}
+{"event_id": "ver_afb1c_3", "type": "agent_verdict", "source": "agents", "ts": 34.96, "recv_wall": 1792319153.950799}
+{"event_id": "dsp_r0db5_02", "type": "dispatch", "source": "dispatcher", "ts": 17.0, "recv_wall": 1792319156.73285}
+{"event_id": "dsp_r0db5_03", "type": "dispatch", "source": "dispatcher", "ts": 34.96, "recv_wall": 1792319159.415233}

@@ -1,0 +1,339 @@
+"""Clarity event bus: every part POSTs its events here; the bus validates and logs them.
+
+Run from the repo root:
+    python -m bus.server
+
+Settings (environment variables):
+    CLARITY_BUS_URL     where the bus listens, default http://localhost:8080 (only the port is used)
+    CLARITY_BUS_HOST    interface to bind, default 127.0.0.1 (reach it from the laptop via brev port-forward)
+    CLARITY_BUS_STRICT  1 = reject invalid events with HTTP 422 (default); 0 = accept them with a warning
+    CLARITY_RUN_ID      names the log folder, default run_dev
+    CLARITY_RUNS_DIR    where run logs go, default runs
+    CLARITY_CAMERAS     the active cameras.json served at GET /cameras,
+                        default data/sites/annex_clip1/cameras.json (the clip-1 demo site)
+    CLARITY_BUS_CORS    browser origins allowed to call the bus (comma-separated),
+                        default http://localhost:5173,http://127.0.0.1:5173 (the dashboard dev server)
+    CLARITY_CLIP_ROOT   folder that relative source.uri clip paths start from, default the repo root
+                        (same rule as feeds/base.py)
+
+Endpoints:
+    POST /events                 publish one event (validated against contracts/schemas)
+    GET  /events?type=&since_ts= past events (polling)
+    WS   /ws                     dashboard stream: one bus_snapshot, then every new event
+    GET  /cameras                the active cameras.json (re-read on every request)
+    GET  /clips/{camera_id}      that camera's replay clip (source.uri), with Range support so <video> can seek.
+                                 Only files named in cameras.json, only .mp4/.mov/.webm; anything else is 404.
+    GET  /clips/{camera_id}/info {"camera_id", "start_ts", "available", "content_type", "reason"}:
+                                 clip second = run-clock ts - start_ts; reason says why available is false
+    GET  /health                 liveness + counts of valid/invalid events
+
+Logs: every accepted event is appended to <CLARITY_RUNS_DIR>/<run_id>/events.jsonl, and one line
+{"event_id", "type", "source", "ts", "recv_wall"} to arrivals.jsonl next to it (recv_wall = unix time
+the bus accepted it). python -m bus.metrics reads both to measure wall-clock latencies.
+
+Polling (GET /events, bus.client.fetch): since_ts is inclusive and results come in arrival order,
+not ts order. Poll with a lookback (e.g. since_ts = newest ts seen - 30) and de-duplicate by event_id.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import math
+import os
+import time
+from pathlib import Path
+from urllib.parse import urlparse
+
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+
+from contracts.validate import check
+
+log = logging.getLogger("bus")
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CLIP_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"}
+
+STRICT = os.environ.get("CLARITY_BUS_STRICT", "1") != "0"
+RUN_ID = os.environ.get("CLARITY_RUN_ID", "run_dev")
+LOG_PATH = Path(os.environ.get("CLARITY_RUNS_DIR", "runs")) / RUN_ID / "events.jsonl"
+ARRIVALS_PATH = LOG_PATH.with_name("arrivals.jsonl")
+CAMERAS_PATH = Path(os.environ.get("CLARITY_CAMERAS", "data/sites/annex_clip1/cameras.json"))
+CORS_ORIGINS = [o.strip() for o in
+                os.environ.get("CLARITY_BUS_CORS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+                if o.strip()]
+
+SNAPSHOT_RECENT = 500  # a new dashboard connection gets the last 500 events...
+SNAPSHOT_ALWAYS = {"dispatch", "relay", "agent_verdict", "operator_action"}  # ...plus every incident event
+SEND_TIMEOUT_S = 0.5  # per client per event; a frozen browser tab gets dropped instead of stalling the bus
+
+counts = {"valid": 0, "invalid": 0, "duplicates": 0}
+events: list[dict] = []  # every accepted event this run, in arrival order
+seen_ids: set[str] = set()
+clients: set[WebSocket] = set()  # open dashboard connections
+# Held while logging + broadcasting one event (and while a client joins), so every client
+# sees events in the same order as the log, and nobody misses an event between snapshot and stream.
+order_lock = asyncio.Lock()
+
+app = FastAPI(title="Clarity bus")
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["GET", "POST"],
+                   allow_headers=["Content-Type", "Range"])
+
+
+def _finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError(f"number {text} is out of range")
+    return value
+
+
+def _no_nan(name: str):
+    raise ValueError(f"{name} is not allowed")
+
+
+def parse_json(text: str | bytes):
+    """json.loads that rejects NaN/Infinity: one such number would break GET /events and the dashboard."""
+    return json.loads(text, parse_float=_finite_float, parse_constant=_no_nan)
+
+
+def remember(event: dict) -> None:
+    events.append(event)
+    if isinstance(event.get("event_id"), str):
+        seen_ids.add(event["event_id"])
+
+
+def load_existing_log() -> None:
+    """After a restart, pick up where this run left off so GET /events still has the history."""
+    if not LOG_PATH.exists():
+        return
+    for i, line in enumerate(LOG_PATH.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            event = parse_json(line)
+        except ValueError:  # e.g. a line cut short when the bus was killed mid-write
+            event = None
+        if isinstance(event, dict):
+            remember(event)
+        else:
+            log.warning("skipping unreadable line %d in %s", i, LOG_PATH)
+    log.info("loaded %d events from %s", len(events), LOG_PATH)
+
+
+def event_ts(event: dict) -> float:
+    try:
+        return float(event.get("ts") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def append_to_log(event: dict) -> None:
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with LOG_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def append_arrival(event: dict, recv_wall: float) -> None:
+    """When the bus accepted the event, for bus.metrics. Best effort: events.jsonl stays the record."""
+    line = {"event_id": event.get("event_id"), "type": event.get("type"), "source": event.get("source"),
+            "ts": event.get("ts"), "recv_wall": round(recv_wall, 6)}
+    try:
+        with ARRIVALS_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(line, ensure_ascii=False) + "\n")
+    except OSError as e:
+        log.warning("could not write %s: %s", ARRIVALS_PATH, e)
+
+
+def read_cameras():
+    """The active cameras.json as a dict, or None if it's missing or broken."""
+    try:
+        return json.loads(CAMERAS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def snapshot_events() -> list[dict]:
+    """Every incident event plus the most recent of the rest, in log order."""
+    cutoff = len(events) - SNAPSHOT_RECENT
+    return [e for i, e in enumerate(events) if i >= cutoff or e.get("type") in SNAPSHOT_ALWAYS]
+
+
+async def broadcast(event: dict) -> None:
+    for ws in list(clients):
+        try:
+            await asyncio.wait_for(ws.send_json(event), timeout=SEND_TIMEOUT_S)
+        except Exception:  # client went away or stopped reading; drop it, keep the rest going
+            clients.discard(ws)
+
+
+@app.post("/events")
+async def post_event(request: Request):
+    # Requiring application/json makes browsers run the CORS check first, so a random web page
+    # can't slip events into the bus with a "simple" text/plain request.
+    if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
+        return JSONResponse({"ok": False, "errors": ["Content-Type must be application/json"]}, status_code=415)
+    try:
+        event = parse_json(await request.body())
+    except (ValueError, UnicodeDecodeError) as e:
+        return JSONResponse({"ok": False, "errors": [f"body is not valid JSON: {e}"]}, status_code=422)
+    if not isinstance(event, dict) or not isinstance(event.get("type"), str):
+        return JSONResponse({"ok": False, "errors": ["an event must be a JSON object with a string 'type' field"]},
+                            status_code=422)
+
+    errors = check(event)
+    if errors:
+        counts["invalid"] += 1
+        if STRICT:
+            return JSONResponse({"ok": False, "errors": errors}, status_code=422)
+        log.warning("accepting invalid %s %s: %s", event.get("type"), event.get("event_id"), errors)
+    else:
+        counts["valid"] += 1
+
+    async with order_lock:
+        if event.get("event_id") in seen_ids:  # accepted anyway, but consumers that dedupe will drop it
+            counts["duplicates"] += 1
+            log.warning("duplicate event_id %s (%s); producers should use unique ids", event.get("event_id"),
+                        event.get("type"))
+        recv_wall = time.time()
+        append_to_log(event)
+        append_arrival(event, recv_wall)
+        remember(event)
+        await broadcast(event)
+    return {"ok": True, "event_id": event.get("event_id"), "warnings": errors}
+
+
+@app.websocket("/ws")
+async def ws_stream(websocket: WebSocket):
+    """Dashboard stream: one bus_snapshot (cameras + recent events), then every new event as it arrives."""
+    await websocket.accept()
+    async with order_lock:
+        snapshot = {"type": "bus_snapshot", "run_id": RUN_ID, "cameras": read_cameras(), "events": snapshot_events()}
+        try:
+            await asyncio.wait_for(websocket.send_json(snapshot), timeout=5)
+        except Exception:
+            return
+        clients.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # the dashboard doesn't send anything; this just notices it leaving
+    except WebSocketDisconnect:
+        pass
+    finally:
+        clients.discard(websocket)
+
+
+@app.get("/events")
+async def get_events(type: str | None = None, since_ts: float = 0):
+    """Past events, oldest first (arrival order). since_ts is inclusive: de-duplicate by event_id."""
+    type = type or None  # ?type= with no value means all types
+    return [e for e in events
+            if (type is None or e.get("type") == type) and event_ts(e) >= since_ts]
+
+
+@app.get("/cameras")
+async def get_cameras():
+    # Read on every request so an edited cameras.json shows up without restarting the bus.
+    try:
+        return json.loads(CAMERAS_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return JSONResponse({"ok": False, "errors": [f"no cameras file at {CAMERAS_PATH} (set CLARITY_CAMERAS)"]},
+                            status_code=404)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "errors": [f"{CAMERAS_PATH} is not valid JSON: {e}"]}, status_code=500)
+
+
+def clip_root() -> Path:
+    # Same rule as feeds/base.py (not imported, so the bus doesn't need OpenCV).
+    return Path(os.environ.get("CLARITY_CLIP_ROOT") or REPO_ROOT)
+
+
+def find_camera(camera_id: str):
+    """The camera's entry in the active cameras.json, or None. camera_id is only ever a lookup key."""
+    cameras = read_cameras()
+    entries = cameras.get("cameras") if isinstance(cameras, dict) else None
+    for cam in entries if isinstance(entries, list) else []:
+        if isinstance(cam, dict) and cam.get("camera_id") == camera_id:
+            return cam
+    return None
+
+
+def resolve_clip(cam: dict):
+    """(path, content_type, None) for a playable clip, else (None, content_type or None, why not)."""
+    source = cam.get("source") if isinstance(cam.get("source"), dict) else {}
+    uri = source.get("uri")
+    if source.get("kind") != "replay" or not isinstance(uri, str) or not uri.strip():
+        return None, None, f"{cam.get('camera_id')} has no replay clip in cameras.json"
+    root = clip_root().resolve()
+    path = (root / uri).resolve()
+    if not path.is_relative_to(root):  # a uri like ../x.mp4 or an absolute path must not escape the clip folder
+        return None, None, f"{cam.get('camera_id')}: source.uri points outside CLARITY_CLIP_ROOT"
+    content_type = CLIP_TYPES.get(path.suffix.lower())
+    if content_type is None:  # also stops a typo in cameras.json from serving a non-video file
+        return None, None, (f"{cam.get('camera_id')}: {path.suffix or 'no extension'} is not a served video type "
+                            f"({', '.join(CLIP_TYPES)})")
+    if not path.is_file():
+        return None, content_type, f"{cam.get('camera_id')}: clip not found (check source.uri and CLARITY_CLIP_ROOT)"
+    return path, content_type, None
+
+
+def start_ts_of(cam: dict):
+    source = cam.get("source") if isinstance(cam.get("source"), dict) else {}
+    value = source.get("start_ts")
+    ok = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    return value if ok else None
+
+
+def unknown_camera(camera_id: str) -> JSONResponse:
+    return JSONResponse({"ok": False, "errors": [f"no camera {camera_id!r} in {CAMERAS_PATH}"]}, status_code=404)
+
+
+@app.get("/clips/{camera_id}/info")
+async def get_clip_info(camera_id: str):
+    """What the dashboard needs to open the clip: clip second = run-clock ts - start_ts."""
+    cam = find_camera(camera_id)
+    if cam is None:
+        return unknown_camera(camera_id)
+    path, content_type, why_not = resolve_clip(cam)
+    return {"camera_id": camera_id, "start_ts": start_ts_of(cam), "available": path is not None,
+            "content_type": content_type, "reason": why_not}
+
+
+@app.get("/clips/{camera_id}")
+async def get_clip(camera_id: str):
+    """The camera's replay clip. FileResponse answers Range requests with 206, so <video> can seek."""
+    cam = find_camera(camera_id)
+    if cam is None:
+        return unknown_camera(camera_id)
+    path, content_type, why_not = resolve_clip(cam)
+    if path is None:
+        return JSONResponse({"ok": False, "errors": [why_not]}, status_code=404)
+    return FileResponse(path, media_type=content_type)
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True, "run_id": RUN_ID, "strict": STRICT, "log": str(LOG_PATH),
+            "cameras": str(CAMERAS_PATH), "cameras_ok": read_cameras() is not None,
+            "events": len(events), "clients": len(clients), **counts}
+
+
+def main() -> None:
+    import uvicorn
+
+    port = urlparse(os.environ.get("CLARITY_BUS_URL", "http://localhost:8080")).port or 8080
+    host = os.environ.get("CLARITY_BUS_HOST", "127.0.0.1")
+    logging.basicConfig(level=logging.INFO)
+    if read_cameras() is None:
+        log.warning("no readable cameras file at %s: the dashboard map will be empty (set CLARITY_CAMERAS)",
+                    CAMERAS_PATH)
+    if not hasattr(FileResponse, "_parse_range_header"):  # older Starlette serves whole files only
+        log.warning("this Starlette ignores Range requests: clip seeking in the dashboard won't work "
+                    "(pip install -U fastapi starlette)")
+    load_existing_log()
+    uvicorn.run(app, host=host, port=port)
+
+
+if __name__ == "__main__":
+    main()

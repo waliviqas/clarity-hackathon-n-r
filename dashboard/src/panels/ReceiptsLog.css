@@ -1,0 +1,124 @@
+/* Receipts log (src/panels/ReceiptsLog.tsx). Colors, type and shape come from src/tokens.css only.
+   Quiet by design: one 22 px line per event, times in the signage face with tabular numerals,
+   a small chase-color dot for incident events, camera-status lines muted. The selected line grows to
+   two lines at most: the sentence, then why (reason / summary), each cut with an ellipsis (a sentence
+   with nothing more to say may wrap onto both); the full text is in the row's tooltip. The lines it
+   cites get a bar and a tint; the rest dim.
+   ~220 px slot at 1920x1080: head ~34 px + 7 lines. Nothing animates. */
+
+.rc { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+
+.rc-head { display: flex; align-items: baseline; gap: 12px; padding: 8px 16px 4px; min-width: 0; }
+.rc-title { flex: none; font-size: var(--fs-title); font-weight: 600; line-height: 22px; margin: 0; }
+.rc-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rc-head > .rc-newer { align-self: center; }
+/* "Show N newer events": a real button (border, tint, focus ring), so it reads as clickable. */
+.rc-newer {
+  flex: none;
+  padding: 1px 10px;
+  line-height: 18px;
+  border-color: var(--muted);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  white-space: nowrap;
+}
+.rc-newer:hover { background: color-mix(in srgb, var(--text) 16%, transparent); }
+
+.rc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-anchor: none; /* ReceiptsLog keeps the line being read in place itself */
+  position: relative;    /* rows measure offsetTop against this box */
+  padding-bottom: 6px;
+}
+.rc-empty { color: var(--muted); font-size: var(--fs-small); margin: 0; padding: 2px 16px; }
+
+.rc-list { list-style: none; margin: 0; padding: 0; }
+
+.rc-row {
+  display: grid;
+  grid-template-columns: 56px 8px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: start;
+  width: 100%;
+  margin: 0;
+  padding: 2px 16px 2px 13px;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-body);
+  font-weight: 400;
+  line-height: 22px;
+  text-align: left;
+}
+button.rc-row { cursor: pointer; }
+button.rc-row:hover { background: color-mix(in srgb, var(--rule) 45%, transparent); }
+button.rc-row:focus-visible { outline: 2px solid var(--chase-2); outline-offset: -2px; }
+
+.rc-time {
+  font-family: var(--font-sign);
+  font-weight: 500;
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rc-dot { width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: transparent; }
+.rc-dot.is-crime { border: 2px solid var(--alert); }
+
+.rc-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-strong { font-weight: 600; }
+.t-alert { color: var(--alert); font-weight: 600; }
+
+/* Camera status: collapsed, muted, not clickable. */
+.rc-item.is-status .rc-row { color: var(--muted); font-size: var(--fs-small); }
+.rc-item.is-status .t-strong { font-weight: 400; }
+
+/* The lines a selection cites. */
+.rc-item.is-linked .rc-row {
+  border-left-color: var(--muted);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+/* The selected line: brighter tint, white bar, two lines at most. */
+.rc-item.is-selected .rc-row {
+  border-left-color: var(--text);
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+  padding-bottom: 4px;
+}
+/* No reason to show: the sentence may wrap onto a second line, then stops with an ellipsis. */
+.rc-item.is-selected .rc-text {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+/* With a reason: sentence on line 1, reason on line 2, each one line. */
+.rc-item.is-selected.has-detail .rc-text { display: block; white-space: nowrap; }
+.rc-detail {
+  grid-column: 3;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Everything unrelated to the selection steps back. */
+.rc-list.has-selection .rc-item:not(.is-selected):not(.is-linked) .rc-row { opacity: 0.55; }

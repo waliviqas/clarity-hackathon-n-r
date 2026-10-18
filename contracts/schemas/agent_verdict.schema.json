@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarity/agent_verdict.schema.json",
+  "title": "Agent verdict",
+  "description": "A camera agent's judgment on whether a relayed subject appeared here. On 'match' the agent also sends a new relay to the next camera. Producer/owner: Wali (agents). Contract v0.1.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "agent_verdict"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^ver_[A-Za-z0-9_-]+$",
+      "description": "Unique ID, prefix 'ver_'."
+    },
+    "ts": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds on the run clock (replay: video time; live: unix epoch)."
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Optional: groups events from one replay/live run."
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional: component that emitted it, e.g. 'perception'."
+    },
+    "agent_id": {
+      "type": "string",
+      "description": "e.g. 'agent_cam05'."
+    },
+    "camera_id": {
+      "type": "string",
+      "pattern": "^cam_[a-z0-9_]+$",
+      "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+    },
+    "subject_id": {
+      "type": "string",
+      "pattern": "^subj_[A-Za-z0-9_-]+$"
+    },
+    "decision": {
+      "enum": [
+        "match",
+        "no_match",
+        "uncertain"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "evidence_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "event_ids of earlier events that justify this one (the receipts trail)."
+    }
+  },
+  "required": [
+    "type",
+    "schema_version",
+    "event_id",
+    "ts",
+    "agent_id",
+    "camera_id",
+    "subject_id",
+    "decision",
+    "confidence",
+    "reason",
+    "evidence_event_ids"
+  ],
+  "additionalProperties": true
+}

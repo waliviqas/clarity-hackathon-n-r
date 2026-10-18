@@ -1,0 +1,20 @@
+{
+  "type": "relay",
+  "schema_version": "0.1",
+  "event_id": "rel_1c9d",
+  "ts": 1736.0,
+  "run_id": "run_demo1",
+  "source": "agents",
+  "from_camera": "cam_03",
+  "to_camera": "cam_05",
+  "subject_id": "subj_7",
+  "summary": "Grabbed a bag from a person near the bench and ran north.",
+  "appearance": "male, grey hoodie, dark pants",
+  "direction": "north",
+  "activity": "purse_snatch",
+  "confidence": 0.82,
+  "expected_arrival_s": 40,
+  "evidence_event_ids": [
+    "det_8f2a"
+  ]
+}

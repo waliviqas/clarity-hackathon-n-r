@@ -219,12 +219,72 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Hackathon: confidential reference notes (NVIDIA slides) and local planning docs
+# --- Clarity ---
+# Raw datasets and video (commit only small derived files under data/; clips are published via a link)
+data/raw/
+# Training clips on Brev (rebuilt by data/scripts/fetch_public_clips.py); never commit video
+video-data/training-clips/videos/
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.mpg
+*.mpeg
+*.webm
+*.m4v
+*.wmv
+# Same in upper case: Linux (the Brev box) matches case-sensitively, and iPhones write IMG_0001.MOV
+*.MP4
+*.AVI
+*.MOV
+*.MKV
+*.MPG
+*.MPEG
+*.WEBM
+*.M4V
+*.WMV
+data/videos/
+runs/*/frames/
+# Dashboard
+node_modules/
+dashboard/dist/
+.env.local
+# The Python template above ignores any lib/ folder; allow the dashboard's
+!dashboard/src/lib/
+
+# Never commit env files or keys (keep the example)
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# The filled clip log names phone owners: keep it local (outputs never include them; the template stays tracked)
+data/staged/clip_log.csv
+
+# From Michael's branch (merged into Integration): confidential reference notes (NVIDIA slides) and local planning docs
 *hack_reference*.md
 *hackathon_plan*.md
 friction-log*.txt
 notes/
 
-# Procedure-lookup data (parked on local branch lookup-rag); never commit the source PDF or extracted text
-data/raw/
+# Procedure-lookup data (parked on Michael's local branch lookup-rag); never commit the source PDF or extracted text
 data/procedures/
+
+# Integration: never commit local setup, raw video, model weights or frame-embedding results (any clone)
+CLAUDE.local.md
+.claude/
+private/
+.agent-logs/
+/progress.md
+/video-data/
+/models/
+/lora/
+*.safetensors
+nemo_gym/clarity_spotter/data/
+results/nemo_gym/*materialized_inputs*.jsonl
+runs/run_dev/

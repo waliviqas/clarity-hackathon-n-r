@@ -1,0 +1,246 @@
+/* Map column: tiles, controls, camera markers and labels. Loaded after leaflet.css. */
+
+.clarity-map {
+  position: absolute;
+  inset: 0;
+}
+.clarity-map.leaflet-container {
+  background: var(--ink); /* shows while tiles load, and if the tile server is unreachable */
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+}
+.clarity-map.leaflet-container:focus-visible { outline: 2px solid var(--chase-2); outline-offset: -2px; }
+
+/* OSM tiles darkened to match the dark theme. Only the tile layer: markers and attribution stay true. */
+.map-tiles {
+  filter: grayscale(1) invert(1) brightness(.8) contrast(.9) hue-rotate(180deg);
+}
+
+/* ---------- controls: quiet, no shadows ---------- */
+.clarity-map .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--ink) 85%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+  padding: 0 6px;
+}
+.clarity-map .leaflet-control-attribution a { color: var(--text); text-decoration: none; }
+.clarity-map .leaflet-control-attribution a:hover { text-decoration: underline; }
+
+.clarity-map .leaflet-bar,
+.clarity-map.leaflet-touch .leaflet-bar {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-button);
+  box-shadow: none;
+  background-clip: padding-box;
+}
+.clarity-map .leaflet-bar a,
+.clarity-map.leaflet-touch .leaflet-bar a {
+  width: 28px;
+  height: 28px;
+  font: 600 16px/28px var(--font-ui);
+  background: var(--ink);
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+}
+.clarity-map .leaflet-bar a:last-child { border-bottom: 0; }
+.clarity-map .leaflet-bar a:hover,
+.clarity-map .leaflet-bar a:focus-visible { background: var(--panel); color: var(--text); }
+.clarity-map .leaflet-bar a.leaflet-disabled { background: var(--ink); color: var(--rule); }
+
+/* ---------- camera markers ---------- */
+/* .cam-icon is the Leaflet icon box (MARKER_PX square, anchored at its center). */
+.cam-icon { background: none; border: 0; }
+.cam-icon > div { width: 100%; height: 100%; }
+
+.cam { position: relative; width: 100%; height: 100%; }
+
+.cam-dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--rule);
+  border: 2px solid var(--text);
+}
+/* offline / degraded: hollow --muted (the label also says so: never color alone) */
+.cam.is-offline .cam-dot { background: transparent; border-color: var(--muted); }
+/* a subject was confirmed here: the dot fills with its chase color (inline background) */
+
+/* selected, or cited by the selection: a thin ring with an ink gap, outside any alert ring */
+.cam-select-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+}
+.cam.is-alert .cam-select-ring { inset: -12px; }
+
+/* crime seen here recently: a steady --alert ring around the dot */
+.cam-alert-ring {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 3px solid var(--alert);
+}
+
+/* detection: one 1.5 s ring pulse (TIMING.detectionPulseMs via --pulse-ms), --alert for a crime.
+   Remounted per detection (React key), so each new detection restarts it. */
+.cam-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  opacity: 0;
+  pointer-events: none;
+  animation: cam-pulse var(--pulse-ms, 1500ms) ease-out forwards;
+}
+.cam-pulse.is-crime { border-color: var(--alert); }
+@keyframes cam-pulse {
+  from { inset: 0; opacity: 1; }
+  to { inset: -22px; opacity: 0; }
+}
+
+/* Barlow (signage) label beside the marker. CameraLayer/labels.ts pick the side (inline left/top/
+   transform) so labels never cover other markers or labels; sizes mirror LABEL_FONT in CameraMarker.tsx.
+   The text-shadow is a zero-offset halo for legibility over the tiles, not a drop shadow. */
+.cam-label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-sign);
+  font-weight: 500;
+  font-size: var(--fs-body);
+  line-height: 1.15;
+  color: var(--text);
+  text-shadow: 0 0 2px var(--ink), 0 0 3px var(--ink), 0 0 6px var(--ink);
+}
+/* crowded map: smaller names (the activity / health lines are already --fs-small) */
+.cam-label.is-small { font-size: var(--fs-small); }
+
+/* short leader line from the marker to a label that had to sit farther out */
+.cam-leader {
+  position: absolute;
+  height: 1px;
+  margin-top: -0.5px;
+  transform-origin: 0 50%;
+  background: var(--muted);
+  pointer-events: none;
+}
+.cam-activity { font-weight: 600; font-size: var(--fs-small); color: var(--alert); }
+.cam-health { font-size: var(--fs-small); color: var(--muted); }
+.cam.is-offline .cam-name { color: var(--muted); }
+
+/* Reduced motion: no pulse, just a steady ring for the same 1.5 s. */
+@media (prefers-reduced-motion: reduce) {
+  .cam-pulse {
+    inset: -7px;
+    animation: cam-pulse-hold var(--pulse-ms, 1500ms) steps(1, end) forwards;
+  }
+}
+@keyframes cam-pulse-hold {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ---------- verdict badge (5 s after a camera's agent answers without a match) ---------- */
+/* A solid pill on the side away from the camera's label, clear of other labels and markers (labels.ts
+   placeBadges); opaque so it reads over street names on the tiles. Text + glyph, never color alone.
+   Sizes mirror BADGE in sizes.ts (14px, 18px line, 1px padding + 1px border = 22px tall). Holds, then
+   fades out at the end of TIMING.verdictBadgeMs (the component unmounts it soon after). */
+.cam-badge {
+  position: absolute;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-sign);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 18px;
+  padding: 1px 8px;
+  border-radius: 11px;
+  border: 1px solid;
+  animation: cam-badge var(--badge-ms, 5000ms) linear forwards;
+}
+/* no match: near-white on a grey pill with a --muted border (the graph draws it grey dashed) */
+.cam-badge.is-no-match {
+  color: var(--text);
+  background: color-mix(in srgb, var(--muted) 30%, var(--ink));
+  border-color: var(--muted);
+}
+/* uncertain: --uncertain (sand, distinct from every chase color) with a dotted border, like the graph's dotted line */
+.cam-badge.is-uncertain {
+  color: var(--uncertain);
+  background: color-mix(in srgb, var(--uncertain) 16%, var(--ink));
+  border-color: var(--uncertain);
+  border-style: dotted;
+}
+@keyframes cam-badge {
+  0%, 90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---------- chases (ChaseLayer): Leaflet SVG paths in panes under the markers ---------- */
+/* Relay arrow: the dash travels toward the target camera (the only continuous animation). The dash
+   pattern is CHASE_STYLE.arrowDash ("10 8"): one trip = an 18 px offset. */
+.chase-arrow.is-live { animation: relay-dash var(--relay-dash-ms, 700ms) linear infinite; }
+@keyframes relay-dash {
+  from { stroke-dashoffset: 18; }
+  to { stroke-dashoffset: 0; }
+}
+/* no_match / uncertain at the target: the arrow fades out */
+.chase-arrow.is-fading,
+.chase-arrow-head.is-fading { animation: chase-fade var(--relay-fade-ms, 1200ms) ease-out forwards; }
+@keyframes chase-fade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* "70%" on a predicted line: an ink pill on the line, in the chase color */
+.chase-prob-icon { background: none; border: 0; }
+.chase-prob {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-sign);
+  font-weight: 600;
+  font-size: 13px; /* PROB_LABEL.fontPx in sizes.ts */
+  line-height: 17px;
+  padding: 0 5px;
+  border-radius: 3px;
+  color: var(--c, var(--text));
+  background: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--c, var(--text)) 55%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+.chase-prob.is-highlighted { border-color: var(--c, var(--text)); }
+.chase-prob.is-dimmed { opacity: 0.35; }
+
+/* Reduced motion: arrows stand still, fades and badges switch instead of easing. */
+@media (prefers-reduced-motion: reduce) {
+  .chase-arrow.is-live { animation: none; }
+  .chase-arrow.is-fading,
+  .chase-arrow-head.is-fading { animation: none; opacity: 0; }
+  .cam-badge { animation: cam-pulse-hold var(--badge-ms, 5000ms) steps(1, end) forwards; }
+}
+
+/* ---------- empty states ---------- */
+.map-note {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.map-note p { margin: 0; color: var(--muted); }
+
+/* demo: until a camera is part of a chase (filled) or saw a crime (alert), it looks like every idle sidewalk camera */
+.cam:not(.is-filled):not(.is-alert) .cam-dot {
+  inset: 3px;
+  border: 1.5px solid rgba(142, 163, 179, 0.55);
+  background: #24384A;
+}

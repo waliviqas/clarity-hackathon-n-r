@@ -1,0 +1,219 @@
+/* App shell: page, header, banner, layout slots. Panel/graph/map styles live with their components. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+button {
+  font: inherit;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-button);
+  padding: 4px 12px;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---------- header ---------- */
+.header {
+  flex: 0 0 var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.header-brand { font-size: var(--fs-title); font-weight: 700; letter-spacing: 0.01em; }
+.header-site { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.header-spacer { flex: 1; }
+.header-run { color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+.conn { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-small); white-space: nowrap; }
+.conn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.conn-open .conn-dot { background: var(--ok); }
+.conn-connecting .conn-dot { background: transparent; border: 2px solid var(--muted); }
+.conn-closed .conn-dot { background: var(--alert); }
+
+.tag {
+  display: inline-block;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-button);
+  padding: 0 6px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+/* ---------- disconnected banner ---------- */
+.banner {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 16px;
+  background: color-mix(in srgb, var(--alert) 16%, var(--ink));
+  border-bottom: 1px solid var(--alert);
+  font-weight: 600;
+}
+
+/* ---------- layout ---------- */
+.layout {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
+  min-height: 0;
+}
+.slot { min-height: 0; min-width: 0; overflow: hidden; position: relative; }
+.slot-map { background: var(--ink); }
+/* Right column: the incident cards get the height they need first, so three cards with their Confirm
+   buttons stay on screen without scrolling; the receipts log gets whatever is left. Flex column:
+     graph     300 px, never grows; shrinks (to 200 px min) only when the cards need the room
+     cards     exactly as tall as the cards (flex-basis auto = content height; IncidentCards keeps
+               height:100% + its own scroll, which resolves to content height here), never shrinks,
+               capped at column - 340 px (graph and receipts minimums); past that it scrolls inside
+     receipts  everything left over (flex-grow), never below 140 px
+   Card heights (src/panels/IncidentCards.css, measured by qa): title 41, needs-decision card 120 (~141
+   with an error line), gaps 6, bottom padding 8. Three needs-decision cards = 41 + 3*120 + 2*6 + 8 =
+   421 px (~484 with three error lines), + 1 px slot border.
+   1920x1080 full screen (1032 px column): graph 300, cards 422, receipts 310 (no incidents: cards
+   ~71, receipts ~661). In a browser window (~944 px viewport, 896 px column): graph 300, cards 422,
+   receipts 174; worst case cards ~485 -> receipts 140, graph ~271. With the disconnected banner
+   (~858 px): 3 cards -> receipts 140, graph ~296; worst case -> receipts 140, graph ~233. */
+.right {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-left: 1px solid var(--rule);
+  min-height: 0;
+}
+.right > .slot + .slot { border-top: 1px solid var(--rule); }
+.slot-graph { flex: 0 1 300px; min-height: 200px; }
+.slot-cards { flex: 0 0 auto; max-height: calc(100% - 340px); }
+.slot-receipts { flex: 1 1 140px; min-height: 140px; }
+
+/* ---------- a panel that crashed (SlotBoundary): quiet note in its slot ---------- */
+.slot-error {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+.slot-error p { margin: 0; }
+
+/* ---------- placeholders (temporary until graph / panels land) ---------- */
+.placeholder { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.panel-title { font-size: var(--fs-title); font-weight: 600; margin: 0; padding: 12px 16px 8px; }
+.placeholder-note { color: var(--muted); font-size: var(--fs-small); padding: 0 16px 8px; margin: 0; }
+.placeholder-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+.raw-row {
+  display: grid;
+  grid-template-columns: 64px 116px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  font-size: var(--fs-small);
+  font-weight: 400;
+  border: 0;
+  border-left: var(--card-bar) solid transparent;
+  border-radius: 0;
+  padding: 3px 16px 3px 12px;
+}
+.raw-row:hover { background: color-mix(in srgb, var(--rule) 45%, transparent); }
+.raw-row.is-highlighted { background: color-mix(in srgb, var(--rule) 80%, transparent); }
+.raw-row.is-selected { border-left-color: var(--text); }
+.raw-ts { font-family: var(--font-sign); color: var(--muted); text-align: right; }
+.raw-type { color: var(--muted); }
+.raw-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.inc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-left: var(--card-bar) solid var(--rule);
+  border-radius: var(--radius-card);
+}
+.inc-main { flex: 1; min-width: 0; }
+.inc-status { color: var(--muted); font-size: var(--fs-small); }
+.inc-status.is-alert { color: var(--alert); font-weight: 600; }
+.inc-status.is-confirm { color: var(--ok); font-weight: 600; }
+.inc-error { color: var(--alert); font-size: var(--fs-small); }
+
+/* ---------- demo controls: hidden bottom-right until hovered ---------- */
+.demo-controls {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--panel);
+  opacity: 0.08;
+  transition: opacity 0.2s;
+}
+.demo-controls:hover, .demo-controls:focus-within { opacity: 1; }
+.demo-note { font-size: var(--fs-small); color: var(--text-muted, #8a94a6); max-width: 260px; }
+.slot-feeds { flex: 1 1 auto; }
+
+/* ---------- brand eye: blinks faintly while a demo run is going ---------- */
+.header-brand { display: inline-flex; align-items: center; }
+.header-brand svg { display: block; overflow: visible; }
+.eye-lid { transform-box: fill-box; transform-origin: center; }
+.header-brand-live svg { animation: eye-glow 2.4s ease-in-out infinite; }
+.header-brand-live .eye-lid { animation: eye-blink 3.6s ease-in-out infinite; }
+@keyframes eye-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes eye-blink { 0%, 88%, 100% { transform: scaleY(1); } 93% { transform: scaleY(0.12); } }
+@media (prefers-reduced-motion: reduce) {
+  .header-brand-live svg, .header-brand-live .eye-lid { animation: none; }
+}
+
+/* demo: no % badges on the chase lines (the agents always report 0.95 on a match) */
+.leaflet-marker-icon.chase-prob-icon, .chase-prob { display: none !important; }
+
+/* ---------- wordmark next to the eye ---------- */
+.header-brand { gap: 12px; }
+.header-wordmark {
+  font-family: 'Barlow', var(--font-ui);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: 0.32em;
+  background: linear-gradient(90deg, #A9DDFB 0%, #EAF6FF 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* the blink/glow animate only the eye, not the word */
+.header-brand-live svg { animation: eye-glow 2.4s ease-in-out infinite; }

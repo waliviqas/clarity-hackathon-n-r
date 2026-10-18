@@ -1,0 +1,69 @@
+{
+  "run_dir": "runs/run_1018-0028_r2s",
+  "run_id": "run_1018-0028_r2s",
+  "scripted": true,
+  "scripted_events": 10,
+  "label": "MIXED: 10 of 16 events come from bus.fake_scenario (scripted); label any number that includes them as scripted.",
+  "events_total": 16,
+  "duplicate_lines": 0,
+  "arrivals_lines": 16,
+  "arrivals_match_log": true,
+  "events_without_arrival": 0,
+  "whole_run_wall_s": 143.327,
+  "by_type": {
+    "dispatch": 5,
+    "camera_status": 3,
+    "detection": 3,
+    "relay": 2,
+    "agent_verdict": 2,
+    "operator_action": 1
+  },
+  "by_source": {
+    "fake_scenario": 10,
+    "dispatcher": 5,
+    "dashboard": 1
+  },
+  "max_incidents_at_once_run_clock": 1,
+  "while_overlapping_wall": {
+    "seconds": 0,
+    "events": 0,
+    "events_per_s": null
+  },
+  "while_overlapping_run_clock": {
+    "seconds": 0,
+    "events": 0,
+    "events_per_s": null
+  },
+  "incidents": [
+    {
+      "incident_id": "inc_r8743_1",
+      "subject_ids": [
+        "subj_take1_6181b5"
+      ],
+      "incident_type": "purse_snatch",
+      "crime_detection_id": "det_take1_6181b5_1",
+      "crime_camera_id": "cam_01",
+      "first_dispatch_id": "dsp_r8743_01",
+      "first_alert_id": "dsp_r8743_02",
+      "to_first_dispatch_wall_s": 0.684,
+      "to_first_dispatch_run_s": 0.5,
+      "to_first_alert_wall_s": 3.699,
+      "to_first_alert_run_s": 3.5,
+      "events": 13,
+      "decisions": 9,
+      "decisions_by_type": {
+        "relay": 2,
+        "agent_verdict": 2,
+        "dispatch": 5
+      },
+      "run_span": [
+        9.5,
+        20.25
+      ],
+      "wall_span": [
+        1792297771.279295,
+        1792297905.105878
+      ]
+    }
+  ]
+}

@@ -1,0 +1,890 @@
+{
+  "model": "Qwen/Qwen3-VL-2B-Instruct",
+  "split": "external",
+  "runs_per_camera": 3,
+  "cameras_scored": 11,
+  "prompt": "These are frames from one security camera, in time order.\n\nFirst, describe what happens in one or two short sentences (\"what_happened\").\n\nThen decide what is on screen:\n- \"crime\": a crime happens in these frames: stabbing, assault (hitting, punching, shoving), or stealing (taking someone's property, including pickpocketing, snatching, or stealing a vehicle)\n- \"fleeing\": no crime happens here, but someone is running away as if escaping\n- \"none\": nothing suspicious\n\n\"crime\" is the type of crime you see. If someone is fleeing, use the crime they appear to be escaping from if you can tell, otherwise \"none\".\n\nThe suspect is the person committing the crime or running away, not the victim (the person who gets hurt, falls, or loses something). Describe only the suspect. Use \"unknown\" for anything you cannot see clearly. For headwear, bag, weapon and vehicle, use \"none\" if the suspect clearly has none. If there is no suspect, use \"unknown\" for build, height and glasses, and \"none\" for the other description fields.",
+  "summary": {
+    "on_screen_accuracy": 0.485,
+    "crime_type_accuracy": 0.133,
+    "false_alarm_rate": 0.167,
+    "description_accuracy": null,
+    "description_accuracy_by_field": {
+      "build": null,
+      "height": null,
+      "glasses": null,
+      "shirt": null,
+      "pants": null,
+      "shoes": null,
+      "headwear": null,
+      "hair": null,
+      "bag": null,
+      "weapon": null,
+      "vehicle": null
+    },
+    "consistent_cameras": "3/11",
+    "failed_requests": 8,
+    "mean_latency_s": 1.171
+  },
+  "cameras": [
+    {
+      "clip": "cav_fight_runaway1",
+      "cam": "cam1",
+      "label": {
+        "clip": "cav_fight_runaway1",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "crime",
+        "crime": "assault",
+        "what_happened": "fight, then one person runs away.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/Fight_RunAway1.mpg"
+      },
+      "answers": [
+        null,
+        null,
+        null
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": false
+    },
+    {
+      "clip": "cav_fight_runaway2",
+      "cam": "cam1",
+      "label": {
+        "clip": "cav_fight_runaway2",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "crime",
+        "crime": "assault",
+        "what_happened": "fight, then one person runs away (separate take from RunAway1).",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/Fight_RunAway2.mpg"
+      },
+      "answers": [
+        {
+          "what_happened": "A person in a blue shirt and dark pants is seen walking across a tiled floor in a large, modern space. They are holding a white object, possibly a piece of paper or a small sign, and are moving from the center of the room towards the left. The person is not wearing any headwear, a bag, a weapon, or a vehicle. The person is not running or fleeing. The person is not visible in the other frames.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a blue shirt and dark pants is seen walking across a tiled floor in a large, modern space. They are holding a white object, possibly a piece of paper or a small sign, and are moving from the center of the room towards the left. The person is not wearing any headwear, a bag, a weapon, or a vehicle. The person is not running or fleeing. The person is not visible in the other frames.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a blue shirt and dark pants is seen walking across a tiled floor in a large, modern space. They are holding a white object, possibly a piece of paper or a small sign, and are moving from the center of the room towards the left. The person is not wearing any headwear, a bag, a weapon, or a vehicle. The person is not running or fleeing. The person is not visible in the other frames.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": true
+    },
+    {
+      "clip": "cav_fight_onemandown",
+      "cam": "cam1",
+      "label": {
+        "clip": "cav_fight_onemandown",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "crime",
+        "crime": "assault",
+        "what_happened": "fight, one person left on floor.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/Fight_OneManDown.mpg"
+      },
+      "answers": [
+        null,
+        null,
+        null
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": false
+    },
+    {
+      "clip": "cav_fight_chase",
+      "cam": "cam1",
+      "label": {
+        "clip": "cav_fight_chase",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "crime",
+        "crime": "assault",
+        "what_happened": "fight with chase.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/Fight_Chase.mpg"
+      },
+      "answers": [
+        {
+          "what_happened": "A person in a blue shirt and dark pants walks across a tiled floor in a large, modern space. They are moving from the center of the room towards the left, passing by a group of people in the lower-left area. The person is walking with a purpose, and their movement is steady and deliberate. The room has a high ceiling, large windows, and a few pieces of furniture, including a couch and a potted plant. The camera angle is from a high vantage point, looking down at the floor and the people.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a blue shirt and dark pants walks across a tiled floor in a large, modern space. They are moving from the center of the room towards the left, passing by a group of people in the lower-left area. The person is walking with a purpose, and their movement is steady and deliberate. The room has a high ceiling, large windows, and a few pieces of furniture, including a couch and a potted plant. The camera is positioned high, looking down from a balcony or upper level.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a blue shirt and dark pants walks across a tiled floor in a large, modern space. They are moving from the center of the room towards the left, passing by a group of people in the lower-left area. The person is walking with a purpose, and their movement is steady and deliberate. The room has a high ceiling, large windows, and a few pieces of furniture, including a couch and a potted plant. The camera is positioned high, looking down from a balcony or upper level.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ],
+        "crime": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": false
+    },
+    {
+      "clip": "meva_ex085_theft",
+      "cam": "cam1",
+      "label": {
+        "clip": "meva_ex085_theft",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "crime",
+        "crime": "stealing",
+        "what_happened": "person_steals_object (MEVA def: larceny of backpack/purse/luggage). Confirm it is a grab from a person, not an unattended item, before keeping as purse_snatch.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame; confirm grab from a person",
+        "video": "video-data/training-clips/videos/ex085-theft.mp4"
+      },
+      "answers": [
+        null,
+        {
+          "what_happened": "A person in a dark coat and boots is seen standing and interacting with another person at a bench. The person in the dark coat then walks away from the bench, carrying a black briefcase. The person in the dark coat is seen walking towards the right side of the room, and the person in the dark coat is seen walking away from the bench.",
+          "on_screen": "crime",
+          "crime": "stealing",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a dark coat and boots is seen standing and interacting with another person at a bench. The person in the dark coat then walks away from the bench, carrying a black briefcase. The person in the dark coat is seen walking towards the right side of the room, and the person in the dark coat is seen walking away from the bench.",
+          "on_screen": "crime",
+          "crime": "stealing",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          true,
+          true
+        ],
+        "crime": [
+          false,
+          true,
+          true
+        ]
+      },
+      "fields": {},
+      "consistent": false
+    },
+    {
+      "clip": "cav_walk1",
+      "cam": "cam1",
+      "label": {
+        "clip": "cav_walk1",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "none",
+        "crime": "none",
+        "what_happened": "walking.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/Walk1.mpg"
+      },
+      "answers": [
+        {
+          "what_happened": "A person is walking across a large, tiled floor in a modern building lobby. The person is wearing a dark shirt and pants and is moving from the right side of the frame towards the left. The camera is positioned high, looking down at the area.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "dark",
+          "pants": "dark",
+          "shoes": "dark",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a blue shirt and dark pants is walking across a large, tiled floor in a modern building. They are moving from the right side of the frame towards the left, passing a potted plant and a small table. The person appears to be alone and is not carrying any visible items or wearing any headwear, bag, weapon, or vehicle. The scene is static, with no other people or significant changes in the environment.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a blue shirt and dark pants is walking across a large, tiled floor in a modern building. They are moving from the right side of the frame towards the left, passing a potted plant and a small table. The person appears to be alone and is not carrying any visible items or wearing any headwear, bag, weapon, or vehicle. The scene is static, with no other people or significant changes in the environment.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ],
+        "false_alarm": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": false
+    },
+    {
+      "clip": "cav_walk2",
+      "cam": "cam1",
+      "label": {
+        "clip": "cav_walk2",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "none",
+        "crime": "none",
+        "what_happened": "walking.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/Walk2.mpg"
+      },
+      "answers": [
+        null,
+        {
+          "what_happened": "A person in a dark suit is walking across a tiled floor in a large, modern space. They are moving from the center of the room towards the left, passing by a potted plant and a set of orange chairs. The person is walking with a steady gait, and their body is oriented forward. The camera is positioned high above, looking down at the scene. No other people are visible in the immediate vicinity, and no signs of a crime are present.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person in a dark suit is walking across a tiled floor in a large, modern space. They are moving from the center of the room towards the left, passing by a potted plant and a set of orange chairs. The person is walking with a steady gait, and their body is oriented forward. The camera is positioned high above, looking down at the scene. No other people are visible in the immediate vicinity, and no signs of a crime are present.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          true,
+          true
+        ],
+        "false_alarm": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": false
+    },
+    {
+      "clip": "cav_meet_walktogether1",
+      "cam": "cam1",
+      "label": {
+        "clip": "cav_meet_walktogether1",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "none",
+        "crime": "none",
+        "what_happened": "people meet and walk together.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/Meet_WalkTogether1.mpg"
+      },
+      "answers": [
+        {
+          "what_happened": "A person wearing a blue shirt and dark pants walks across the floor of a large, modern space. They move from the right side of the frame towards the left, passing by a potted plant and a large window. The person is not carrying any visible weapon or bag, and their headwear, glasses, and build are not clearly visible. The person is not seen engaging in any violent or criminal activity.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person wearing a blue shirt and dark pants walks across the floor of a large, modern space. They move from the right side of the frame towards the left, passing by a potted plant and a large window. The person is not carrying any visible weapon or bag, and their headwear, glasses, and build are not clearly visible. The person appears to be moving at a normal pace, and no other individuals are seen in the frame.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person wearing a blue shirt and dark pants walks across the floor of a large, modern space. They move from the right side of the frame towards the left, passing by a potted plant and a large window. The person is not carrying any visible weapon or bag, and their headwear, glasses, and build are not clearly visible. The person appears to be moving at a normal pace, and no other individuals are seen in the frame.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "blue",
+          "pants": "dark",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "unknown",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ],
+        "false_alarm": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": false
+    },
+    {
+      "clip": "cav_browse1",
+      "cam": "cam1",
+      "label": {
+        "clip": "cav_browse1",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "none",
+        "crime": "none",
+        "what_happened": "browsing.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/Browse1.mpg"
+      },
+      "answers": [
+        {
+          "what_happened": "A person is walking across a large, tiled atrium. They are moving from the lower left area of the frame towards the right, passing a dark-colored bench. The person is wearing a dark jacket and dark pants. The camera is positioned high above, looking down at the space.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person is walking across a large, tiled atrium. They are moving from the lower left area of the frame towards the right, passing a dark-colored bench. The person is wearing a dark jacket and dark pants. The camera is positioned high above, looking down at the space.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A person is walking across a large, tiled atrium. They are moving from the lower left area of the frame towards the right, passing a dark-colored bench. The person is wearing a dark jacket and dark pants. The camera is positioned high above, looking down at the space.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "unknown",
+          "pants": "unknown",
+          "shoes": "unknown",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ],
+        "false_alarm": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": true
+    },
+    {
+      "clip": "meva_ex007_embrace",
+      "cam": "cam1",
+      "label": {
+        "clip": "meva_ex007_embrace",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "none",
+        "crime": "none",
+        "what_happened": "person_embraces_person (hug) - hard negative.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/ex007-embrace-interaction.mp4"
+      },
+      "answers": [
+        {
+          "what_happened": "A group of people are in a waiting area, and two individuals are seen embracing each other. The embrace is a brief interaction, and the people are standing close together. The scene is static, with no apparent movement or conflict.",
+          "on_screen": "crime",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A group of people are in a waiting area, and two individuals are seen embracing each other. The embrace is a brief interaction, and the people are standing close together. The scene is static, with no apparent movement or conflict.",
+          "on_screen": "crime",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A group of people are in a waiting area, and two individuals are seen embracing each other. The embrace is a brief interaction, and the people are standing close together. The scene is static, with no apparent movement or conflict.",
+          "on_screen": "crime",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          false,
+          false,
+          false
+        ],
+        "false_alarm": [
+          true,
+          true,
+          true
+        ]
+      },
+      "fields": {},
+      "consistent": true
+    },
+    {
+      "clip": "meva_ex050_talking",
+      "cam": "cam1",
+      "label": {
+        "clip": "meva_ex050_talking",
+        "cam": "cam1",
+        "split": "external",
+        "on_screen": "none",
+        "crime": "none",
+        "what_happened": "person_talks_to_person - hard negative.",
+        "build": "",
+        "height": "",
+        "shirt": "",
+        "pants": "",
+        "shoes": "",
+        "glasses": "",
+        "headwear": "",
+        "hair": "",
+        "bag": "",
+        "weapon": "",
+        "vehicle": "",
+        "check": "dataset label, not verified frame by frame",
+        "video": "video-data/training-clips/videos/ex050-people-talking.mp4"
+      },
+      "answers": [
+        {
+          "what_happened": "A group of people are standing in a hallway, and then a group of people walk down the hallway. The people are talking and walking in a hallway. The people are not doing anything suspicious.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A group of people are standing in a hallway, and then a group of people walk down the hallway. The people are talking and walking in a hallway. The people are walking down the hallway and the people are talking.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        },
+        {
+          "what_happened": "A group of people are standing in a hallway, and then a group of people walk down the hallway. The people are talking and walking in a hallway. The people are walking down the hallway and the people are talking.",
+          "on_screen": "none",
+          "crime": "none",
+          "build": "unknown",
+          "height": "unknown",
+          "shirt": "none",
+          "pants": "none",
+          "shoes": "none",
+          "glasses": "unknown",
+          "headwear": "none",
+          "hair": "none",
+          "bag": "none",
+          "weapon": "none",
+          "vehicle": "none"
+        }
+      ],
+      "scores": {
+        "on_screen": [
+          true,
+          true,
+          true
+        ],
+        "false_alarm": [
+          false,
+          false,
+          false
+        ]
+      },
+      "fields": {},
+      "consistent": false
+    }
+  ]
+}

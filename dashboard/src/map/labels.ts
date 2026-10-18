@@ -1,0 +1,464 @@
+// Camera label placement: puts each label on a free side of its marker so no label covers another
+// marker or label at the current zoom. Pure geometry (no DOM, no Leaflet), so plain Node can run it
+// (scripts/check-labels.ts).
+//
+// How: 8 candidate sides per label (E, NE, N, ... SE), each also tried farther out with a short leader
+// line. A candidate costs a lot if it overlaps another marker, label or blocked area (map controls),
+// some if it leaves the view or reaches closer to another camera than to its own (a label sitting
+// between two markers reads as either one's; a leader line ties it to its own, so that costs less),
+// and a little for a leader or for pointing toward the camera's neighbors (cameras.json neighbor
+// directions; no usable direction = prefer the right side). Greedy, most crowded camera first, then
+// two refinement passes. If the 15 px layout still collides or needs a leader to clear an overlap,
+// the whole map is laid out again with 13 px names and the better of the two wins.
+
+import type { Camera, Direction } from '../lib/types.ts';
+
+export type Vec = readonly [number, number];
+
+export interface Rect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export const LABEL_SIDES = ['e', 'ne', 'n', 'nw', 'w', 'sw', 's', 'se'] as const;
+export type LabelSide = (typeof LABEL_SIDES)[number];
+
+const D = Math.SQRT1_2;
+
+/** Screen direction of each side (y grows downward). */
+const SIDE_VEC: Record<LabelSide, Vec> = {
+  e: [1, 0], ne: [D, -D], n: [0, -1], nw: [-D, -D], w: [-1, 0], sw: [-D, D], s: [0, 1], se: [D, D],
+};
+
+/** Which point of the label box sits on the anchor, as fractions of its width / height. */
+const SIDE_FRAC: Record<LabelSide, Vec> = {
+  e: [0, 0.5], ne: [0, 1], n: [0.5, 1], nw: [1, 1], w: [1, 0.5], sw: [1, 0], s: [0.5, 0], se: [0, 0],
+};
+
+/** cameras.json `direction` (to the neighbor) as a screen vector; north is up. */
+const DIRECTION_VEC: Partial<Record<Direction, Vec>> = {
+  north: [0, -1], northeast: [D, -D], east: [1, 0], southeast: [D, D],
+  south: [0, 1], southwest: [-D, D], west: [-1, 0], northwest: [-D, -D],
+};
+
+/** Tunables, in screen pixels unless noted. */
+export const LABEL_TUNING = {
+  /** Gap between the marker (or its alert ring) and a label to its left/right. */
+  gapSide: 8,
+  /** Gap above/below (line-height already adds air). */
+  gapVertical: 3,
+  /** Gap to a diagonal corner. */
+  gapDiagonal: 4,
+  /** Extra distance for a candidate drawn with a leader line. */
+  leaderExtra: 22,
+  /** Label boxes are grown by this much before overlap tests with markers and controls (the text halo). */
+  halo: 3,
+  /**
+   * Minimum clear space between two labels' text boxes. Closer than this counts as a collision, so two
+   * neighbors' names never read as one line (e.g. two labels side by side above their markers).
+   */
+  labelGap: 12,
+  /** Extra clearance kept around other markers. */
+  markerMargin: 3,
+  /** Two markers this close count toward "crowded" when ordering. */
+  crowdRadius: 160,
+  cost: {
+    marker: 1000,
+    label: 600,
+    blocked: 600,
+    outOfView: 300,
+    leader: 45,
+    /** Label reaches closer to another camera than to its own: this times the share of the label that does. */
+    ambiguous: 260,
+    /** ...plus this once, if any part does. */
+    ambiguousBase: 40,
+    /** The same, for a label with a leader line (the line ties it to its own camera). */
+    ambiguousLeader: 50,
+    /** Facing straight at the neighbors costs this; facing away costs 0. */
+    towardNeighbors: 60,
+    /** Without neighbor directions: pointing left instead of right costs this. */
+    notRight: 20,
+  },
+} as const;
+
+export interface LabelBox {
+  w: number;
+  h: number;
+}
+
+export interface LabelInput {
+  id: string;
+  /** Marker center, screen px (e.g. Leaflet container point). */
+  x: number;
+  y: number;
+  /** Label size with the regular (15 px) name. */
+  big: LabelBox;
+  /** Label size with the crowded (13 px) name. */
+  small: LabelBox;
+  /** Unit vector pointing away from the camera's neighbors, or null for no preference. */
+  away: Vec | null;
+  /** Clearance radius of the marker: the dot, or the alert ring when it shows. */
+  markerR: number;
+}
+
+export interface LabelPlacement {
+  side: LabelSide;
+  /** Anchor relative to the marker center (px). */
+  ax: number;
+  ay: number;
+  /** The label box point on the anchor, as fractions of its size (CSS: translate(-fx*100%, -fy*100%)). */
+  fx: number;
+  fy: number;
+  /** Text alignment inside the label. */
+  align: 'start' | 'center' | 'end';
+  /** Leader line relative to the marker center, or null when the label sits right beside it. */
+  leader: { x1: number; y1: number; x2: number; y2: number } | null;
+}
+
+export interface LabelLayout {
+  /** true = names at 13 px (crowded). */
+  small: boolean;
+  byId: Map<string, LabelPlacement>;
+  /** Overlaps left over (label-marker, label-control, and label-label closer than labelGap). 0 is the goal. */
+  collisions: number;
+  leaders: number;
+  /** Labels without a leader that reach closer to another camera than to their own. 0 is the goal. */
+  ambiguous: number;
+}
+
+export interface LayoutOptions {
+  /** The visible map area; labels leaving it cost extra. */
+  view?: Rect | null;
+  /** Areas labels must stay off (zoom control, attribution). */
+  blocked?: readonly Rect[];
+  /** Penalize labels that sit between their camera and another one (default true). */
+  tie?: boolean;
+}
+
+interface Candidate {
+  placement: LabelPlacement;
+  /** Label box in screen px, before the halo. */
+  rect: Rect;
+  /** Cost that doesn't depend on other labels (direction, leader, view, markers, blocked). */
+  base: number;
+}
+
+/**
+ * Unit vector away from the camera's neighbors, from cameras.json: each neighbor's `direction`, or
+ * (when it's "unknown") the on-screen bearing to that neighbor. Null when there's no usable
+ * direction or the neighbors cancel out (e.g. one north, one south).
+ */
+export function awayFromNeighbors(
+  camera: Camera, screenOf: (cameraId: string) => Vec | null,
+): Vec | null {
+  const self = screenOf(camera.camera_id);
+  let sx = 0, sy = 0;
+  for (const n of camera.neighbors ?? []) {
+    let v: Vec | null = DIRECTION_VEC[n.direction] ?? null;
+    if (!v && self) {
+      const other = screenOf(n.camera_id);
+      if (other) {
+        const dx = other[0] - self[0], dy = other[1] - self[1];
+        const len = Math.hypot(dx, dy);
+        if (len > 0) v = [dx / len, dy / len];
+      }
+    }
+    if (v) { sx += v[0]; sy += v[1]; }
+  }
+  const len = Math.hypot(sx, sy);
+  return len < 0.3 ? null : [-sx / len, -sy / len];
+}
+
+function candidatesFor(item: LabelInput, box: LabelBox): Omit<Candidate, 'base'>[] {
+  const t = LABEL_TUNING;
+  const out: Omit<Candidate, 'base'>[] = [];
+  for (const withLeader of [false, true]) {
+    for (const side of LABEL_SIDES) {
+      const [vx, vy] = SIDE_VEC[side];
+      const [fx, fy] = SIDE_FRAC[side];
+      const gap = vy === 0 ? t.gapSide : vx === 0 ? t.gapVertical : t.gapDiagonal;
+      const dist = item.markerR + gap + (withLeader ? t.leaderExtra : 0);
+      const ax = vx * dist, ay = vy * dist;
+      const x0 = item.x + ax - fx * box.w, y0 = item.y + ay - fy * box.h;
+      const leader = withLeader
+        ? { x1: vx * (item.markerR + 1), y1: vy * (item.markerR + 1), x2: ax - vx * 2, y2: ay - vy * 2 }
+        : null;
+      out.push({
+        placement: { side, ax, ay, fx, fy, align: fx === 0 ? 'start' : fx === 1 ? 'end' : 'center', leader },
+        rect: { x0, y0, x1: x0 + box.w, y1: y0 + box.h },
+      });
+    }
+  }
+  return out;
+}
+
+function grow(r: Rect, by: number): Rect {
+  return { x0: r.x0 - by, y0: r.y0 - by, x1: r.x1 + by, y1: r.y1 + by };
+}
+
+function overlapArea(a: Rect, b: Rect): number {
+  const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+  const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+/** How far a circle reaches into a rectangle (0 = no overlap). */
+function circleIntrusion(r: Rect, cx: number, cy: number, radius: number): number {
+  const nx = Math.max(r.x0, Math.min(cx, r.x1));
+  const ny = Math.max(r.y0, Math.min(cy, r.y1));
+  const d = Math.hypot(cx - nx, cy - ny);
+  return d < radius ? radius - d : 0;
+}
+
+/** Does the segment (ax, ay) -> (bx, by) cross the rectangle? (Liang-Barsky clip.) */
+function segmentHitsRect(ax: number, ay: number, bx: number, by: number, r: Rect): boolean {
+  let t0 = 0, t1 = 1;
+  const dx = bx - ax, dy = by - ay;
+  const clip = (p: number, q: number): boolean => {
+    if (p === 0) return q >= 0;
+    const t = q / p;
+    if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+    else { if (t < t0) return false; if (t < t1) t1 = t; }
+    return true;
+  };
+  return clip(-dx, ax - r.x0) && clip(dx, r.x1 - ax) && clip(-dy, ay - r.y0) && clip(dy, r.y1 - ay) && t0 <= t1;
+}
+
+/**
+ * How much a label sits *between* its camera and another one (0..1): only cameras whose straight line
+ * from this camera runs through the label count, and the score is the share of the label (5 x 3 sample
+ * grid) that is closer to that camera's dot than to its own. A label right above its dot with a
+ * neighbor off to the side scores 0; a long label running along the line toward the next camera and
+ * past the halfway point scores > 0.
+ */
+export function ambiguityOf(item: LabelInput, rect: Rect, all: readonly LabelInput[]): number {
+  const rivals = all.filter((o) => o !== item && segmentHitsRect(item.x, item.y, o.x, o.y, rect));
+  if (!rivals.length) return 0;
+  let hits = 0, n = 0;
+  for (let i = 0; i < 5; i++) {
+    for (let j = 0; j < 3; j++) {
+      const px = rect.x0 + ((rect.x1 - rect.x0) * i) / 4;
+      const py = rect.y0 + ((rect.y1 - rect.y0) * j) / 2;
+      const own = Math.hypot(px - item.x, py - item.y) - item.markerR;
+      n++;
+      for (const other of rivals) {
+        if (Math.hypot(px - other.x, py - other.y) - other.markerR < own) { hits++; break; }
+      }
+    }
+  }
+  return hits / n;
+}
+
+function outsideArea(r: Rect, view: Rect): number {
+  const area = (r.x1 - r.x0) * (r.y1 - r.y0);
+  return area - overlapArea(r, view);
+}
+
+function baseCost(item: LabelInput, c: Omit<Candidate, 'base'>, all: readonly LabelInput[], opts: LayoutOptions): number {
+  const t = LABEL_TUNING;
+  const r = grow(c.rect, t.halo);
+  let cost = 0;
+  for (const other of all) {
+    if (other === item) continue;
+    const hit = circleIntrusion(r, other.x, other.y, other.markerR + t.markerMargin);
+    if (hit > 0) cost += t.cost.marker + hit * 20;
+  }
+  for (const b of opts.blocked ?? []) {
+    const a = overlapArea(r, b);
+    if (a > 0) cost += t.cost.blocked + a;
+  }
+  if (opts.view) {
+    const out = outsideArea(c.rect, opts.view);
+    if (out > 0) cost += t.cost.outOfView + out;
+  }
+  const [vx, vy] = SIDE_VEC[c.placement.side];
+  if (item.away) {
+    const dot = vx * item.away[0] + vy * item.away[1];
+    cost += (t.cost.towardNeighbors * (1 - dot)) / 2;
+  } else {
+    cost += (t.cost.notRight * (1 - vx)) / 2;
+  }
+  if (c.placement.leader) cost += t.cost.leader;
+  if (opts.tie !== false) {
+    const share = ambiguityOf(item, c.rect, all);
+    if (share > 0) {
+      cost += c.placement.leader ? t.cost.ambiguousLeader * share : t.cost.ambiguousBase + t.cost.ambiguous * share;
+    }
+  }
+  return cost;
+}
+
+function labelCost(rect: Rect, others: Iterable<Rect>): number {
+  const r = grow(rect, LABEL_TUNING.labelGap);
+  let cost = 0;
+  for (const o of others) {
+    const a = overlapArea(r, o);
+    if (a > 0) cost += LABEL_TUNING.cost.label + a;
+  }
+  return cost;
+}
+
+/** Lay out every label at one name size (small = 13 px names). */
+export function layoutLabels(inputs: readonly LabelInput[], small: boolean, opts: LayoutOptions = {}): LabelLayout {
+  const t = LABEL_TUNING;
+  const cands = new Map<string, Candidate[]>();
+  for (const item of inputs) {
+    const box = small ? item.small : item.big;
+    cands.set(item.id, candidatesFor(item, box).map((c) => ({ ...c, base: baseCost(item, c, inputs, opts) })));
+  }
+
+  // Most crowded first (ties keep input order), so the hardest labels get first pick.
+  const crowd = new Map(inputs.map((a) => [a.id,
+    inputs.filter((b) => b !== a && Math.hypot(a.x - b.x, a.y - b.y) < t.crowdRadius).length]));
+  const order = inputs.map((item, i) => ({ item, i }))
+    .sort((a, b) => (crowd.get(b.item.id)! - crowd.get(a.item.id)!) || a.i - b.i)
+    .map(({ item }) => item);
+
+  const chosen = new Map<string, Candidate>();
+  const pick = (item: LabelInput) => {
+    const others: Rect[] = [];
+    for (const [id, c] of chosen) if (id !== item.id) others.push(c.rect);
+    let best: Candidate | null = null, bestCost = Infinity;
+    for (const c of cands.get(item.id)!) {
+      if (c.base >= bestCost) continue;
+      const cost = c.base + labelCost(c.rect, others);
+      if (cost < bestCost) { best = c; bestCost = cost; }
+    }
+    chosen.set(item.id, best!);
+  };
+  for (const item of order) pick(item);
+  for (let pass = 0; pass < 2; pass++) for (const item of order) pick(item);
+
+  // Count what's left: pairwise label overlaps once, plus label-marker and label-control overlaps.
+  let collisions = 0, leaders = 0, ambiguous = 0;
+  const list = order.map((item) => ({ item, c: chosen.get(item.id)! }));
+  list.forEach(({ item, c }, i) => {
+    if (c.placement.leader) leaders++;
+    else if (ambiguityOf(item, c.rect, inputs) > 0) ambiguous++;
+    const r = grow(c.rect, t.halo);
+    for (const other of inputs) {
+      if (other !== item && circleIntrusion(r, other.x, other.y, other.markerR + t.markerMargin) > 0) collisions++;
+    }
+    for (const b of opts.blocked ?? []) if (overlapArea(r, b) > 0) collisions++;
+    const spaced = grow(c.rect, t.labelGap);
+    for (let j = i + 1; j < list.length; j++) if (overlapArea(spaced, list[j].c.rect) > 0) collisions++;
+  });
+
+  const byId = new Map<string, LabelPlacement>();
+  for (const [id, c] of chosen) byId.set(id, c.placement);
+  return { small, byId, collisions, leaders, ambiguous };
+}
+
+/**
+ * Crowded? true when 15 px names can't all be placed without an overlap or a leader line and 13 px
+ * does at least as well. The map decides this from the names alone (not the alert lines), so labels
+ * don't change size every time an alert comes and goes.
+ */
+export function chooseSmall(inputs: readonly LabelInput[], opts: LayoutOptions = {}): boolean {
+  // Decided on overlaps alone: a leader that only ties a label to its camera doesn't shrink every name.
+  const sizeOpts = { ...opts, tie: false };
+  const big = layoutLabels(inputs, false, sizeOpts);
+  if (big.collisions === 0 && big.leaders === 0) return false;
+  const small = layoutLabels(inputs, true, sizeOpts);
+  return small.collisions < big.collisions
+    || (small.collisions === big.collisions && small.leaders <= big.leaders);
+}
+
+/** Both steps in one: pick the name size, then lay out at it. */
+export function placeLabels(inputs: readonly LabelInput[], opts: LayoutOptions = {}): LabelLayout {
+  return layoutLabels(inputs, chooseSmall(inputs, opts), opts);
+}
+
+/** The side across the marker from `side` (where a camera's badge goes, away from its label). */
+export const OPPOSITE_SIDE: Record<LabelSide, LabelSide> = {
+  e: 'w', w: 'e', n: 's', s: 'n', ne: 'sw', sw: 'ne', nw: 'se', se: 'nw',
+};
+
+/**
+ * Anchor `dist` px from the marker center toward `side`, and which point of a box sits on it
+ * (fractions of its size, for CSS translate(-fx*100%, -fy*100%)). Same convention as label placements.
+ */
+export function sideAnchor(side: LabelSide, dist: number): { ax: number; ay: number; fx: number; fy: number } {
+  const [vx, vy] = SIDE_VEC[side];
+  const [fx, fy] = SIDE_FRAC[side];
+  return { ax: vx * dist, ay: vy * dist, fx, fy };
+}
+
+/** Gap between the marker (or its alert ring) and the verdict badge. Mirrors CameraMarker's badgeStyle. */
+export const BADGE_GAP = 5;
+
+/** Sides in compass order, for "the next side over" (index +-1 = 45 degrees). */
+const RING: readonly LabelSide[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+
+/** Badge on top of a chase line (path / relay arrow / prediction toward a neighbor): costs this. */
+const BADGE_ON_LINE = 40;
+
+/**
+ * Where each camera's verdict badge ("no match" / "uncertain") goes: on the side away from its own
+ * label (the opposite side first, then 45 and 90 degrees off it, never toward the label), skipping
+ * sides where it would cover another marker or label, a map control, or leave the view, and if it
+ * can, the lines to its neighbors (`neighbors`: camera_id -> neighbor camera_ids, where chase lines
+ * run). Computed for every camera (badges come and go faster than the layout should), so `box` is the
+ * widest badge.
+ */
+export function placeBadges(
+  inputs: readonly LabelInput[], layout: LabelLayout, box: LabelBox, opts: LayoutOptions = {},
+  neighbors: ReadonlyMap<string, readonly string[]> = new Map(),
+): Map<string, LabelSide> {
+  const byId = new Map(inputs.map((it) => [it.id, it]));
+  const t = LABEL_TUNING;
+  const labelRects = new Map<string, Rect>();
+  for (const item of inputs) {
+    const p = layout.byId.get(item.id);
+    if (!p) continue;
+    const b = layout.small ? item.small : item.big;
+    const x0 = item.x + p.ax - p.fx * b.w, y0 = item.y + p.ay - p.fy * b.h;
+    labelRects.set(item.id, { x0, y0, x1: x0 + b.w, y1: y0 + b.h });
+  }
+
+  const out = new Map<string, LabelSide>();
+  for (const item of inputs) {
+    const labelSide = layout.byId.get(item.id)?.side ?? 'e';
+    const away = RING.indexOf(OPPOSITE_SIDE[labelSide]);
+    const order = [0, 1, -1, 2, -2].map((k) => RING[(away + k + 8) % 8]);
+    let best: LabelSide = order[0], bestCost = Infinity;
+    order.forEach((side, rank) => {
+      const rect = badgeRect(item, side, box);
+      const r = grow(rect, t.halo);
+      let cost = rank * 15;
+      for (const other of inputs) {
+        if (other === item) continue;
+        const hit = circleIntrusion(r, other.x, other.y, other.markerR + t.markerMargin);
+        if (hit > 0) cost += t.cost.marker + hit * 20;
+      }
+      for (const id of neighbors.get(item.id) ?? []) {
+        const n = byId.get(id);
+        if (n && segmentHitsRect(item.x, item.y, n.x, n.y, r)) cost += BADGE_ON_LINE;
+      }
+      for (const lr of labelRects.values()) {
+        const a = overlapArea(r, lr);
+        if (a > 0) cost += t.cost.label + a;
+      }
+      for (const b of opts.blocked ?? []) {
+        const a = overlapArea(r, b);
+        if (a > 0) cost += t.cost.blocked + a;
+      }
+      if (opts.view) {
+        const o = outsideArea(rect, opts.view);
+        if (o > 0) cost += t.cost.outOfView + o;
+      }
+      if (cost < bestCost) { best = side; bestCost = cost; }
+    });
+    out.set(item.id, best);
+  }
+  return out;
+}
+
+/** The badge box for `side` (screen px), same geometry as placeBadges and CameraMarker. */
+export function badgeRect(item: LabelInput, side: LabelSide, box: LabelBox): Rect {
+  const { ax, ay, fx, fy } = sideAnchor(side, item.markerR + BADGE_GAP);
+  const x0 = item.x + ax - fx * box.w, y0 = item.y + ay - fy * box.h;
+  return { x0, y0, x1: x0 + box.w, y1: y0 + box.h };
+}

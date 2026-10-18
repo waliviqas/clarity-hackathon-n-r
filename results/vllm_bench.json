@@ -1,0 +1,66 @@
+{
+  "model": "Qwen/Qwen3-VL-2B-Instruct",
+  "frames_per_request": 4,
+  "levels": [
+    {
+      "concurrent_cameras": 1,
+      "requests": 32,
+      "errors": 0,
+      "latency_p50_s": 0.671,
+      "latency_p95_s": 0.784,
+      "latency_mean_s": 0.683,
+      "wall_time_s": 21.85,
+      "throughput_cameras_per_min": 87.9
+    },
+    {
+      "concurrent_cameras": 2,
+      "requests": 32,
+      "errors": 0,
+      "latency_p50_s": 0.627,
+      "latency_p95_s": 0.743,
+      "latency_mean_s": 0.647,
+      "wall_time_s": 10.42,
+      "throughput_cameras_per_min": 184.2
+    },
+    {
+      "concurrent_cameras": 4,
+      "requests": 32,
+      "errors": 0,
+      "latency_p50_s": 0.681,
+      "latency_p95_s": 0.79,
+      "latency_mean_s": 0.685,
+      "wall_time_s": 5.58,
+      "throughput_cameras_per_min": 344.2
+    },
+    {
+      "concurrent_cameras": 8,
+      "requests": 32,
+      "errors": 0,
+      "latency_p50_s": 0.766,
+      "latency_p95_s": 0.927,
+      "latency_mean_s": 0.79,
+      "wall_time_s": 3.32,
+      "throughput_cameras_per_min": 578.7
+    },
+    {
+      "concurrent_cameras": 16,
+      "requests": 32,
+      "errors": 0,
+      "latency_p50_s": 1.068,
+      "latency_p95_s": 1.363,
+      "latency_mean_s": 1.101,
+      "wall_time_s": 2.47,
+      "throughput_cameras_per_min": 777.7
+    },
+    {
+      "concurrent_cameras": 32,
+      "requests": 32,
+      "errors": 0,
+      "latency_p50_s": 1.651,
+      "latency_p95_s": 1.805,
+      "latency_mean_s": 1.623,
+      "wall_time_s": 1.93,
+      "throughput_cameras_per_min": 992.8
+    }
+  ]
+}

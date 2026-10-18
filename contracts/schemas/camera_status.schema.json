@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarity/camera_status.schema.json",
+  "title": "Camera status",
+  "description": "Heartbeat so the dashboard can show which cameras are live. Producer/owner: Mina (feeds). Contract v0.1.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "camera_status"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^cst_[A-Za-z0-9_-]+$",
+      "description": "Unique ID, prefix 'cst_'."
+    },
+    "ts": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds on the run clock (replay: video time; live: unix epoch)."
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Optional: groups events from one replay/live run."
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional: component that emitted it, e.g. 'perception'."
+    },
+    "camera_id": {
+      "type": "string",
+      "pattern": "^cam_[a-z0-9_]+$",
+      "description": "Camera ID, e.g. 'cam_03'. Must exist in cameras.json."
+    },
+    "status": {
+      "enum": [
+        "online",
+        "offline",
+        "degraded"
+      ]
+    },
+    "fps": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "source_kind": {
+      "enum": [
+        "replay",
+        "live"
+      ]
+    }
+  },
+  "required": [
+    "type",
+    "schema_version",
+    "event_id",
+    "ts",
+    "camera_id",
+    "status",
+    "source_kind"
+  ],
+  "additionalProperties": true
+}

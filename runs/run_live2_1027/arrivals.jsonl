@@ -1,0 +1,14 @@
+{"event_id": "det_a700f_1", "type": "detection", "source": "agents", "ts": 8.9, "recv_wall": 1792319295.675669}
+{"event_id": "rel_a700f_1", "type": "relay", "source": "agents", "ts": 8.9, "recv_wall": 1792319295.677054}
+{"event_id": "dsp_r74a7_01", "type": "dispatch", "source": "dispatcher", "ts": 8.9, "recv_wall": 1792319297.269407}
+{"event_id": "det_a700f_2", "type": "detection", "source": "agents", "ts": 17.0, "recv_wall": 1792319303.408898}
+{"event_id": "ver_a700f_1", "type": "agent_verdict", "source": "agents", "ts": 17.0, "recv_wall": 1792319303.410295}
+{"event_id": "rel_a700f_2", "type": "relay", "source": "agents", "ts": 17.0, "recv_wall": 1792319303.411355}
+{"event_id": "dsp_r74a7_02", "type": "dispatch", "source": "dispatcher", "ts": 17.0, "recv_wall": 1792319311.403591}
+{"event_id": "det_a700f_3", "type": "detection", "source": "agents", "ts": 28.1, "recv_wall": 1792319315.289169}
+{"event_id": "ver_a700f_2", "type": "agent_verdict", "source": "agents", "ts": 28.1, "recv_wall": 1792319315.290384}
+{"event_id": "rel_a700f_3", "type": "relay", "source": "agents", "ts": 28.1, "recv_wall": 1792319315.291391}
+{"event_id": "det_a700f_4", "type": "detection", "source": "agents", "ts": 34.96, "recv_wall": 1792319324.970434}
+{"event_id": "ver_a700f_3", "type": "agent_verdict", "source": "agents", "ts": 34.96, "recv_wall": 1792319324.971652}
+{"event_id": "dsp_r74a7_03", "type": "dispatch", "source": "dispatcher", "ts": 28.1, "recv_wall": 1792319326.286344}
+{"event_id": "dsp_r74a7_04", "type": "dispatch", "source": "dispatcher", "ts": 34.96, "recv_wall": 1792319329.125647}

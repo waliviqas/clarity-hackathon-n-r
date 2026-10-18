@@ -1,0 +1,89 @@
+{
+  "schema_version": "0.1",
+  "site_id": "annex",
+  "site_name": "Red Hat Annex (staged takes)",
+  "map": {
+    "center": {
+      "lat": 35.774633,
+      "lon": -78.6386
+    },
+    "zoom": 18,
+    "site_image": null
+  },
+  "cameras": [
+    {
+      "camera_id": "cam_01",
+      "name": "Route 1: bus shelter",
+      "take": 1,
+      "position": {
+        "lat": 35.7745,
+        "lon": -78.6386
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 3.0,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip8_cam1.mp4",
+        "start_ts": 1.75
+      }
+    },
+    {
+      "camera_id": "cam_02",
+      "name": "Route 1: sidewalk by tree grate",
+      "take": 1,
+      "position": {
+        "lat": 35.7746,
+        "lon": -78.6386
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_01",
+          "travel_time_s": 3.0,
+          "direction": "south"
+        },
+        {
+          "camera_id": "cam_03",
+          "travel_time_s": 6.0,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip8_cam2.mp4",
+        "start_ts": 11.25
+      }
+    },
+    {
+      "camera_id": "cam_03",
+      "name": "Route 1: covered walkway",
+      "take": 1,
+      "position": {
+        "lat": 35.7748,
+        "lon": -78.6386
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 6.0,
+          "direction": "south"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/clip8_cam3.mp4",
+        "start_ts": 18.25
+      }
+    }
+  ]
+}

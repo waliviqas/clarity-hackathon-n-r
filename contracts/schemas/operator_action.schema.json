@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarity/operator_action.schema.json",
+  "title": "Operator action",
+  "description": "The human operator confirms or dismisses an incident. Producer/owner: Mina (dashboard). Contract v0.1.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "operator_action"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^op_[A-Za-z0-9_-]+$",
+      "description": "Unique ID, prefix 'op_'."
+    },
+    "ts": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Seconds on the run clock (replay: video time; live: unix epoch)."
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Optional: groups events from one replay/live run."
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional: component that emitted it, e.g. 'perception'."
+    },
+    "incident_id": {
+      "type": "string",
+      "pattern": "^inc_[A-Za-z0-9_-]+$"
+    },
+    "action": {
+      "enum": [
+        "confirm",
+        "dismiss"
+      ]
+    },
+    "note": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 300
+    }
+  },
+  "required": [
+    "type",
+    "schema_version",
+    "event_id",
+    "ts",
+    "incident_id",
+    "action"
+  ],
+  "additionalProperties": true
+}
