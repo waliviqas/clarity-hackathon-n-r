@@ -13,11 +13,11 @@ from pathlib import Path
 try:
     from .frames import sample_frames
     from .spotter_prompt import PROMPT, SCHEMA
-    from .checker_prompt import CRIME_PROMPT, CRIME_SCHEMA, DESCRIBE_PROMPT, DESCRIBE_SCHEMA
+    from .checker_prompt import CRIME_PROMPT, CRIME_SCHEMA, DESCRIBE_PROMPT, DESCRIBE_PROMPT_V1, DESCRIBE_SCHEMA
 except ImportError:
     from frames import sample_frames
     from spotter_prompt import PROMPT, SCHEMA
-    from checker_prompt import CRIME_PROMPT, CRIME_SCHEMA, DESCRIBE_PROMPT, DESCRIBE_SCHEMA
+    from checker_prompt import CRIME_PROMPT, CRIME_SCHEMA, DESCRIBE_PROMPT, DESCRIBE_PROMPT_V1, DESCRIBE_SCHEMA
 
 LABEL_FIELDS = ["on_screen", "crime", "build", "height", "shirt", "pants", "shoes", "glasses",
                 "headwear", "hair", "bag", "weapon", "vehicle"]
@@ -30,9 +30,10 @@ def main() -> None:
     parser.add_argument("--split", default="test")
     parser.add_argument("--out", default="nemo_gym/clarity_spotter/data/test.jsonl")
     parser.add_argument("--frames", type=int, default=4)
-    parser.add_argument("--task", choices=["spot", "describe", "crime"], default="spot")
+    parser.add_argument("--task", choices=["spot", "describe", "describe_v1", "crime"], default="spot")
     args = parser.parse_args()
     prompt, schema = {"spot": (PROMPT, SCHEMA), "describe": (DESCRIBE_PROMPT, DESCRIBE_SCHEMA),
+                      "describe_v1": (DESCRIBE_PROMPT_V1, DESCRIBE_SCHEMA),
                       "crime": (CRIME_PROMPT, CRIME_SCHEMA)}[args.task]
 
     rows = [r for r in csv.DictReader(open(args.labels, newline="")) if r["split"] == args.split]
