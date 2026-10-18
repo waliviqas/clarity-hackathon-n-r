@@ -40,7 +40,7 @@ That answer becomes a `detection` event (see [`contracts/`](contracts/README.md)
 - **Base model:** `Qwen/Qwen3-VL-2B-Instruct` (2.13B parameters, see [Models and parameter budget](#models-and-parameter-budget)).
 - **Test split (held out, never trained on):** clips 1, 3, 4, 7, 8, 12 and 13, 18 camera views in total. Each view is asked 3 times. <!-- source: before.json on Wali's branch -->
 - **Training split:** TODO: list of training clips.
-- **External check:** 11 clips from CAVIAR (8) and MEVA (3), public datasets filmed elsewhere. TODO: say whether any of them are also used in training (if so, they stop being a fair check).
+- **External check:** clips from CAVIAR (8) and MEVA example clips, public datasets filmed elsewhere. ex085, the MEVA theft clip, was dropped on Oct 18 because its burned-in labels give the answer away, so the external rows below will be rerun without it. TODO: say whether any of them are also used in training (if so, they stop being a fair check).
 - **Method:** TODO: full fine-tune or LoRA, tools, epochs, GPU and training time.
 - **Labels:** every camera view of our clips has a label (what happens, crime type, suspect fields). The CAVIAR and MEVA labels come from the datasets and were not checked frame by frame. <!-- source: "check" field in before_external.json --> TODO: how our clips were labeled, and who checked the labels.
 
@@ -53,7 +53,7 @@ That answer becomes a `detection` event (see [`contracts/`](contracts/README.md)
 | Qwen3-VL-2B-Instruct, base | external (CAVIAR + MEVA) | 11 | 0.485 | 0.133 | 0.167 | n/a (no suspect labels) | 8 of 33 | `results/before_external.json`, Oct 17 9:29 PM |
 | Qwen3-VL-2B, fine-tuned (ours) | external (CAVIAR + MEVA) | 11 | TODO | TODO | TODO | n/a | TODO | TODO |
 
-Sources are Wali's result files on his branch (`wali-branch`, commit `cc8d3ae`) until it merges, also logged in `results/history.csv`. TODO: confirm the folder name at merge.
+The external base row was measured on 11 clips including ex085; TODO: Wali reruns both external rows on the same reduced set. Sources are Wali's result files on his branch (`wali-branch`, commit `cc8d3ae`) until it merges, also logged in `results/history.csv`. TODO: confirm the folder name at merge.
 
 How to read the columns (our reading of the result files; TODO: Wali to confirm):
 
@@ -63,7 +63,7 @@ How to read the columns (our reading of the result files; TODO: Wali to confirm)
 - **Description accuracy:** share of the suspect's description fields that match the label. Base model per field on the test split: shirt 0.062, pants 0.0, hair 0.0, build 0.0, versus headwear 0.854, bag 0.854 and weapon 1.0, where the right answer was usually "none". <!-- source: description_accuracy_by_field in before.json -->
 - **Failed requests:** answers that came back unusable (out of 18 views × 3 tries = 54 on test, 11 × 3 = 33 external).
 
-Caveats: two test clips (4 and 12) are not in the published dataset, so the published clips reproduce only part of the test split. The MEVA example clips have the dataset's activity labels burned into the video (see [`data/README.md`](data/README.md)); the base model's only correct crime types on the external set (2 answers) were on the MEVA theft clip, which shows such a label. <!-- source: before_external.json, meva_ex085_theft -->
+Caveats: two test clips (4 and 12) are not in the published dataset, so the published clips reproduce only part of the test split. The MEVA example clips have the dataset's activity labels burned into the video (see [`data/README.md`](data/README.md)); the base model's only correct crime types on the external set (2 answers) were on the MEVA theft clip, which shows such a label (that clip, ex085, is now dropped from the external check). <!-- source: before_external.json, meva_ex085_theft -->
 
 **Published model:** TODO: Hugging Face model link and license.
 
@@ -236,7 +236,7 @@ The hackathon cap is **33B parameters in total** across all generative language 
 |---|---|---|---|
 | **Our staged clips** (13 clips filmed by the team on Oct 17) | Training and test clips for the spotter fine-tune, kept apart; the demo camera feeds (test clip 8); ground truth for evaluation. To be published with the method, except clips 4, 11 and 12, audio stripped: test clip 8 first (package and dataset card ready, `data/staged/DATASET_CARD.md`), the rest after a bystander check (clips 2, 5 and 6 show passers-by). | TODO: license (planned: CC BY 4.0) | TODO: dataset link |
 | **CAVIAR** (8 acted clips from one lobby camera) | External check set for the spotter (4 fights, 4 without a crime). TODO: say whether any are also used in training | CC BY-SA | See Attribution below |
-| **MEVA** (3 example clips) | External check set for the spotter (1 theft, 2 without a crime). TODO: say whether any are also used in training | CC BY 4.0 | See Attribution below |
+| **MEVA** (3 example clips) | External check set for the spotter (1 theft, 2 without a crime; the theft clip, ex085, was dropped on Oct 18 because of its burned-in labels). TODO: say whether any are also used in training | CC BY 4.0 | See Attribution below |
 | **OpenStreetMap** | Dashboard base map around the Red Hat Annex, Raleigh | ODbL | "© OpenStreetMap contributors" (shown on the map) |
 
 The clip names, license checks and caveats for CAVIAR and MEVA are in [`data/README.md`](data/README.md). We looked at other public datasets there too and kept to footage we could film safely and publish with consent.

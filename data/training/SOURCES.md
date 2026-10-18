@@ -4,8 +4,8 @@ Status: **11 clips labeled from frames** (Oct 17, late evening): 23 person rows 
 `staged_clips.csv`, every field checked on a second frame (`verified`). Height and glasses are
 `Unknown` throughout (not readable at these resolutions); the aggressor in runaway2 and chase
 is a low-confidence call. The same labels in Wali's `labels_external.csv` format are in
-`labels_external_filled.csv`. These 11 clips are now an external check set (the spotter trains
-on the team's own clips). Videos are local (copied from `data/videos/`), with frames at 2 fps
+`labels_external_filled.csv`. These clips became an external check set (the spotter trains
+on the team's own clips); since Oct 18, ex085 is out of it (burned-in labels). Videos are local (copied from `data/videos/`), with frames at 2 fps
 and contact sheets in `data/raw/training/frames/<clip_id>/` (gitignored).
 
 Findings from the frames (Oct 17 evening):
