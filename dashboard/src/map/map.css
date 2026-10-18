@@ -237,3 +237,10 @@
   padding: 24px;
 }
 .map-note p { margin: 0; color: var(--muted); }
+
+/* demo: until a camera is part of a chase (filled) or saw a crime (alert), it looks like every idle sidewalk camera */
+.cam:not(.is-filled):not(.is-alert) .cam-dot {
+  inset: 3px;
+  border: 1.5px solid rgba(142, 163, 179, 0.55);
+  background: #24384A;
+}

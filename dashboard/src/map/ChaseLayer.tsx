@@ -1,8 +1,9 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { divIcon } from 'leaflet';
 import type { LatLngTuple, Map as LeafletMap, PathOptions } from 'leaflet';
-import { Marker, Pane, Polygon, Polyline, useMap } from 'react-leaflet';
+import { CircleMarker, Marker, Pane, Polygon, Polyline, useMap } from 'react-leaflet';
 import { select, useSelection } from '../lib';
+import { getFeedProgress, subscribeFeedProgress } from '../lib/feedProgress.ts';
 import type { ChaseArrow, ChasePrediction, ChaseSegment, ChaseView } from './chase.ts';
 import { arrowShape, placeProbLabels } from './chaseGeometry.ts';
 import type { Circle } from './chaseGeometry.ts';
@@ -71,7 +72,7 @@ export function ChaseLayer({ chase, posById, avoid, viewTick }: Props) {
   return (
     <>
       <Pane name="chase-predict" style={{ zIndex: PANES.predict }}>
-        {chase.predictions.map((p) => (
+        {SHOW_PREDICTIONS && chase.predictions.map((p) => (
           <PredictionLine key={p.key} p={p} posById={posById} dim={dim} onSelect={toggle} />
         ))}
       </Pane>
@@ -86,6 +87,8 @@ export function ChaseLayer({ chase, posById, avoid, viewTick }: Props) {
           return geo ? <RelayArrow key={a.key} a={a} geo={geo} dim={dim} onSelect={toggle} /> : null;
         })}
       </Pane>
+      {/* Demo: no "predicted next" percent badges (SHOW_PROB_LABELS brings them back). */}
+      {SHOW_PROB_LABELS && (
       <Pane name="chase-labels" style={{ zIndex: PANES.labels }}>
         {chase.predictions.map((p) => {
           const at = probSpots.get(p.key);
@@ -95,9 +98,14 @@ export function ChaseLayer({ chase, posById, avoid, viewTick }: Props) {
           ) : null;
         })}
       </Pane>
+      )}
     </>
   );
 }
+
+const SHOW_PROB_LABELS = false;
+/** Demo: no dashed "predicted next" lines; the filling relay line shows where the suspect is heading. */
+const SHOW_PREDICTIONS = false;
 
 function probText(p: number): string {
   return `${Math.round(p * 100)}%`;
@@ -195,6 +203,7 @@ const RelayArrow = memo(function RelayArrow({ a, geo, dim, onSelect }: {
   const line: PathOptions = { color: a.color, weight, opacity, dashArray: CHASE_STYLE.arrowDash, lineCap: 'butt' };
   const head: PathOptions = { color: a.color, fillColor: a.color, fillOpacity: opacity, opacity, weight: 1, lineJoin: 'miter' };
   const handlers = useMemo(() => ({ click: () => onSelect(a.relayId) }), [onSelect, a.relayId]);
+  if (FILL_RELAYS && a.state === 'active') return <FillingRelay a={a} geo={geo} weight={weight} opacity={opacity} />;
   return (
     <>
       <ClickableLine positions={geo.line} style={line} className={cls} eventId={a.relayId} onSelect={onSelect} />
@@ -225,3 +234,47 @@ const ProbLabel = memo(function ProbLabel({ at, text, color, highlighted, dimmed
   }), [text, color, highlighted, dimmed]);
   return <Marker position={at} icon={icon} interactive={false} keyboard={false} pane="chase-labels" />;
 });
+
+/** Demo: relays fill along the route instead of a travelling dash with an arrowhead. */
+const FILL_RELAYS = true;
+/** The fill never reaches the next camera on its own: that camera's match completes it. */
+const FILL_MAX = 0.92;
+/** How fast the tracker creeps after the clip ends: ~63% of the remaining way every this many ms. */
+const WAIT_EASE_MS = 3500;
+
+function FillingRelay({ a, geo, weight, opacity }: { a: ChaseArrow; geo: ArrowGeo; weight: number; opacity: number }) {
+  // Moves with the clip on screen: while the sending camera's clip plays, the tracker crosses toward the next camera;
+  // it waits just short of it until that camera confirms the suspect (the feed switches, the path goes solid).
+  const [, bump] = useState(0);
+  useEffect(() => subscribeFeedProgress(() => bump((n) => n + 1)), []);
+  const p = getFeedProgress(a.subjectId);
+  // While the clip plays the tracker covers the first half; after it ends it keeps creeping (easing toward
+  // FILL_MAX) while the next camera's models work, so map and video arrive together. The match completes it.
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!p || p.endedAt === null) return;
+    const timer = setInterval(() => tick((n) => n + 1), 100);
+    return () => clearInterval(timer);
+  }, [p?.endedAt]);
+  let share = 0;
+  if (p && p.camera === a.from) {
+    share = p.endedAt === null
+      ? p.share * 0.5
+      : 0.5 + (FILL_MAX - 0.5) * (1 - Math.exp(-(Date.now() - p.endedAt) / WAIT_EASE_MS));
+  }
+  const from = geo.line[0], to = geo.line[geo.line.length - 1];
+  const tip: LatLngTuple = [from[0] + (to[0] - from[0]) * share, from[1] + (to[1] - from[1]) * share];
+  return (
+    <>
+      <Polyline positions={[from, to]} interactive={false}
+        pathOptions={{ color: a.color, weight, opacity: opacity * 0.25, lineCap: 'round' }} />
+      {share > 0 && (
+        <Polyline positions={[from, tip]} interactive={false}
+          pathOptions={{ color: a.color, weight: weight + 1, opacity, lineCap: 'round' }} />
+      )}
+      {/* where the suspect is now */}
+      <CircleMarker center={tip} radius={7} interactive={false}
+        pathOptions={{ color: '#E6EDF2', weight: 2, fillColor: a.color, fillOpacity: 1 }} />
+    </>
+  );
+}

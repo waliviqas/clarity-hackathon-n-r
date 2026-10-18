@@ -1,0 +1,119 @@
+.feeds {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+}
+.feeds-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted, #8a94a6);
+}
+.feed {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  border: 3px solid;
+  border-radius: 8px;
+  background: #000;
+  overflow: hidden;
+}
+.feed-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--panel);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.feed-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.feed-cam { color: var(--text-muted, #8a94a6); overflow: hidden; text-overflow: ellipsis; }
+.feed-video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
+.feed-steps {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px;
+  list-style: none;
+  background: var(--panel);
+  font-size: var(--fs-small);
+}
+.feed-steps li {
+  padding: 1px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  opacity: 0.7;
+}
+.feed-steps li.now { color: #000; font-weight: 700; opacity: 1; }
+
+.feed { position: relative; }
+.feed-steps { align-items: center; }
+.feed-steps-spacer { flex: 1; border: 0 !important; padding: 0 !important; }
+.feed-steps li:last-child { border: 0; padding: 0; opacity: 1; }
+.dispatch-btn {
+  font-size: var(--fs-small);
+  padding: 2px 10px;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  opacity: 0.45;
+}
+.dispatch-btn.is-ready {
+  opacity: 1;
+  color: #000;
+  background: var(--c);
+  border-color: var(--c);
+  animation: dispatch-ready 1.6s ease-out 2;
+}
+@keyframes dispatch-ready {
+  0% { box-shadow: 0 0 0 0 var(--c); }
+  100% { box-shadow: 0 0 0 10px transparent; }
+}
+.dispatch-report {
+  position: absolute;
+  inset: 34px 8px 40px 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  overflow-y: auto;
+  background: rgba(14, 26, 36, 0.96);
+  border: 2px solid var(--c);
+  border-radius: 8px;
+}
+.dispatch-report header { display: flex; align-items: center; justify-content: space-between; }
+.dispatch-priority { font-weight: 700; font-size: var(--fs-small); padding: 2px 8px; border-radius: 999px; color: #000; }
+.dispatch-priority.is-high { background: var(--alert); }
+.dispatch-priority.is-medium { background: var(--chase-1); }
+.dispatch-priority.is-low { background: var(--muted); }
+.dispatch-close { border: 0; font-size: 18px; padding: 0 4px; }
+.dispatch-action { margin: 0; font-size: 16px; font-weight: 600; }
+.dispatch-procedure, .dispatch-suspect { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+.dispatch-report footer { display: flex; gap: 8px; margin-top: auto; }
+.dispatch-decided { color: var(--ok); font-weight: 600; }
+.feed-steps li, .dispatch-btn { white-space: nowrap; }
+.dispatch-decide { display: flex; align-items: center; gap: 6px; }
+.feed-steps { gap: 4px; padding: 6px 8px; }
+.feed-steps li { padding: 1px 7px; font-size: 12px; }
+.dispatch-btn { padding: 2px 8px; font-size: 12px; flex: 0 0 auto; }
+/* two players fit the column without scrolling: each video is at most ~30% of the window height */
+.feed-video { max-height: 30vh; }
+.feeds { overflow-y: auto; }
+
+/* crime bars: closed by default, click to open the footage; open bars push the ones below down */
+.feeds { gap: 8px; }
+.feed { flex: 0 0 auto; }
+.feed-head { cursor: pointer; user-select: none; padding: 10px 12px; font-size: var(--fs-body); }
+.feed-head:hover { background: color-mix(in srgb, var(--panel) 80%, #fff 6%); }
+.feed-spacer { flex: 1; }
+.feed-chevron { color: var(--muted); font-size: 14px; }
+.feed:not(.is-open) .feed-cam { display: inline; }
+.dispatch-report { position: static; inset: auto; margin: 0 8px 8px; }
+.feed-video { max-height: 34vh; }

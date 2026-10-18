@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { LatLngTuple, Map as LeafletMap } from 'leaflet';
 import { useMap, useMapEvents } from 'react-leaflet';
-import { cameraName, getState, isCrimeActivity, LABELS, select, useCameraStatus, useLiveDetections } from '../lib';
+import { cameraName, getState, isCrimeActivity, LABELS, select, useCameraStatus, useEvents, useLiveDetections } from '../lib';
 import type { Camera, CameraHealth } from '../lib';
 import { ALERT_RING_R, CameraMarker, LABEL_FONT, MARKER_PX } from './CameraMarker.tsx';
 import { BADGE } from './sizes.ts';
@@ -31,6 +31,8 @@ interface CameraLayerProps {
 }
 
 const NO_AVOID: ChaseAvoid = { rects: [], circles: [] };
+/** Demo: the map shows only the crime word at crime cameras, not every camera's name. */
+const SHOW_CAMERA_NAMES = false;
 
 /**
  * The cameras and the chases between them: markers with labels placed so they don't cover each
@@ -41,6 +43,13 @@ export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
   const map = useMap();
   const status = useCameraStatus();
   const live = useLiveDetections();
+  const events = useEvents();
+  // Demo: a camera where a crime was reported keeps its red ring and crime word for the whole run.
+  const crimeAt = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of events) if (e.type === 'detection' && isCrimeActivity(e.activity)) m.set(e.camera_id, e.activity);
+    return m;
+  }, [events]);
   const viewTick = useMapViewTick(map);
   const fontTick = useFontsTick();
   // A click on the empty map clears the selection (lines and arrows stop their clicks from reaching it).
@@ -48,7 +57,7 @@ export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
 
   const cams = placed.map(({ camera, lat, lon }) => {
     const seen = live.get(camera.camera_id);
-    const crime = seen?.crime?.activity;
+    const crime = crimeAt.get(camera.camera_id) ?? seen?.crime?.activity;
     const health = status[camera.camera_id]?.status;
     return {
       camera, lat, lon, health,
@@ -62,7 +71,7 @@ export function CameraLayer({ placed, posById, chase }: CameraLayerProps) {
   // What the labels say: re-layout only when this (or the view) changes, not on every pulse.
   const specs: CamLabelSpec[] = cams.map((c) => ({
     camera: c.camera, lat: c.lat, lon: c.lon,
-    name: cameraName(c.camera),
+    name: SHOW_CAMERA_NAMES ? cameraName(c.camera) : '',
     sub: [
       ...(c.crimeActivity ? [LABELS.activity[c.crimeActivity]] : []),
       ...(c.offline ? [healthWord(c.health)] : []),

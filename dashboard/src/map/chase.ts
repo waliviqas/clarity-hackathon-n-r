@@ -66,6 +66,9 @@ export interface ChaseArrow {
   /** Travelling dash: only for active relays that arrived live (never snapshot history). */
   animate: boolean;
   highlighted: boolean;
+  /** Run-clock ts the relay was sent, and its expected travel time (s): the fill paces on these. */
+  startTs: number;
+  arrivalS: number;
   /**
    * Draw it shifted to the right of travel: another arrow goes the opposite way on the same pair, or a
    * predicted (dashed) line runs on it, so both stay visible side by side.
@@ -184,8 +187,8 @@ export function deriveChase(input: ChaseInput): ChaseView {
     const hl = highlighted.has(r.event_id);
     const end = answerOf(r, citing, atCamera);
     let state: ArrowState | null = null;
+    const arrival = isNum(r.expected_arrival_s) && r.expected_arrival_s >= 0 ? r.expected_arrival_s : TIMING.relayDefaultArrivalS;
     if (end === null) {
-      const arrival = isNum(r.expected_arrival_s) && r.expected_arrival_s >= 0 ? r.expected_arrival_s : TIMING.relayDefaultArrivalS;
       const expiresAt = r.ts + arrival + TIMING.relayGraceS;
       if (runNow !== null && runNow >= expiresAt) state = null;
       else {
@@ -204,6 +207,7 @@ export function deriveChase(input: ChaseInput): ChaseView {
     pending.push({
       relayId: r.event_id, from: r.from_camera, to: r.to_camera, subjectId: r.subject_id,
       color: colorOf(r.subject_id), state, animate: state === 'active' && live, highlighted: hl,
+      startTs: r.ts, arrivalS: arrival,
     });
   }
   // Same subject, same pair: draw only the newest arrow (a re-sent relay replaces the old one).

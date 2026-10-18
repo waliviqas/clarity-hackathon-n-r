@@ -168,3 +168,52 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
 .inc-status.is-alert { color: var(--alert); font-weight: 600; }
 .inc-status.is-confirm { color: var(--ok); font-weight: 600; }
 .inc-error { color: var(--alert); font-size: var(--fs-small); }
+
+/* ---------- demo controls: hidden bottom-right until hovered ---------- */
+.demo-controls {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--panel);
+  opacity: 0.08;
+  transition: opacity 0.2s;
+}
+.demo-controls:hover, .demo-controls:focus-within { opacity: 1; }
+.demo-note { font-size: var(--fs-small); color: var(--text-muted, #8a94a6); max-width: 260px; }
+.slot-feeds { flex: 1 1 auto; }
+
+/* ---------- brand eye: blinks faintly while a demo run is going ---------- */
+.header-brand { display: inline-flex; align-items: center; }
+.header-brand svg { display: block; overflow: visible; }
+.eye-lid { transform-box: fill-box; transform-origin: center; }
+.header-brand-live svg { animation: eye-glow 2.4s ease-in-out infinite; }
+.header-brand-live .eye-lid { animation: eye-blink 3.6s ease-in-out infinite; }
+@keyframes eye-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes eye-blink { 0%, 88%, 100% { transform: scaleY(1); } 93% { transform: scaleY(0.12); } }
+@media (prefers-reduced-motion: reduce) {
+  .header-brand-live svg, .header-brand-live .eye-lid { animation: none; }
+}
+
+/* demo: no % badges on the chase lines (the agents always report 0.95 on a match) */
+.leaflet-marker-icon.chase-prob-icon, .chase-prob { display: none !important; }
+
+/* ---------- wordmark next to the eye ---------- */
+.header-brand { gap: 12px; }
+.header-wordmark {
+  font-family: 'Barlow', var(--font-ui);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: 0.32em;
+  background: linear-gradient(90deg, #A9DDFB 0%, #EAF6FF 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* the blink/glow animate only the eye, not the word */
+.header-brand-live svg { animation: eye-glow 2.4s ease-in-out infinite; }

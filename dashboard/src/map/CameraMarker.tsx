@@ -82,7 +82,7 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
           {pulseId && (
             <span key={pulseId} className={`cam-pulse${pulseCrime ? ' is-crime' : ''}`} aria-hidden="true" />
           )}
-          {leader && (
+          {leader && (name || crimeActivity || offline) && (
             <span
               className="cam-leader"
               aria-hidden="true"
@@ -94,11 +94,11 @@ export const CameraMarker = memo(function CameraMarker(props: CameraMarkerProps)
               }}
             />
           )}
-          <span className={labelCls} style={labelStyle(label, crimeActivity !== null)}>
-            <span className="cam-name">{name}</span>
+          {(name || crimeActivity || offline) && <span className={labelCls} style={labelStyle(label, crimeActivity !== null)}>
+            {name && <span className="cam-name">{name}</span>}
             {crimeActivity && <span className="cam-activity">{LABELS.activity[crimeActivity]}</span>}
             {offline && <span className="cam-health">{LABELS.cameraHealth[health] ?? String(health)}</span>}
-          </span>
+          </span>}
           {badge && (
             <span key={badge.verdictId} className={`cam-badge is-${badge.kind.replace('_', '-')}`}
               style={badgeStyle(badgeSide, label, crimeActivity !== null)}>

@@ -7,6 +7,7 @@ import type { MapContainerProps } from 'react-leaflet';
 import { AttributionControl, MapContainer, TileLayer, ZoomControl } from 'react-leaflet';
 import { TIMING, useCameras } from '../lib';
 import { CameraLayer } from './CameraLayer.tsx';
+import { IdleCameras } from './IdleCameras.tsx';
 import { FIT_OPTIONS, FitToCameras } from './FitToCameras.tsx';
 import { boundsOf, layoutKey, placeCameras } from './geo.ts';
 import { useChase } from './useChase.ts';
@@ -67,6 +68,7 @@ export default function MapView() {
       <AttributionControl position="bottomright" prefix={false} />
       <ZoomControl position="bottomleft" />
       <FitToCameras bounds={bounds} fitKey={fitKey} />
+      <IdleCameras siteId={site.site_id} segments={chase.segments} posById={posById} />
       <CameraLayer placed={placed} posById={posById} chase={chase} />
     </MapContainer>
   );

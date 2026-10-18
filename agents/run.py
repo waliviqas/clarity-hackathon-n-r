@@ -163,7 +163,8 @@ def ask(spot, clip: Clip, frames: int):
 
 
 def start_live(clips: list[Clip], spot, frames: int, clock: Clock, limit_s: float, describe=None,
-               check_limit_s: float = CHECK_TIMEOUT_S, checker_model: str | None = None) -> Callable[[Clip], dict]:
+               check_limit_s: float = CHECK_TIMEOUT_S, checker_model: str | None = None,
+               check_frames: int | None = None) -> Callable[[Clip], dict]:
     """One spotter call per clip, each started when its clip has played (in parallel, so vLLM batches them).
     With describe (Wali's checker), a clip the spotter flagged (on_screen crime or fleeing) then gets one
     describe() call in the same thread, and its answer carries the checker's description (agents/combine.py).
@@ -186,7 +187,7 @@ def start_live(clips: list[Clip], spot, frames: int, clock: Clock, limit_s: floa
         if describe is None or not isinstance(answer, dict) or not flagged(answer):
             return
         try:
-            description = describe(str(clip.path), frames)
+            description = describe(str(clip.path), check_frames or frames)
         except Exception as e:  # handed to get_answer, which logs it
             described.set_exception(e)
             return
@@ -306,6 +307,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--speed", type=float, default=1.0, help="2 = twice as fast; 0 = don't wait")
     p.add_argument("--frames", type=int, default=FRAMES,
                    help=f"frames per spotter and checker call (--live; default {FRAMES}, as Wali measured)")
+    p.add_argument("--check-frames", type=int,
+                   help="--live: frames per checker call (default: --frames); fewer = faster checker, less detail")
     p.add_argument("--spot-timeout", type=float, default=SPOT_TIMEOUT_S,
                    help="--live: seconds one clip's spotter call may take before that camera can't tell")
     p.add_argument("--no-checker", action="store_true",
@@ -357,7 +360,7 @@ def main() -> None:
             check_checker(checker_url, checker_model)
         clock = Clock(args.speed)
         get_live = start_live(clips, spot, args.frames, clock, args.spot_timeout, describe, args.check_timeout,
-                              checker_model)
+                              checker_model, args.check_frames)
         descriptions = f"checker {checker_model} on flagged cameras" if describe else "no checker (--no-checker)"
 
         def get_answer(clip: Clip) -> dict:
