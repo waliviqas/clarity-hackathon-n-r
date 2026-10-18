@@ -8,7 +8,8 @@
 
 Looks and behaviour give a sighting probability: how likely the person seen here is the relayed suspect.
 Weak sightings along one route add up (noisy-OR): two at 50% give 75%; five at 20% give 67%, more than
-one at 60%.
+one at 60%. A match needs at least one feature that agrees: behaviour alone (someone running, no
+description) is "uncertain" at most, and its look doesn't add up with earlier weak sightings.
 """
 from __future__ import annotations
 
@@ -197,7 +198,8 @@ def judge(expected: dict[str, str], answer: dict, left: tuple[float, float], see
 
     expected: the relayed description (features()); left / seen: run-clock windows of the sender's clip
     and this camera's clip; earlier_weak: (camera_id, probability) of uncertain sightings on this route
-    since the last match. Someone running who is uncertain is still followed, so weak sightings can add up.
+    since the last match. Someone running who is uncertain can still be followed (Network(follow_uncertain=True)),
+    so weak sightings can add up. "match" needs at least one feature that agrees (agreement 1).
     """
     fits, timing_words = check_timing(left, seen, travel_s, from_camera)
     if not fits:
@@ -205,8 +207,11 @@ def judge(expected: dict[str, str], answer: dict, left: tuple[float, float], see
     agreements = compare(expected, features(answer))
     on_screen = answer.get("on_screen")
     p = sighting_probability(agreements, on_screen)
-    combined = combine([q for _, q in earlier_weak] + [p])
-    if p >= MATCH_AT or (p >= WEAK_AT and combined >= MATCH_AT):
+    # Without one agreeing feature, two people running with no description would add up to 75%: a "match"
+    # on behaviour alone. Such a look stays on its own (uncertain at most).
+    agrees = any(a > 0.5 for a in agreements.values())
+    combined = combine([q for _, q in earlier_weak] + [p]) if agrees else p
+    if agrees and (p >= MATCH_AT or (p >= WEAK_AT and combined >= MATCH_AT)):
         decision = "match"
     elif p >= WEAK_AT:
         decision = "uncertain"
@@ -214,11 +219,15 @@ def judge(expected: dict[str, str], answer: dict, left: tuple[float, float], see
         decision = "no_match"
     behaviour = BEHAVIOUR_WORDS.get(on_screen, "behaviour not reported")
     words = [f"{_looks_words(agreements)}; {behaviour} here.", timing_words]
+    cams = ", ".join(c for c, _ in earlier_weak)
     if decision == "no_match":
         words.append(f"{p:.0%} likely the same person.")
+    elif earlier_weak and not agrees:
+        words.append(f"No feature agrees, so the weak sightings at {cams} don't add up; {p:.0%} likely.")
     elif earlier_weak and p < MATCH_AT:
-        cams = ", ".join(c for c, _ in earlier_weak)
         words.append(f"This look {p:.0%}; with the weak sightings at {cams}, {combined:.0%} likely.")
+    elif not agrees:
+        words.append(f"No feature agrees, so not a match; {p:.0%} likely the same person.")
     else:
         words.append(f"{combined:.0%} likely the same person.")
     reason = " ".join(words)

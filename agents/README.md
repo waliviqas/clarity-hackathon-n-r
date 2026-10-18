@@ -33,8 +33,28 @@ python contracts/validate.py /tmp/a1.jsonl
 ```
 
 Options: `--speed 2` (twice as fast, `0` = no waiting), `--cameras`, `--run N` (which recorded run),
-`--frames 4` (frames per spotter call, Wali's default), `--follow-matches-only`, `--tag`, `--run-id`.
-A file written by `--save-answers` replays the same run later with `--answers` (demo insurance).
+`--frames 4` (frames per spotter call, Wali's default), `--spot-timeout 90`, `--relay-uncertain`,
+`--tag` (letters, digits, `_`, `-`), `--run-id`.
+
+**`--live` checks first:** it reads `GET {SPOTTER_URL}/models` and stops with one line and exit code 1 if
+`SPOTTER_MODEL` isn't served there (or the server can't be reached), before any event is published. Each
+clip's spotter call gets `--spot-timeout` seconds (default 90; Wali's client has a 60 s timeout + 1 retry,
+and the agents retry a failed call once); past that, one warning line and that camera "can't tell" this
+time. `--save-answers` is written even when the take crashes or is stopped with Ctrl+C.
+
+**`--answers` files are recorded real model output only** (the spotter's own answers from an earlier run),
+never answers built from labels or ground truth: in a demo they stand in for the model, so they must be
+what the model said. Accepted formats:
+- Wali's eval results (`results/before.json`, `results/after.json`):
+  `{"model": ..., "cameras": [{"clip": "clip8", "cam": "cam1", "answers": [{...}, null, ...]}]}`,
+  matched to cameras by clip file name (`source.uri` `.../clip8_cam1.mp4` = `clip8` + `cam1`); `null` is a
+  failed run; `--run N` picks one, default the first that didn't fail.
+- What `--live --save-answers` writes: `{"model": ..., "source": "agents.run --live", "answers": {"cam_01": {...}}}`.
+- A bare `{"cam_01": {...}, ...}`.
+
+Each answer is one spotter JSON object (Wali's schema: `what_happened`, `on_screen`, `crime`, `build`, `height`,
+`shirt`, `pants`, `shoes`, `glasses`, `headwear`, `hair`, `bag`, `weapon`, `vehicle`). Cameras without one stay
+silent. A file written by `--save-answers` replays the same run later with `--answers` (demo insurance).
 
 ## What the agents do
 
@@ -53,25 +73,38 @@ A file written by `--save-answers` replays the same run later with `--answers` (
   (the whole answer), `window_ts`, `spotter_model`, `spotter_mode` (`recorded` / `live`).
 
 **Relays.** A crime detection that no relay explains opens a subject and relays to every neighbor in
-`cameras.json`. Later relays go to the neighbors except the camera the suspect came from. Each carries the
-description, the link's `travel_time_s` as `expected_arrival_s`, its `direction`, the `activity`, and `basis`
-(`crime`, `match`, or `possible`).
+`cameras.json`. After a **match** the matching camera relays onward (the contract's rule); by default an
+uncertain look relays nothing. A subject is never relayed to a camera it was opened at or already relayed to
+(so never back where it came from, and a loop of cameras can't relay forever). Each relay carries the
+description, the link's `travel_time_s` as `expected_arrival_s`, its `direction`, the `activity`, and `basis`.
 
 **Verdicts.** A camera with a relay in its inbox compares its next spotter answer with the description, field
 by field. Fields either side couldn't see are skipped, so unknown never counts against a match.
 - Looks + behaviour give a sighting probability: prior 0.3, running or a crime raises it, "nothing suspicious"
   lowers it, every agreeing feature raises it (shirt counts most, vehicle least), every differing one lowers it.
-- **≥ 0.6 → match** (relay onward); **0.2–0.6 → uncertain**; below → no_match.
+- **≥ 0.6 → match** (relay onward); **0.2–0.6 → uncertain**; below → no_match. A match also needs at least
+  one feature that agrees: someone running with no comparable description is uncertain at most.
 - **Impossible travel time → no_match**, however good the match: the gap between the two clips must fit
   0.5× to 3× the link's travel time + 30 s (up to 120 s for a link without one). A clip that ended before
   anyone could arrive is skipped and the relay keeps waiting.
-- **Weak sightings add up** (noisy-OR) along a route: an uncertain look at someone running is still relayed
-  onward (`basis: possible`), and the next camera combines its look with them (two at 50% → 75%, a match;
-  five at 20% → 67%). `--follow-matches-only` turns this off.
+- **Weak sightings add up**, opt-in with `--relay-uncertain`: an uncertain look at someone running is relayed
+  onward too (`basis: possible`), and the next camera combines its look with them (noisy-OR: two at 50% →
+  75%, a match; five at 20% → 67%), but only if its own look has a feature that agrees.
 - A relay nobody answers by its deadline gets `no_match` ("Not seen"). If the spotter call failed for that
-  clip (one retry first), the verdict is `uncertain` ("can't tell") instead.
-- Every verdict cites the relay and the detection in `evidence_event_ids`; `confidence` is how sure the agent
-  is of its decision (0.05–0.95).
+  clip (one retry first, then the time limit), or its answer wasn't a JSON object, the verdict is
+  `uncertain` ("can't tell") instead.
+- `confidence` is how sure the agent is of its decision (0.05–0.95).
+
+**What each event cites** (`evidence_event_ids`, the receipts trail):
+
+| Event | Cites |
+|---|---|
+| relay, `basis: crime` (opens the subject) | the crime detection |
+| relay, `basis: match` | the match verdict + that camera's detection |
+| relay, `basis: possible` (`--relay-uncertain` only) | the uncertain verdict only, so the dashboard doesn't show that camera as a sighting |
+| verdict from a spotter answer (match / no_match / uncertain) | the relay + this camera's detection |
+| verdict "can't tell" (spotter failed) | the relay only |
+| verdict "Not seen" (deadline passed) | the relay only |
 
 ## Tests
 

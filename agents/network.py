@@ -8,13 +8,15 @@ What an agent does with a spotter answer from its own camera:
   1. Publishes it as a `detection` (agents/adapter.py), ts = the end of the clip.
   2. Answers every relay in its inbox: compares the answer with the relayed description and checks the
      travel time (agents/matching.py) -> `agent_verdict` match / no_match / uncertain, citing the relay and
-     the detection. On a match it relays onward; so it does when uncertain about someone running, so weak
-     sightings along a route can add up (Network(follow_uncertain=False) relays after matches only).
+     the detection. On a match it relays onward (the contract: the matching camera relays to the next).
+     Opt-in, Network(follow_uncertain=True): it also relays onward when uncertain about someone running
+     (basis "possible", citing only the verdict), so weak sightings along a route can add up.
   3. If the answer shows a crime that no relay explains, it opens a subject and relays to every neighbor.
 If the spotter fails on a clip, relays that clip could have answered get "uncertain" ("can't tell").
-Relays go to the camera's cameras.json neighbors except the one the suspect came from, with the link's
-travel_time_s as expected_arrival_s and its direction. A relay nobody answers by its deadline (the latest
-plausible arrival, later if that camera's clip is still playing then) gets a "no_match".
+Relays go to the camera's cameras.json neighbors the subject hasn't reached yet (never back to a camera it
+was opened at or relayed to, so a loop of cameras can't relay forever), with the link's travel_time_s as
+expected_arrival_s and its direction. A relay nobody answers by its deadline (the latest plausible
+arrival, later if that camera's clip is still playing then) gets a "no_match".
 Agents never read ground truth.
 """
 from __future__ import annotations
@@ -119,12 +121,14 @@ class CameraAgent:
             matched = j.decision == "match"
             word = "Confirmed" if matched else "Possibly seen"
             what = seen.answer.get("what_happened") or ""
+            # A "possible" relay cites only the verdict: citing the detection would show this camera as a
+            # sighting of the subject (the dashboard tags every detection a relay cites).
             self.send(r["subject_id"], r.get("activity", "none"),
                       merge(relay.features, features(seen.answer)) if matched else relay.features,
                       weak=[] if matched else relay.weak + [(self.camera_id, j.sighting)],
-                      left=seen.window, came_from=r["from_camera"], ts=ts,
-                      evidence=[verdict["event_id"], seen.detection_id], confidence=j.confidence,
-                      summary=f"{word} at {self.camera_id}: {what}".strip().rstrip(":"),
+                      left=seen.window, ts=ts,
+                      evidence=[verdict["event_id"], seen.detection_id] if matched else [verdict["event_id"]],
+                      confidence=j.confidence, summary=f"{word} at {self.camera_id}: {what}".strip().rstrip(":"),
                       basis="match" if matched else "possible")
         return j.decision
 
@@ -132,25 +136,30 @@ class CameraAgent:
         activity = activity_of(seen.answer)
         what = seen.answer.get("what_happened") or ""
         self.send(self.net.new_id("subj"), activity, features(seen.answer), weak=[], left=seen.window,
-                  came_from=None, ts=det["ts"], evidence=[det["event_id"]], confidence=UNSCORED_CONFIDENCE,
+                  ts=det["ts"], evidence=[det["event_id"]], confidence=UNSCORED_CONFIDENCE,
                   summary=f"{ACTIVITY_WORDS[activity]} at {self.camera_id}: {what}".strip().rstrip(":"),
                   basis="crime", confidence_known=False)
 
     def send(self, subject_id: str, activity: str, feats: dict, *, weak: list, left: tuple[float, float],
-             came_from: str | None, ts: float, evidence: list[str], confidence: float, summary: str,
-             basis: str, confidence_known: bool = True) -> None:
-        """Relay the subject to every neighbor except the camera they came from."""
-        for to, link in self.links.items():
-            if to == came_from or to not in self.net.agents:
-                continue
+             ts: float, evidence: list[str], confidence: float, summary: str, basis: str,
+             confidence_known: bool = True) -> None:
+        """Relay the subject to every neighbor it hasn't reached yet (so never back where it came from)."""
+        reached = self.net.reached.setdefault(subject_id, set())
+        reached.add(self.camera_id)
+        targets = [to for to in self.links if to in self.net.agents and to not in reached]
+        reached.update(targets)  # before any delivery: a delivery can relay onward straight away
+        extra = {} if confidence_known else {"confidence_known": False}
+        relays = []
+        for to in targets:
+            link = self.links[to]
             travel = link.get("travel_time_s")
-            extra = {} if confidence_known else {"confidence_known": False}
             event = self.net.event("relay", "rel", ts, from_camera=self.camera_id, to_camera=to,
                                    subject_id=subject_id, summary=_short(summary, SUMMARY_MAX),
                                    appearance=appearance_text(feats), direction=link.get("direction"),
                                    activity=activity, confidence=confidence, expected_arrival_s=travel,
                                    evidence_event_ids=evidence, basis=basis, **extra)
-            relay = Relay(event, feats, left, weak, self.net.deadline(to, left, travel))
+            relays.append((to, Relay(event, feats, left, weak, self.net.deadline(to, left, travel))))
+        for to, relay in relays:
             self.net.agents[to].receive(relay)
 
     def expire(self, now: float) -> None:
@@ -169,12 +178,14 @@ class Network:
 
     def __init__(self, cameras: list[dict], emit: Callable[[dict], None], *, tag: str | None = None,
                  run_id: str | None = None, schedule: dict[str, list[tuple[float, float]]] | None = None,
-                 detection_extra: dict | None = None, follow_uncertain: bool = True):
+                 detection_extra: dict | None = None, follow_uncertain: bool = False):
         """schedule: each camera's clip windows (run clock), so a relay waits for a clip still playing.
         detection_extra: fields added to every detection (e.g. spotter_model).
-        follow_uncertain: also relay onward after an uncertain sighting of someone running."""
+        follow_uncertain: opt-in; also relay onward after an uncertain sighting of someone running
+        (default: only after a match, as the contract says)."""
         self.emit = emit
         self.follow_uncertain = follow_uncertain
+        self.reached: dict[str, set[str]] = {}  # subject_id -> cameras it was opened at or relayed to
         self.tag = tag or "a" + secrets.token_hex(2)  # det_<tag>_1: a restart can't reuse another run's ids
         self.run_id = run_id
         self.schedule = schedule or {}

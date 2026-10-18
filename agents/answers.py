@@ -12,6 +12,7 @@ it reads SPOTTER_URL / SPOTTER_MODEL itself.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 
@@ -54,11 +55,14 @@ def save_answers(path: str, answers: dict[str, dict], model: str | None) -> None
 
 
 def live_spotter():
-    """(spot, model name) from Wali's src/spotter.py, unchanged."""
+    """(spot, model name, base URL) from Wali's src/spotter.py, unchanged. The URL is the one his client
+    calls (it reads SPOTTER_URL), so the startup check looks at the same server."""
     try:
         from src import spotter  # Wali's code: git archive origin/wali-branch src | tar -x -C <dir>; PYTHONPATH=<dir>
     except ImportError as e:
         raise SystemExit(f"Wali's spotter isn't importable ({e}). Extract it with "
                          "`git archive origin/wali-branch src | tar -x -C <dir>` and set PYTHONPATH=<dir> "
                          "(it needs: pip install -r agents/requirements.txt).")
-    return spotter.spot, getattr(spotter, "MODEL", None)
+    url = getattr(getattr(spotter, "client", None), "base_url", None) or os.environ.get("SPOTTER_URL")
+    model = getattr(spotter, "MODEL", None) or os.environ.get("SPOTTER_MODEL")
+    return spotter.spot, model, str(url) if url else None

@@ -117,6 +117,71 @@ class Relays(unittest.TestCase):
         self.assertEqual(len({e["event_id"] for e in rec.events}), len(rec.events))
 
 
+RUNNER = {"what_happened": "someone runs past", "on_screen": "fleeing", "crime": "none"}  # no description
+
+# A loop: cam_01 - cam_02 - cam_03 - cam_01, every link symmetric.
+TRIANGLE = [cam("cam_01", ("cam_02", 5.0, "north"), ("cam_03", 5.0, "east")),
+            cam("cam_02", ("cam_01", 5.0, "south"), ("cam_03", 5.0, "east")),
+            cam("cam_03", ("cam_01", 5.0, "west"), ("cam_02", 5.0, "west"))]
+
+
+class RelayRules(unittest.TestCase):
+    def test_default_relays_onward_after_a_match_only(self):
+        net, rec = network()
+        net.on_answer("cam_01", CRIME, (0.0, 8.0))
+        net.on_answer("cam_02", RUNNER, (9.0, 12.0))
+        self.assertEqual(rec.of("agent_verdict")[0]["decision"], "uncertain")
+        self.assertEqual([r["from_camera"] for r in rec.of("relay")], ["cam_01"])
+
+    def test_possible_relay_cites_only_the_verdict(self):
+        rec = Recorder()
+        net = Network(SITE, rec, tag="t", follow_uncertain=True)
+        net.on_answer("cam_01", CRIME, (0.0, 8.0))
+        net.on_answer("cam_02", RUNNER, (9.0, 12.0))
+        verdict, = rec.of("agent_verdict")
+        onward = [r for r in rec.of("relay") if r["from_camera"] == "cam_02"]
+        self.assertEqual(len(onward), 2)
+        for r in onward:
+            self.assertEqual((r["basis"], r["evidence_event_ids"]), ("possible", [verdict["event_id"]]))
+
+    def test_two_runners_with_no_description_are_not_a_match(self):
+        rec = Recorder()
+        net = Network(SITE, rec, tag="t", follow_uncertain=True)
+        net.on_answer("cam_01", CRIME, (0.0, 8.0))
+        net.on_answer("cam_02", RUNNER, (9.0, 12.0))
+        net.on_answer("cam_03", RUNNER, (16.0, 20.0))  # used to add up to 75%: a match on behaviour alone
+        decisions = [(v["camera_id"], v["decision"]) for v in rec.of("agent_verdict")]
+        self.assertEqual(decisions, [("cam_02", "uncertain"), ("cam_03", "uncertain")])
+        self.assertLessEqual(rec.of("agent_verdict")[1]["confidence"], 0.5)
+
+    def test_a_loop_of_cameras_never_relays_back(self):
+        # Reviewer repro: this site used to relay in circles (667 events, then RecursionError).
+        answers = {"cam_01": CRIME, "cam_02": FLEEING, "cam_03": FLEEING}
+        for follow in (False, True):
+            for windows in ({"cam_01": (0.0, 20.0), "cam_02": (0.0, 20.0), "cam_03": (0.0, 20.0)},
+                            {"cam_01": (0.0, 8.0), "cam_02": (9.0, 14.0), "cam_03": (15.0, 20.0)}):
+                rec = Recorder()
+                net = Network(TRIANGLE, rec, tag="t", follow_uncertain=follow)
+                clips = sorted((Clip(c, Path("x"), w) for c, w in windows.items()),
+                               key=lambda c: (c.window[1], c.camera_id))
+                run_timeline(clips, lambda c: answers[c.camera_id], net, Clock(0))
+                self.assertEqual(sorted(r["to_camera"] for r in rec.of("relay")), ["cam_02", "cam_03"])
+                self.assertEqual(sorted((v["camera_id"], v["decision"]) for v in rec.of("agent_verdict")),
+                                 [("cam_02", "match"), ("cam_03", "match")])
+                self.assertIsNone(net.next_deadline())
+                for e in rec.events:
+                    self.assertEqual(check(e), [], e)
+
+    def test_a_matched_camera_never_gets_the_subject_again(self):
+        net, rec = network()
+        net.on_answer("cam_01", CRIME, (0.0, 8.0))
+        net.on_answer("cam_02", FLEEING, (9.0, 12.0))   # match: relays to cam_03 and cam_04
+        net.on_answer("cam_03", FLEEING, (16.0, 20.0))  # match at a dead end
+        net.on_answer("cam_02", FLEEING, (22.0, 25.0))  # seen again: nothing new is relayed
+        pairs = [(r["from_camera"], r["to_camera"]) for r in rec.of("relay")]
+        self.assertEqual(sorted(pairs), [("cam_01", "cam_02"), ("cam_02", "cam_03"), ("cam_02", "cam_04")])
+
+
 class Deadlines(unittest.TestCase):
     def test_unanswered_relay_gets_a_no_match(self):
         net, rec = network()

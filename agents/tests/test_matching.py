@@ -116,13 +116,24 @@ class Judge(unittest.TestCase):
         self.assertIn("Too soon", j.reason)
 
     def test_weak_sightings_add_up(self):
-        thin = answer(shirt="none")
+        thin = answer(hair="curly dark", build="heavy")  # one feature agrees, one differs: 50% alone
         alone = judge(SUSPECT, thin, LEFT, SEEN, 3.0, "cam_01")
         self.assertEqual(alone.decision, "uncertain")
         after_weak = judge(SUSPECT, thin, LEFT, SEEN, 3.0, "cam_01", earlier_weak=[("cam_02", alone.sighting)])
         self.assertEqual(after_weak.decision, "match")
         self.assertGreater(after_weak.probability, alone.probability)
         self.assertIn("cam_02", after_weak.reason)
+
+    def test_no_agreeing_feature_is_never_a_match(self):
+        # Two people running with no description used to add up to 75%, a "match" on behaviour alone.
+        for thin in (answer(shirt="none"), answer(build="average")):  # nothing to compare / only "close"
+            for weak in ([("cam_02", 0.5)], [("cam_02", 0.5)] * 5):
+                j = judge(SUSPECT, thin, LEFT, SEEN, 3.0, "cam_01", earlier_weak=weak)
+                self.assertEqual(j.decision, "uncertain")
+                self.assertLess(j.probability, MATCH_AT)
+                self.assertLessEqual(j.confidence, 0.5)
+                self.assertIn("don't add up", j.reason)
+        self.assertEqual(judge(SUSPECT, answer(shirt="none"), LEFT, SEEN, 3.0, "cam_01").decision, "uncertain")
 
     def test_reason_fits_the_contract(self):
         long_text = answer(shirt="black " * 100)
