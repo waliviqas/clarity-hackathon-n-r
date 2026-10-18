@@ -68,7 +68,10 @@ silent. A file written by `--save-answers` replays the same run later with `--an
 - `appearance`: the suspect fields joined into one line (only what was seen).
 - `direction: null`, `bbox: null`, no `activity_confidence`: the spotter gives none.
 - `confidence`: contract v0.1 requires a number, so it is **0.5 with `confidence_known: false`** (never 0).
-  0.5 sits in the dispatcher's "ambiguous" band, so it behaves like unknown (never dropped, never auto-alerted).
+  The dispatcher reads `confidence_known: false` as an unknown confidence, so it never gets an incident dropped.
+  Since Michael's 56712cc a **stabbing** with unknown confidence alerts at once (rules, no model call) unless the
+  evidence argues against it (mixed activities, or an `uncertain` verdict); a **fistfight** or **purse snatch**
+  still goes to the dispatcher's model, and becomes an alert once a camera agent confirms a `match` downstream.
 - Extra fields: `what_happened`, `on_screen` (the dispatcher's model reads them), `spotter_crime`, `spotter`
   (the whole answer), `window_ts`, `spotter_model`, `spotter_mode` (`recorded` / `live`).
 

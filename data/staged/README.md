@@ -2,7 +2,7 @@
 
 The Clarity team filmed this footage during the NVIDIA x Red Hat Small Models Hack. It is our main open-data contribution. The hackathon counts staged (synthetic) data as open data only if both the clips and the method are published, so this page describes how we filmed, labeled and processed every clip. It is written so anyone can check the data or reuse it.
 
-- **Download:** TODO: dataset link (Hugging Face, pending)
+- **Download:** https://huggingface.co/datasets/WilwilMina/clarity-clip8 (Hugging Face: the three blurred camera views `cam1.mp4` to `cam3.mp4`, the clip log, the ground truth and a dataset card)
 - **License:** CC BY 4.0 (see [License and attribution](#license-and-attribution))
 
 ## What it is
@@ -80,7 +80,7 @@ This lets us test the camera-to-camera handoff on real footage. The times betwee
 
 Run these from the repo root with Python 3.10+. `convert_clips.py` and `build_site.py` use only the standard library. `convert_clips.py` also needs `ffmpeg` on PATH (`sudo apt-get install -y ffmpeg` on the Linux GPU box). The other two steps need `pip install -r contracts/requirements.txt -r feeds/requirements.txt`. If a path contains spaces, quote it.
 
-**Before step 1:** put the original clips in a folder of their own. The committed clip log, `data/staged/clip_log_take1.csv`, already points at the converted names (`clip8_cam1.mp4` to `clip8_cam3.mp4`). The published clips are already converted, so if you download them, put them in `data/raw/staged/take1/` and start at step 2.
+**Before step 1:** put the original clips in a folder of their own. The committed clip log, `data/staged/clip_log_take1.csv`, already points at the converted names (`clip8_cam1.mp4` to `clip8_cam3.mp4`). The published clips are already converted, so if you download them, put them in `data/raw/staged/take1/` under the names the clip log uses (`cam1.mp4` becomes `clip8_cam1.mp4`, and so on) and start at step 2.
 
 ```
 python data/convert_clips.py "<folder with the original clips>" --out data/raw/staged/take1
@@ -110,7 +110,7 @@ How `build_site.py` turns the log into numbers:
 | `data/manifests/annex.json` | Maps each `camera_id` to its take, clip file, `uri` and `start_ts`, for the feeds. |
 | `data/staged/clip_log_take1.csv` | The clip log the site is built from, with `phone_owner` blank. It rebuilds the three files above exactly (`python data/check_build_site.py` checks this). The team's working log, `data/staged/clip_log.csv`, stays local and out of git (gitignored) because its `phone_owner` column names the phone owners; the build never copies that column into the outputs. The columns are listed in `data/staged/clip_log_template.csv`; this log adds `gps_lat`, `gps_lon` and `gps_accuracy_m` for the raw GPS, and its `lat`/`lon` are the placed positions. |
 
-**Reusing the clips:** the `uri` paths are relative to the repo root. Put the downloaded clips in `data/raw/staged/take1/`, or set `CLARITY_CLIP_ROOT` to a folder that contains `data/raw/staged/...`.
+**Reusing the clips:** the `uri` paths are relative to the repo root. Put the downloaded clips in `data/raw/staged/take1/`, renamed to `clip8_cam1.mp4` to `clip8_cam3.mp4`, or set `CLARITY_CLIP_ROOT` to a folder that contains `data/raw/staged/...`.
 
 **Training vs test:** clip 8 is a test clip. If the spotter model is fine-tuned, clip 8 stays out of its training data (training and test clips must stay separate).
 
@@ -120,7 +120,7 @@ The clips, ground truth, manifest, camera map and clip log are licensed under **
 
 Attribution line:
 
-> Clarity staged incident, three camera views (Raleigh, Oct 17, 2026), by the Clarity team, NVIDIA x Red Hat Small Models Hack. CC BY 4.0. TODO: dataset link
+> Clarity staged incident, three camera views (Raleigh, Oct 17, 2026), by the Clarity team, NVIDIA x Red Hat Small Models Hack. CC BY 4.0. https://huggingface.co/datasets/WilwilMina/clarity-clip8
 
 The processing scripts are code, not data. Their license is set in the repo's main README.
 

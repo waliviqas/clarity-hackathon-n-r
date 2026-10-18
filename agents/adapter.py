@@ -8,8 +8,8 @@ It gives no confidence, direction or box, so the detection says so instead of in
     (the dashboard puts a crime ring on every camera whose detection has a crime activity).
   - direction: null (not observed). bbox: null. activity_confidence: left out.
   - confidence: contract v0.1 requires a number here, so it is 0.5 with "confidence_known": false.
-    0.5 sits in the dispatcher's "ambiguous" band, so it acts like an unknown: never dropped, never
-    auto-alerted. Never 0.
+    The dispatcher reads confidence_known=false as unknown (Michael's 18efa11): never dropped; a stabbing
+    still alerts at once (56712cc), fistfights and purse snatches go to the model. Never 0.
   - extra fields (allowed by the contract): what_happened and on_screen (the dispatcher's model reads
     them), spotter_crime (the spotter's own crime word), spotter (the whole answer), window_ts.
 """
