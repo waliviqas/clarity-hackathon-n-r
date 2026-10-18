@@ -4,8 +4,8 @@
   "site_name": "Red Hat Annex (staged clips 1 and 3)",
   "map": {
     "center": {
-      "lat": 35.775574,
-      "lon": -78.637001
+      "lat": 35.775537,
+      "lon": -78.637048
     },
     "zoom": 18,
     "site_image": null
@@ -16,8 +16,8 @@
       "name": "Route 3: sidewalk by street parking",
       "take": 3,
       "position": {
-        "lat": 35.7755,
-        "lon": -78.6371
+        "lat": 35.77545,
+        "lon": -78.637095
       },
       "site_xy": null,
       "heading_deg": null,
@@ -25,7 +25,7 @@
         {
           "camera_id": "cam_08",
           "travel_time_s": 7.0,
-          "direction": "north"
+          "direction": "east"
         }
       ],
       "source": {
@@ -39,8 +39,8 @@
       "name": "Route 3: sidewalk by painted parklet",
       "take": 3,
       "position": {
-        "lat": 35.7757,
-        "lon": -78.637
+        "lat": 35.77545,
+        "lon": -78.636873
       },
       "site_xy": null,
       "heading_deg": null,
@@ -48,12 +48,12 @@
         {
           "camera_id": "cam_07",
           "travel_time_s": 7.0,
-          "direction": "south"
+          "direction": "west"
         },
         {
           "camera_id": "cam_09",
           "travel_time_s": 6.0,
-          "direction": "southeast"
+          "direction": "north"
         }
       ],
       "source": {
@@ -67,8 +67,8 @@
       "name": "Route 3: crosswalk corner",
       "take": 3,
       "position": {
-        "lat": 35.7756,
-        "lon": -78.6368
+        "lat": 35.775593,
+        "lon": -78.636873
       },
       "site_xy": null,
       "heading_deg": null,
@@ -76,12 +76,12 @@
         {
           "camera_id": "cam_08",
           "travel_time_s": 6.0,
-          "direction": "northwest"
+          "direction": "south"
         },
         {
           "camera_id": "cam_10",
           "travel_time_s": 3.0,
-          "direction": "southeast"
+          "direction": "west"
         }
       ],
       "source": {
@@ -95,8 +95,8 @@
       "name": "Route 3: sidewalk by building column",
       "take": 3,
       "position": {
-        "lat": 35.77555,
-        "lon": -78.63671
+        "lat": 35.775593,
+        "lon": -78.637095
       },
       "site_xy": null,
       "heading_deg": null,
@@ -104,7 +104,7 @@
         {
           "camera_id": "cam_09",
           "travel_time_s": 3.0,
-          "direction": "northwest"
+          "direction": "east"
         }
       ],
       "source": {
