@@ -9,6 +9,8 @@ only by their cameras.json names, which are neutral ("Route 1: west door"); role
 Run from the repo root (bus running, started with the same CLARITY_CAMERAS):
     python -m bus.fake_scenario --speed 5
     python -m bus.fake_scenario --out runs/fake/events.jsonl   # write a log instead of publishing
+    python -m bus.fake_scenario --no-dispatch                  # scripted perception only; a real
+                                                               # dispatcher (python -m dispatcher.run) decides
 """
 from __future__ import annotations
 
@@ -24,16 +26,17 @@ DEFAULT_CAMERAS = "data/sites/annex_placeholder/cameras.json"
 SOURCE = "fake_scenario"
 
 # One entry per incident. Cameras must be neighbors in cameras.json.
+# Priorities match the real dispatcher (dispatcher/rules.py: fistfight medium, purse_snatch low).
 INCIDENTS = [
-    {"n": 1, "start": 0.0, "activity": "fistfight", "priority": "high",
+    {"n": 1, "start": 0.0, "activity": "fistfight", "priority": "medium",
      "crime": "cam_01", "junction": "cam_02", "exit": "cam_03", "decoy": "cam_04",
      "appearance": "male, red hoodie, blue jeans",
      "summary": "Punched another person repeatedly near the corner, then walked off fast."},
-    {"n": 2, "start": 10.0, "activity": "purse_snatch", "priority": "medium",
+    {"n": 2, "start": 10.0, "activity": "purse_snatch", "priority": "low",
      "crime": "cam_05", "junction": "cam_06", "exit": "cam_07", "decoy": "cam_08",
      "appearance": "female, yellow jacket, black pants",
      "summary": "Pulled a bag off a person's shoulder and ran."},
-    {"n": 3, "start": 20.0, "activity": "purse_snatch", "priority": "medium",
+    {"n": 3, "start": 20.0, "activity": "purse_snatch", "priority": "low",
      "crime": "cam_09", "junction": "cam_10", "exit": "cam_11", "decoy": "cam_12",
      "appearance": "male, black cap, grey backpack",
      "summary": "Grabbed a phone out of a person's hand and ran."},
@@ -147,11 +150,15 @@ def main() -> None:
     p.add_argument("--cameras", default=os.environ.get("CLARITY_CAMERAS", DEFAULT_CAMERAS))
     p.add_argument("--speed", type=float, default=1.0, help="2 = twice as fast as real time")
     p.add_argument("--out", help="write events to this .jsonl file instead of publishing")
+    p.add_argument("--no-dispatch", action="store_true",
+                   help="leave out the scripted dispatch events so a real dispatcher makes the decisions")
     args = p.parse_args()
     if args.speed <= 0:
         p.error("--speed must be greater than 0")
 
     events = build(args.cameras, os.environ.get("CLARITY_RUN_ID", "run_fake"))
+    if args.no_dispatch:
+        events = [e for e in events if e["type"] != "dispatch"]
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.out).write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
