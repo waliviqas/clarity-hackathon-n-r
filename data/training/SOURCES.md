@@ -1,9 +1,12 @@
 # Staged training clips: sources, licenses, shortfalls (2026-10-17)
 
-Status: **0 of 20 verified.** 11 candidates with confirmed open licenses are in
-`staged_clips.csv`, every visual field `Unknown`, status `unverified`. All 11 videos are
-now local (copied from `data/videos/`), with frames at 2 fps and contact sheets in
-`data/raw/training/frames/<clip_id>/` (gitignored). Labeling from the frames is next.
+Status: **11 clips labeled from frames** (Oct 17, late evening): 23 person rows in
+`staged_clips.csv`, every field checked on a second frame (`verified`). Height and glasses are
+`Unknown` throughout (not readable at these resolutions); the aggressor in runaway2 and chase
+is a low-confidence call. The same labels in Wali's `labels_external.csv` format are in
+`labels_external_filled.csv`. These 11 clips are now an external check set (the spotter trains
+on the team's own clips). Videos are local (copied from `data/videos/`), with frames at 2 fps
+and contact sheets in `data/raw/training/frames/<clip_id>/` (gitignored).
 
 Findings from the frames (Oct 17 evening):
 - The 3 MEVA example videos have the activity labels burned in (red boxes + text such as
