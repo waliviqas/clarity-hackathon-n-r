@@ -392,7 +392,7 @@ vLLM serves every model the pipeline runs: the coordinator's model, our fine-tun
 
 | Source | How we use it | License | Attribution |
 |---|---|---|---|
-| **Our staged clips** (13 clips, 34 camera views, filmed by the team on Oct 17) | Spotter training (train split) and testing (test split), kept apart; the demo's camera views (clip 1 live, clip 8 fallback); ground truth. **Published:** clip 8 as [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) (passers-by blurred, no audio, no file metadata; [dataset card](data/staged/DATASET_CARD.md)). Clip 1 (the live demo) as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (no blur needed, no audio, no file metadata; [dataset card](data/staged/DATASET_CARD_clip1.md)). The rest, except clips 4, 11 and 12, are to follow after a bystander check (clips 2, 5 and 6 show passers-by) | CC BY 4.0 (clips 8 and 1) | Credit line below |
+| **Our staged clips** (13 clips, 34 camera views, filmed by the team on Oct 17) | Spotter training (train split) and testing (test split), kept apart; the demo's camera views (clip 1 live, clip 8 fallback); ground truth. **Our published copies:** clip 8 as [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) (passers-by blurred, no audio, no file metadata; [dataset card](data/staged/DATASET_CARD.md)). Clip 1 (the live demo) as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (no blur needed, no audio, no file metadata; [dataset card](data/staged/DATASET_CARD_clip1.md)). | CC BY 4.0 (clips 8 and 1) | Credit line below |
 | **CAVIAR** (8 acted clips from one lobby camera) | First set aside to check the spotter on footage filmed elsewhere; added to training in v2 ([see below](#what-the-final-spotter-was-trained-on)) | CC BY-SA | Below |
 | **MEVA** | 3 example clips: as for CAVIAR. Cut clips (ours, and a batch Michael cut with `scripts/meva_training_clips.py`): extra training clips; MEVA cuts went into v4 and v5, not the final model | CC BY 4.0 | Below |
 | **AIRTLab** violence dataset (staged clips by non-professional actors, 2 viewpoints) | Extra training clips, used in v4 and v5, not in the final model | Research/education only; a model trained on them must say so on its model card. Link only, never re-hosted | Below |
@@ -693,7 +693,7 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 - **Fixed procedure text.** The coordinator's guidance is a fixed line per crime type, not a search over an agency's real procedures (we cut the lookup step).
 - **Not on agency hardware yet.** The demo runs on a rented Brev cloud GPU box standing in for the agency's server, with the dashboard on a laptop over a port-forward.
 - **No login on the bus or the model servers.** None of them has user accounts or an API key. The bus and the coordinator's server bind to `127.0.0.1` on the GPU box and are reached through a port-forward; the runbook starts the other model servers the same way (the spotter servers running during the hack get `--host 127.0.0.1` at their next restart). <!-- source: bus/server.py; infra/serve_dispatcher.sh and VLLM_BOUNTY.md (Michael's commit 56712cc) -->
-- **Not all staged clips are published.** Clips 8 and 1 so far (clip 1 has distant passers-by in some views, none recognizable), and clips 4, 11 and 12 will not be published.
+- **Our published copies cover clips 8 and 1 only.** Each comes with a dataset card, no audio and no file metadata; clip 8's passers-by are blurred, and clip 1 needed no blur (its distant passers-by aren't recognizable). We haven't made copies of the other staged clips.
 - **Raw clips in a working branch's history.** This branch holds no raw video, but Wali's working branch (`wali-branch`) still has raw videos of our staged clips in its git history; removing them is an open item.
 - **Public training clips with limited terms.** AIRTLab is for research and education only, and Mixkit's Acceptable Use Policy is unread. Both were used only in v4 and v5, not in the final model, and neither is re-hosted.
 
@@ -702,7 +702,7 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 - Record the live clip-1 run on the GPU box and use it for the video.
 - Score the system on footage filmed elsewhere that was never used in training.
 - Get the crime type right more often (stabbing vs. assault) and fix misses like clip 8's, with more varied training data: other places, times of day and people.
-- Publish the other staged clips after a bystander check, and remove the raw clips from `wali-branch`'s history.
+- Make published copies of the other staged clips the same way (bystander check, blur where needed, dataset card), and remove the raw clips from `wali-branch`'s history.
 - Rerun the load tests with v3 at 8 frames and with the checker on the same GPU.
 - Run several overlapping incidents on real footage.
 - Compare our camera agents with one model doing the whole job.
@@ -723,7 +723,7 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 - All code in this repo was written during the hackathon (Oct 17–18, 2026). Open-source libraries are listed in each folder's `requirements.txt` (and `dashboard/package.json`).
 - **Claude Code was used as a development tool only** (writing and reviewing code and docs). It is not part of Clarity: no hosted or closed model is called when Clarity runs.
 - The camera agents (`agents/`) live in Wali's part of the project but were written on Mina's side, with his OK, as a thin layer that imports his spotter and checker code unchanged.
-- This branch holds no secrets, no raw video and no faces of people who didn't consent (see [Known limitations](#known-limitations) for Wali's working branch).
+- This branch holds no secrets and no raw video (see [Known limitations](#known-limitations) for Wali's working branch).
 
 ## License
 
