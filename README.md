@@ -13,7 +13,7 @@ Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17
 | Fine-tuned model | Qwen3-VL-2B + our LoRA, version v3, 2.13B parameters. **TODO (model link):** Hugging Face page. Model card: [`hf_model/README.md`](hf_model/README.md) |
 | Base vs. fine-tuned | Full system 0.723 → **0.821**; spotter alone 0.374 → **0.456** (NeMo Gym, 18 held-out test views × 3 runs): [Results](#results) <!-- source: hf_model/README.md; mean reward of results/nemo_gym/clarity_system_before_gym_8f, clarity_system_8f_v2, clarity_before_gym_8f and clarity_after_gym_8f (.jsonl), Wali's commit e710f89 --> |
 | Models and size | Spotter 2.13B + checker 13.18B + coordinator 8.89B = **24.20B**, under the 33B cap: [Models](#models-and-parameter-budget) <!-- source: exact counts in dispatcher/README.md ("Models and the 33B cap"), Michael's commit 56712cc --> |
-| Demo | Live run on test clip 1: **pending** (the pipeline, checker included, is wired; the run on the GPU box is still to be recorded). The same chase already runs from the final system's recorded answers, without a GPU. Fallback: a [scripted replay of clip 8](#fallback-a-scripted-replay-of-clip-8). **TODO (live run):** demo video and screen-capture links |
+| Demo | Live run on test clip 1, every model live on the GPU box: [`runs/run_live2_1027`](runs/run_live2_1027/RUN.md). The coordinator's first alert came 1.59 s after the crime detection, and the suspect was matched at all 3 later cameras. Fallbacks: [replay that run](#fallbacks-replays), or, as a last resort, a scripted run on clip 8. **TODO (live run):** demo video and screen-capture links <!-- source: runs/run_live2_1027/metrics.json (to_first_alert_wall_s 1.594) and RUN.md ("Result") --> |
 | Open data | Test clip 8 published as [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) (CC BY 4.0), with the [filming method](data/staged/README.md). Test clip 1, the live demo, published as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (CC BY 4.0) |
 | Bounty write-ups | [Best Use of Red Hat vLLM](#best-use-of-red-hat-vllm) · [Best Model Improvement with NeMo Gym](#best-model-improvement-with-nemo-gym) |
 
@@ -37,11 +37,11 @@ Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17
 
 ## The demo
 
-### Live demo: test clip 1 (run pending)
+### Live demo: test clip 1
 
 Test clip 1 (take 3 in our clip log) is a mimed stabbing on a sidewalk, staged by our team with empty hands and no prop, and seen by 4 camera views along the suspect's escape: `cam_07` (the attack) → `cam_08` → `cam_09` → `cam_10`. It is a test clip, so the spotter never trained on it. Each view is a separate run of the scene, filmed one after another with one phone and replayed together as live cameras ([how](#how-the-staged-clips-were-made)). Its four views are published as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (CC BY 4.0; no audio, no file metadata; [dataset card](data/staged/DATASET_CARD_clip1.md)). <!-- source: data/staged/README.md ("Clip 1: a second demo site"); labels.csv (split = test), Wali's commit e710f89; upload status from the main session -->
 
-**Status:** every part of the live pipeline is built, and the camera agents now call both the spotter and the checker. The live run on the GPU box has not been recorded yet.
+**The live run:** [`runs/run_live2_1027`](runs/run_live2_1027/RUN.md), recorded Sun Oct 18 (about 06:28 ET) on the team's Brev box. The fine-tuned spotter, the checker, the camera agents, the event bus (strict validation) and the coordinator's model all ran live on clip 1's frames, 8 per camera; nothing was scripted or replayed. No dashboard or operator was attached during the run; replaying its log shows it on the dashboard ([Fallbacks](#fallbacks-replays)). <!-- source: runs/run_live2_1027/RUN.md ("Setup", "What is real") -->
 
 How the chase unfolds:
 
@@ -50,7 +50,15 @@ How the chase unfolds:
 3. The coordinator combines these reports with the camera map and recommends where to send officers. Plain-code checks (the verifier) test every model answer first, and a fixed procedure line closes each recommendation.
 4. The incident card turns to **Needs your decision**. The operator clicks **Confirm** or **Dismiss**, can open **Watch last sighting** to see the newest sighting's clip, and can click any message in **Receipts** to see the events it relied on.
 
-**What the final system answered on clip 1** when we scored it (NeMo Gym, 8 frames, 3 runs per camera): <!-- source: results/nemo_gym/clarity_system_8f_v2.jsonl, tasks 0-3 (= clip1 cam1-cam4), Wali's commit e710f89; the same answers, text only, are in data/answers/clip1_system_v3_checker.json (written by data/gym_answers.py) -->
+**What the live run did** (`runs/run_live2_1027`): <!-- source: runs/run_live2_1027/RUN.md ("Result"), metrics.json, events.jsonl and answers.json -->
+
+- **The chase.** The spotter reported a crime at `cam_07`, and the checker described the suspect on every camera the spotter flagged: a black hoodie (a "black long-sleeve" top at `cam_08`), black pants or jeans, black sneakers. The camera agents matched the suspect at `cam_08`, `cam_09` and `cam_10`, with confidence 0.95 each.
+- **The coordinator** raised an alert at the crime ("Send officers to cam_08 to intervene in the ongoing fistfight"), then sent officers ahead of the suspect as he moved ("Send officers to cam_09 to intercept the subject", then the same for `cam_10`), and its last update added "Check on the victim at cam_07". Each recommendation ended with the fistfight procedure line. Two of its four decisions needed one retry after an invalid JSON first answer; both recovered.
+- **Speed.** The first alert reached the bus 1.59 s after the crime detection. Each camera took the spotter about 2.6–3.2 s and the checker about 6.8–7.3 s. <!-- source: runs/run_live2_1027/metrics.json (to_first_alert_wall_s 1.594); RUN.md ("Timing") -->
+- **Events.** 14, all valid under the bus's strict schema check: 4 detections, 3 relays, 3 verdicts, 4 dispatches. <!-- source: runs/run_live2_1027/metrics.json (events_total 14, by_type) and RUN.md ("Events") -->
+- **The crime type is wrong.** The spotter called the mimed stabbing an "assault", as the base model does. The camera agents map `assault` to the contract label `fistfight`, so the incident ran as a fistfight (medium priority), not a stabbing (high).
+
+**The live answers match what we scored.** In NeMo Gym, the same system made the same calls and described the same tops on clip 1, in all 3 runs (8 frames per camera): <!-- source: results/nemo_gym/clarity_system_8f_v2.jsonl, tasks 0-3 (= clip1 cam1-cam4), Wali's commit e710f89; the same answers, text only, are in data/answers/clip1_system_v3_checker.json (written by data/gym_answers.py) -->
 
 | Camera | Spotter (v3) | Checker: the suspect's top |
 |---|---|---|
@@ -59,31 +67,31 @@ How the chase unfolds:
 | `cam_09` (view 3) | fleeing, 3 of 3 | black hoodie |
 | `cam_10` (view 4) | fleeing, 3 of 3 | black hoodie |
 
-- **The crime type is wrong.** The spotter calls the mimed stabbing an "assault", as the base model does. The camera agents map `assault` to the contract label `fistfight`, so the incident is reported as a fistfight (medium priority), not a stabbing (high).
-- **The chase works on these answers.** Replaying them through the real camera agents (no models, no GPU) gives the same chase in all 3 recorded runs: a crime at `cam_07`, reported as a fistfight, then a match at `cam_08`, `cam_09` and `cam_10` (confidence 0.95 each). All 10 events pass the contract check. These are recorded model answers, not a live run. <!-- source: reported by the main session, Sun Oct 18: python -m agents.run --answers data/answers/clip1_system_v3_checker.json --cameras data/sites/annex_clip1/cameras.json, once per recorded run; events checked with contracts/validate.py (10/10 valid) -->
+- Replaying those recorded answers through the real camera agents (no models, no GPU) gives the same chase in all 3 runs: a crime at `cam_07` reported as a fistfight, then a match at `cam_08`, `cam_09` and `cam_10` (confidence 0.95 each), 10 of 10 events valid. <!-- source: reported by the main session, Sun Oct 18: python -m agents.run --answers data/answers/clip1_system_v3_checker.json --cameras data/sites/annex_clip1/cameras.json, once per recorded run; events checked with contracts/validate.py (10/10 valid) -->
 - On clip 1 the base model makes the same crime and fleeing calls, so this clip shows the system at work rather than the gain from fine-tuning. That gain is measured over all test views in [Results](#results). <!-- source: results/nemo_gym/clarity_system_before_gym_8f.jsonl, tasks 0-3, Wali's commit e710f89 -->
-- **TODO (live run):** run ID, what the live pipeline did on clip 1, and its timing.
 
-### Fallback: a scripted replay of clip 8
+### Fallbacks: replays
 
-If the live run isn't ready, the video uses the recorded run [`runs/run_1018-0028_r2s`](runs/run_1018-0028_r2s/RUN.md) (Sun Oct 18, 00:28–00:31 ET): test clip 8, a phone snatched at a bus shelter and seen by 3 camera views. In it the spotter and camera agents are **scripted** from clip 8's ground truth, and the coordinator's real code runs in **rules mode**. The dashboard shows **Scripted run**, and the video labels it "coordinator: rules mode". All 16 events pass `contracts/validate.py`. <!-- source: runs/run_1018-0028_r2s/RUN.md ("Event counts": 16/16) -->
+1. **Replay the live run (primary).** Restart the bus with a new run ID and clip 1's cameras, run no coordinator, then `python -m bus.replay runs/run_live2_1027/events.jsonl --speed 1`. The dashboard shows the live run's own events at their original pace; label a recording "replay of live run run_live2_1027". <!-- source: runs/run_live2_1027/RUN.md ("Replay") -->
+2. **Scripted run on clip 8 (last resort).** The recorded run [`runs/run_1018-0028_r2s`](runs/run_1018-0028_r2s/RUN.md) (Sun Oct 18, 00:28–00:31 ET): test clip 8, a phone snatched at a bus shelter and seen by 3 camera views. In it the spotter and camera agents are **scripted** from clip 8's ground truth, and the coordinator's real code runs in **rules mode**. The dashboard shows **Scripted run**, and the video labels it "coordinator: rules mode". All 16 events pass `contracts/validate.py`. <!-- source: runs/run_1018-0028_r2s/RUN.md ("Event counts": 16/16) -->
 
 **Why clip 8 is not the live clip:** on clip 8's crime camera, the fine-tuned spotter answers "nothing happens" in 3 of 3 runs, where the base model said crime. A live run on clip 8 would most likely start no chase, because only a crime report opens one. <!-- source: results/nemo_gym/clarity_system_8f_v2.jsonl task 13 (= clip8 cam1): on_screen "none" in 3 of 3; clarity_system_before_gym_8f.jsonl task 13: "crime" in 3 of 3 (Wali's commit e710f89); agents/adapter.py: only on_screen "crime" gives a crime activity -->
 
 ### What is real and what is scripted
 
-| Part | Live demo (clip 1, pending) | Fallback `run_1018-0028_r2s` (clip 8) |
+| Part | Live run `run_live2_1027` (clip 1; also what its replay shows) | Last-resort fallback `run_1018-0028_r2s` (clip 8) |
 |---|---|---|
 | Camera views | Real: clip 1's four views, replayed as cameras | Real: clip 8's three views (blurred copies), shown in **Watch last sighting** |
-| Spotter | Real: fine-tuned v3 (`spotter-ft`) on vLLM, 8 frames per camera | **Scripted** from ground truth (events tagged `source: "fake_scenario"`) |
-| Checker | Real: Nemotron Nano 12B v2 VL (`checker`) on vLLM, on the cameras the spotter flags, 8 frames | Not used |
-| Camera agents | Real: plain code (`python -m agents.run --live`) | **Scripted** (same script) |
-| Coordinator | Real: Nemotron Nano 9B v2 on vLLM | Real code in **rules mode** (the 9B model was stopped while the GPU trained the spotter) |
-| Event bus, dashboard, the operator's Confirm / Dismiss | Real | Real |
+| Spotter | **Live**: fine-tuned v3 (`spotter-ft`) on vLLM, 8 frames per camera | **Scripted** from ground truth (events tagged `source: "fake_scenario"`) |
+| Checker | **Live**: Nemotron Nano 12B v2 VL (`checker`) on vLLM, on the cameras the spotter flagged, 8 frames | Not used |
+| Camera agents | **Live**: plain code (`python -m agents.run --live`) | **Scripted** (same script) |
+| Coordinator | **Live**: Nemotron Nano 9B v2 on vLLM, model on | Real code in **rules mode** (the 9B model was stopped while the GPU trained the spotter) |
+| Event bus | Real, strict schema validation | Real |
+| Dashboard, the operator's Confirm / Dismiss | Not attached during the run; the replay shows its events on the dashboard | Real: the operator confirmed from the dashboard |
 
-<!-- source: runs/run_1018-0028_r2s/RUN.md; agents/README.md -->
+<!-- source: runs/run_live2_1027/RUN.md ("What is real"); runs/run_1018-0028_r2s/RUN.md; agents/README.md -->
 
-**Three incidents at once (scripted events).** With three overlapping scripted incidents from `bus.fake_scenario`, the coordinator's live model kept up: the slowest bus poll went from 3.9 s to 2.3 s after batching, with no fallbacks, and officers were never sent to a decoy exit (0 of 14 dispatches). Our filmed demo shows one incident. <!-- source: dispatcher/IMPROVEMENTS.md, changes #5 and #9 (1 run each), Michael's commit 56712cc -->
+**Three incidents at once (scripted events).** With three overlapping scripted incidents from `bus.fake_scenario`, the coordinator's live model kept up: the slowest bus poll went from 3.9 s to 2.3 s after batching, with no fallbacks, and officers were never sent to a decoy exit (0 of 14 dispatches). Our live run shows one incident. <!-- source: dispatcher/IMPROVEMENTS.md, changes #5 and #9 (1 run each), Michael's commit 56712cc -->
 
 The video's closing line: *"In a real deployment, no video leaves the building. Only words move between agents."* It describes how Clarity is **designed to be deployed**: every part runs on the agency's own hardware, and the agents exchange only text. In our hackathon demo, a rented NVIDIA Brev GPU box stands in for that hardware: the staged clips are copied to it, and the bus streams a camera's clip to the operator's laptop only when the operator opens a sighting. Between agents, only text moves in the demo too.
 
@@ -155,7 +163,7 @@ flowchart LR
 | Camera agents and spotter adapter | `agents/` | Mina's side (with Claude Code), Wali's OK | Built: they call the spotter, then the checker on flagged cameras; unit tests in `agents/tests` |
 | Camera graph (`graph.predict_next`) | — | Wali | Not merged; the coordinator uses its built-in fallback (unvisited neighbors of the last camera, weighted by direction) |
 | Coordinator (rules, model, verifier) | `dispatcher/` | Michael | Built |
-| Model serving on vLLM | `infra/` | Michael | Built: coordinator (port 8003), fine-tuned spotter (8005) and checker (8002) on one A100, base spotter (8001) for the comparison. The checker runs from Wali's `infra/serve_checker.sh`; the three models haven't run side by side on the box yet |
+| Model serving on vLLM | `infra/` | Michael | Built: coordinator (port 8003), fine-tuned spotter (8005) and checker (8002) on one A100, base spotter (8001) for the comparison. The checker runs from Wali's `infra/serve_checker.sh`; the three ran side by side in the live run, about 75 of 80 GB in use <!-- source: runs/run_live2_1027/RUN.md ("Setup") --> |
 | Message contracts and validator | `contracts/` | shared | Built |
 | Event bus (server, client, scripted scenario, replay, run metrics) | `bus/` | Mina | Built |
 | Camera feeds (clips replayed as cameras) | `feeds/` | Mina | Built |
@@ -261,7 +269,18 @@ At 16 at once, over both runs: 477–514 output tokens/s, about 7× one request 
 
 ### End to end
 
-**TODO (live run):** time from the crime on camera to the coordinator's recommendation, from the bus logs of the live clip-1 run (`python -m bus.metrics runs/<run_id>`). The scripted fallback's timings follow the script's pacing, not model speed, so we don't report them (`bus.metrics` labels such runs as scripted).
+From the bus logs of the live clip-1 runs (`python -m bus.metrics runs/<run_id>`), on one A100 shared by the spotter, the checker and the coordinator's model:
+
+| Run | Coordinator model | Crime detection → first alert on the bus | Events (all valid) |
+|---|---|---|---|
+| [`run_live2_1027`](runs/run_live2_1027/RUN.md) (the live run) | warm | **1.59 s** | 14 |
+| [`run_live_1025`](runs/run_live_1025/RUN.md) (first try) | cold: its first request compiled the JSON grammar | 21.9 s | 13 |
+
+<!-- source: runs/run_live2_1027/metrics.json (to_first_alert_wall_s 1.594, events_total 14) and runs/run_live_1025/metrics.json (to_first_alert_wall_s 21.887, events_total 13); cold-start cause: runs/run_live_1025/RUN.md ("Timing") -->
+
+- After the cold run, Michael added a warm-up request at coordinator startup (commit `3d5a2b3`); the 1.59 s run came after it. One run each.
+- Per camera, the spotter took about 2.6–3.2 s and the checker about 6.8–7.3 s. <!-- source: runs/run_live2_1027/RUN.md ("Timing") -->
+- The scripted fallback's timings follow the script's pacing, not model speed, so we don't report them (`bus.metrics` labels such runs as scripted).
 
 ### Not measured
 
@@ -278,9 +297,9 @@ In our own words, the Fine-Tuned track asks for a small open model specialized w
 | What the track looks for (our paraphrase) | In Clarity |
 |---|---|
 | A small model, specialized for one job | Qwen3-VL-2B (2.13B), LoRA fine-tuned (v3) to call crime, fleeing or nothing on one camera and name the crime type |
-| Data behind the specialization | Clips our team filmed and labeled during the hack (train split), possibly with 11 public clips ([what v3 was trained on](#what-the-final-spotter-was-trained-on)). Test clip 8 is published with the method |
+| Data behind the specialization | Clips our team filmed and labeled during the hack (train split), possibly with 11 public clips ([what v3 was trained on](#what-the-final-spotter-was-trained-on)). Test clips 8 and 1 are published with the method |
 | A fair before-and-after | Base vs. v3 on the same 18 held-out test views, 3 runs each, with the same NeMo Gym tasks, frames, checker and scoring: full system 0.723 → 0.821 ([Results](#results)) <!-- source: hf_model/README.md and results/nemo_gym/ (Wali's commit e710f89) --> |
-| The model doing real work | v3 screens every camera, and its crime call is what starts a chase: the camera agents open an incident only where it reports a crime, then relay the suspect description from camera to camera, and the coordinator recommends where to send officers. On clip 1's recorded answers the chase runs end to end through the camera agents ([The demo](#the-demo)). **TODO (live run):** run ID of the live clip-1 run |
+| The model doing real work | v3 screens every camera, and its crime call is what starts a chase: the camera agents open an incident only where it reports a crime, then relay the suspect description from camera to camera, and the coordinator recommends where to send officers. In the live run [`run_live2_1027`](runs/run_live2_1027/RUN.md), on held-out clip 1, it did exactly that: crime at `cam_07`, suspect matched at the next three cameras, first alert 1.59 s after the crime detection ([The demo](#the-demo)) <!-- source: runs/run_live2_1027/RUN.md ("Result") and metrics.json --> |
 | The published model | **TODO (model link)** |
 
 ---
@@ -342,7 +361,7 @@ The hackathon cap is **33B parameters in total** across all generative language 
 | **Final system:** spotter + checker + coordinator | **24.20B** | Yes, 8.80B to spare |
 | Every model we served, adding the base spotter kept for the comparison | 26.33B | Yes |
 
-<!-- source: exact counts from dispatcher/README.md ("Models and the 33B cap") and VLLM_BOUNTY.md (Michael: 56712cc; checker on :8002 as part of the final system since 79c6bff); measured memory shares from VLLM_BOUNTY.md; checker 0.40 and base-off plan from the main session; sums: 2,127,532,032 + 13,181,860,358 + 8,888,227,328 = 24,197,619,718; + 2,127,532,032 = 26,325,151,750 -->
+<!-- source: exact counts from dispatcher/README.md ("Models and the 33B cap") and VLLM_BOUNTY.md (Michael: 56712cc; checker on :8002 as part of the final system since 79c6bff); measured memory shares from VLLM_BOUNTY.md; checker 0.40 with the base spotter off: runs/run_live2_1027/RUN.md ("Setup"); sums: 2,127,532,032 + 13,181,860,358 + 8,888,227,328 = 24,197,619,718; + 2,127,532,032 = 26,325,151,750 -->
 
 - No embedding or reranking models: the lookup step (Nemotron Embed + Rerank) was cut.
 - The fine-tuned spotter is stored as full merged weights (`src/merge_lora.py`), so it has the same count as the base.
@@ -351,7 +370,7 @@ The hackathon cap is **33B parameters in total** across all generative language 
 
 **Why these models.**
 
-- **Small enough to run on site.** One A100 80 GB held the coordinator (0.30 of its memory) and both spotters (0.2 each), 0.70 in total. For the live run the plan is the checker (0.40), the coordinator (0.30) and the fine-tuned spotter (0.20) on the same GPU, with the base spotter off. <!-- source: VLLM_BOUNTY.md (measured shares); live-run plan from the main session -->
+- **Small enough to run on site.** One A100 80 GB held the coordinator (0.30 of its memory) and both spotters (0.2 each), 0.70 in total. In the live run, the same GPU held the checker (0.40), the coordinator (0.30) and the fine-tuned spotter (0.20), with the base spotter off: about 75 of 80 GB in use. <!-- source: VLLM_BOUNTY.md (measured shares during the hack); runs/run_live2_1027/RUN.md ("Setup") for the live run -->
 - **Right size for each job.** The 2B spotter looks at every camera; the larger checker only at the cameras the spotter flags; the coordinator works with text only.
 - **vLLM for many cameras and incidents at once:** one OpenAI-compatible API for every model, JSON-schema outputs, and batching. Measured in [Results](#serving-many-cameras-and-incidents-at-once-on-vllm).
 
@@ -361,9 +380,9 @@ The hackathon cap is **33B parameters in total** across all generative language 
 
 vLLM serves every model the pipeline runs: the coordinator's model, our fine-tuned spotter and the checker (plus the base spotter for the before/after comparison), on one A100 80 GB behind vLLM's OpenAI-compatible API. Michael's full write-up, with every flag and both coordinator load-test runs, is [`VLLM_BOUNTY.md`](VLLM_BOUNTY.md). Sources for this section: `VLLM_BOUNTY.md`, `dispatcher/IMPROVEMENTS.md`, `dispatcher/README.md` and `infra/serve_dispatcher.sh` (Michael), and `results/vllm_bench.json` (Wali). <!-- source: Michael's commits 56712cc (dispatcher, measurements) and 79c6bff (VLLM_BOUNTY.md: checker served on :8002 as part of the final system) -->
 
-**How it fits.** The coordinator's model, Nemotron Nano 9B v2, runs on vLLM 0.11.0 on port 8003 as `dispatcher`. The coordinator calls it with `temperature=0`, `max_tokens=400` and a JSON schema, so answers come back in the shape of a `dispatch`, and the verifier checks each one. The fine-tuned spotter runs as `spotter-ft` on port 8005 (the base on 8001) and the checker as `checker` on port 8002. Both answer through a JSON schema at temperature 0, so the spotter's `on_screen` and `crime` fields are fixed choices our code can check, and the checker returns exactly the suspect fields the agents compare. The camera agents call the models for each camera's clip as soon as it has played, in parallel, so vLLM can batch the calls. <!-- source: VLLM_BOUNTY.md ("What vLLM does", "Why vLLM" point 2); src/spotter.py; src/checker.py; agents/run.py -->
+**How it fits.** The coordinator's model, Nemotron Nano 9B v2, runs on vLLM 0.11.0 on port 8003 as `dispatcher`. The coordinator calls it with `temperature=0`, `max_tokens=300` (400 in the measurements and the live run below) and a JSON schema, so answers come back in the shape of a `dispatch`, and the verifier checks each one. <!-- source: runs/run_live2_1027/RUN.md ("Code": "this run still had max_tokens 400, now 300") --> The fine-tuned spotter runs as `spotter-ft` on port 8005 (the base on 8001) and the checker as `checker` on port 8002. Both answer through a JSON schema at temperature 0, so the spotter's `on_screen` and `crime` fields are fixed choices our code can check, and the checker returns exactly the suspect fields the agents compare. The camera agents call the models for each camera's clip as soon as it has played, in parallel, so vLLM can batch the calls. <!-- source: VLLM_BOUNTY.md ("What vLLM does", "Why vLLM" point 2); src/spotter.py; src/checker.py; agents/run.py -->
 
-**How we configured it.** During the hack one A100 80 GB was shared by three vLLM servers: the coordinator took 0.30 of its memory (~26.8 GB measured) and the base and fine-tuned spotters 0.2 each (~14.8 GB each), 0.70 in total. For the live run the plan is the checker at 0.40 with the base spotter off. The coordinator's server has an 8,192-token context and up to 16 concurrent sequences; the spotter servers allow 16,384 tokens, because each request carries several camera frames as images. The coordinator's server listens only on `127.0.0.1`; the runbook starts the other servers the same way (the spotter servers running during the hack get `--host 127.0.0.1` at their next restart). vLLM stays pinned at 0.11.0 because newer releases fail with this GPU's driver. The coordinator sends model calls for different incidents in parallel (up to 8, below vLLM's 16) so vLLM can batch them. Full commands: [Reproduce the demo](#reproduce-the-demo), step 3; each flag is explained in `VLLM_BOUNTY.md`. <!-- source: infra/serve_dispatcher.sh and VLLM_BOUNTY.md, "Configuration" (Michael); live-run plan from the main session -->
+**How we configured it.** During the hack one A100 80 GB was shared by three vLLM servers: the coordinator took 0.30 of its memory (~26.8 GB measured) and the base and fine-tuned spotters 0.2 each (~14.8 GB each), 0.70 in total. In the live run the checker took 0.40 instead of the base spotter: about 75 of 80 GB in use. The coordinator's server has an 8,192-token context and up to 16 concurrent sequences; the spotter servers allow 16,384 tokens, because each request carries several camera frames as images. The coordinator's server listens only on `127.0.0.1`; the runbook starts the other servers the same way (the spotter servers running during the hack get `--host 127.0.0.1` at their next restart). vLLM stays pinned at 0.11.0 because newer releases fail with this GPU's driver. The coordinator sends model calls for different incidents in parallel (up to 8, below vLLM's 16) so vLLM can batch them. Full commands: [Reproduce the demo](#reproduce-the-demo), step 3; each flag is explained in `VLLM_BOUNTY.md`. <!-- source: infra/serve_dispatcher.sh and VLLM_BOUNTY.md, "Configuration" (Michael); live-run shares and memory: runs/run_live2_1027/RUN.md ("Setup") -->
 
 **What we changed, and what it measured** (coordinator; one change at a time, same scenario; small samples): <!-- source: dispatcher/IMPROVEMENTS.md (Michael's commit 56712cc) -->
 
@@ -373,8 +392,11 @@ vLLM serves every model the pipeline runs: the coordinator's model, our fine-tun
 | Removed `/no_think` from the system prompt | 0 of 5 answers valid, 5.6 s | 5 of 5 valid, 1.5 s |
 | Batch each bus poll, call the model for different incidents in parallel, skip repeated events (3 overlapping incidents) | slowest poll 3.9 s, 18 model calls | slowest poll 2.3 s, 15 model calls, 0 fallbacks (1 run) |
 | Retry once on unparseable JSON | 1 fallback in 15 dispatches | 0 fallbacks in 36 calls |
+| Send one warm-up request when the coordinator starts (its first request compiles the JSON grammar), live clip-1 runs | first alert 21.9 s after the crime detection (`run_live_1025`, cold) | 1.59 s (`run_live2_1027`), 1 run each |
 
-**Measured results.** Continuous batching: the coordinator reaches 477–514 output tokens/s at 16 requests at once (two runs), about 7× one request (7.3–7.6×), for about 2× the latency, and every answer passed the verifier. The base spotter handles 992.8 cameras per minute at 32 at once: 11.3× one camera, for 2.5× the median latency, with no errors. Tables: [Results](#serving-many-cameras-and-incidents-at-once-on-vllm). <!-- source: dispatcher/IMPROVEMENTS.md, "Serving throughput" (run 1: 68 -> 514 tok/s) and "Run-to-run variation" (run 2: 65 -> 477 tok/s, 64/64 verified); results/vllm_bench.json -->
+<!-- source for the warm-up row: runs/run_live_1025/metrics.json (to_first_alert_wall_s 21.887) and RUN.md ("Timing"); runs/run_live2_1027/metrics.json (1.594); dispatcher commit 3d5a2b3 -->
+
+**Measured results.** Live, on one A100 shared by all three models: the coordinator's first alert came 1.59 s after the crime detection, and each camera took the spotter about 2.6–3.2 s and the checker about 6.8–7.3 s ([End to end](#end-to-end)). <!-- source: runs/run_live2_1027/metrics.json and RUN.md ("Timing") --> Continuous batching: the coordinator reaches 477–514 output tokens/s at 16 requests at once (two runs), about 7× one request (7.3–7.6×), for about 2× the latency, and every answer passed the verifier. The base spotter handles 992.8 cameras per minute at 32 at once: 11.3× one camera, for 2.5× the median latency, with no errors. Tables: [Results](#serving-many-cameras-and-incidents-at-once-on-vllm). <!-- source: dispatcher/IMPROVEMENTS.md, "Serving throughput" (run 1: 68 -> 514 tok/s) and "Run-to-run variation" (run 2: 65 -> 477 tok/s, 64/64 verified); results/vllm_bench.json -->
 
 **Tried, didn't help.**
 
@@ -613,7 +635,7 @@ pip install -r requirements.txt -r bus/requirements.txt -r feeds/requirements.tx
 
 Check them on the box: `python -m feeds.replay --cameras data/sites/annex_clip1/cameras.json --check` (exit 1 if a clip is missing or unreadable; `data/sites/annex/cameras.json` for clip 8).
 
-**3. Model servers, one at a time.** Each in its own tmux window, with the team's vLLM 0.11.0 environment (`~/vllm12`); start the next one only when the previous one is ready. Keep the base spotter (port 8001) off so the three fit on the A100, with planned shares of 0.40 + 0.30 + 0.20 of its memory. <!-- source: start order and shares from the main session (Sun Oct 18); coordinator and spotter commands from VLLM_BOUNTY.md "Configuration" and infra/serve_dispatcher.sh (Michael's commit 56712cc), with --host 127.0.0.1 added to the spotter command; checker from infra/serve_checker.sh (Wali's commit 99c80f2) -->
+**3. Model servers, one at a time.** Each in its own tmux window, with the team's vLLM 0.11.0 environment (`~/vllm12`); start the next one only when the previous one is ready. Keep the base spotter (port 8001) off so the three fit on the A100, with 0.40 + 0.30 + 0.20 of its memory, as in the live run (about 75 of 80 GB in use). <!-- source: start order from the main session (Sun Oct 18); shares and memory: runs/run_live2_1027/RUN.md ("Setup"); coordinator and spotter commands from VLLM_BOUNTY.md "Configuration" and infra/serve_dispatcher.sh (Michael's commit 56712cc), with --host 127.0.0.1 added to the spotter command; checker from infra/serve_checker.sh (Wali's commit 99c80f2) -->
 
 ```bash
 # Checker on port 8002, 0.40 of the GPU, served as "checker" (the script activates ~/vllm12 itself;
@@ -665,15 +687,16 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 - `--save-answers` keeps the answers, so `--answers <file>` can replay the same take later without a GPU. `--relay-uncertain` keeps a chase going when descriptions are thin: an uncertain look at someone running is relayed onward too.
 - For the next take, restart the bus and the coordinator with a new `CLARITY_RUN_ID`, so every take gets its own log.
 
-**Without the live models.** Keep the bus and the dashboard (and the coordinator, except for the recorded replay), and swap the camera agents for one of these:
+**Without the live models.** Keep the bus and the dashboard (and the coordinator, except for the two replays), and swap the camera agents for one of these:
 
 | Instead of the live agents | Site (`CLARITY_CAMERAS`) | Command |
 |---|---|---|
+| **Replay the live run** (the primary fallback: every event of `run_live2_1027`, at its original pace; label a recording "replay of live run run_live2_1027") | `data/sites/annex_clip1/cameras.json` | `python -m bus.replay runs/run_live2_1027/events.jsonl --speed 1`, against a bus restarted with a new run ID and with no coordinator running (the log already holds its decisions) |
 | The final system's recorded answers on clip 1 (real model output from NeMo Gym, replayed; label a recording "recorded model answers") | `data/sites/annex_clip1/cameras.json` | `python -m agents.run --answers data/answers/clip1_system_v3_checker.json --cameras data/sites/annex_clip1/cameras.json` |
 | Clip 1, scripted from its ground truth (shown as **Scripted run**) | `data/sites/annex_clip1/cameras.json` | `python -m bus.fake_scenario --ground-truth data/ground_truth/take3.json --cameras data/sites/annex_clip1/cameras.json` |
-| The recorded fallback run on clip 8 (shown as **Scripted run**, "coordinator: rules mode") | `data/sites/annex/cameras.json` | `python -m bus.replay runs/run_1018-0028_r2s/events.jsonl --speed 1`, with no coordinator running (the recording already holds its decisions) |
+| The scripted run on clip 8, last resort (shown as **Scripted run**, "coordinator: rules mode") | `data/sites/annex/cameras.json` | `python -m bus.replay runs/run_1018-0028_r2s/events.jsonl --speed 1`, with no coordinator running (the recording already holds its decisions) |
 
-<!-- source: commands reported by the main session, Sun Oct 18 (recorded answers: 10/10 events valid; scripted clip 1: 14/14 valid); runs/run_1018-0028_r2s/RUN.md ("Replay") -->
+<!-- source: runs/run_live2_1027/RUN.md ("Replay"); commands reported by the main session, Sun Oct 18 (recorded answers: 10/10 events valid; scripted clip 1: 14/14 valid); runs/run_1018-0028_r2s/RUN.md ("Replay") -->
 
 **Spotter before/after:** score the base (port 8001) and fine-tuned (port 8005) servers with the NeMo Gym environment, see [Best Model Improvement with NeMo Gym](#best-model-improvement-with-nemo-gym).
 
@@ -681,7 +704,7 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 
 ## Known limitations
 
-- **The live run is still to come.** The pipeline is wired end to end, checker included, but no live run on the GPU box has been recorded yet, and the three models haven't run side by side on the box yet. Until then the demo runs from the final system's recorded answers or from scripts: in the fallback run `run_1018-0028_r2s`, a script stands in for the spotter and camera agents, and the coordinator runs in rules mode.
+- **One live run, no operator.** The live run `run_live2_1027` covers one incident on one clip, recorded once (after one cold-start try, `run_live_1025`). No dashboard or operator was attached while it ran, so the operator's Confirm / Dismiss appears only in replays and in the scripted fallback. Two of the coordinator's four decisions needed one retry after an invalid JSON first answer. <!-- source: runs/run_live2_1027/RUN.md ("What is real", "Result"); runs/run_live_1025/RUN.md -->
 - **Modest scores.** v3 makes the right call in 89% of answers but names the crime type right in only 33%. It misses the crime on clip 8's crime camera in all 3 runs, and calls clip 1's mimed stabbing an assault, so the demo incident is reported as a fistfight. <!-- source: results/history.csv after_nemo_gym_v3_8f; clarity_system_8f_v2.jsonl (Wali's commit e710f89) -->
 - **Small, familiar test set.** 18 test views from the same afternoon, site and people as the training clips, also used to compare versions; only 2 views show nothing happening, so the false-alarm rate rests on very few answers.
 - **No check on footage filmed elsewhere.** The public clips we set aside for that may have gone into v3's training ([details](#what-the-final-spotter-was-trained-on)).
@@ -699,7 +722,7 @@ SPOTTER_URL=http://localhost:8005/v1 SPOTTER_MODEL=spotter-ft CHECKER_BASE_URL=h
 
 ## Next steps
 
-- Record the live clip-1 run on the GPU box and use it for the video.
+- Run the live pipeline again with the dashboard and an operator attached, and on more clips.
 - Score the system on footage filmed elsewhere that was never used in training.
 - Get the crime type right more often (stabbing vs. assault) and fix misses like clip 8's, with more varied training data: other places, times of day and people.
 - Make published copies of the other staged clips the same way (bystander check, blur where needed, dataset card), and remove the raw clips from `wali-branch`'s history.
