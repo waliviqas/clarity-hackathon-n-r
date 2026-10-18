@@ -124,6 +124,13 @@ class Judge(unittest.TestCase):
         self.assertGreater(after_weak.probability, alone.probability)
         self.assertIn("cam_02", after_weak.reason)
 
+    def test_generic_fields_alone_never_match(self):
+        # glasses / height agree for most people, so they can't be the agreeing feature (reviewer repro: p=0.62)
+        for thin in (answer(glasses="no"), answer(height="average"), answer(glasses="no", height="average")):
+            for weak in ([], [("cam_02", 0.5)] * 5):
+                j = judge(SUSPECT, thin, LEFT, SEEN, 3.0, "cam_01", earlier_weak=weak)
+                self.assertNotEqual(j.decision, "match")
+
     def test_no_agreeing_feature_is_never_a_match(self):
         # Two people running with no description used to add up to 75%, a "match" on behaviour alone.
         for thin in (answer(shirt="none"), answer(build="average")):  # nothing to compare / only "close"

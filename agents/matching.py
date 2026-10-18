@@ -23,6 +23,9 @@ WEIGHTS = {"shirt": 3.0, "pants": 2.0, "headwear": 2.0, "bag": 1.5, "hair": 1.0,
            "build": 1.0, "height": 1.0, "glasses": 1.0, "weapon": 1.0, "vehicle": 0.5}
 LEVELS = {"build": ("slim", "average", "heavy"), "height": ("short", "average", "tall")}
 ITEM_FIELDS = {"headwear", "bag", "weapon", "vehicle"}  # "none" there means "clearly has none"
+# Features that tell people apart. Glasses, height and build agree for most passers-by, so they can add to the
+# score but never be the one agreeing feature a "match" needs.
+DISTINCTIVE = ("shirt", "pants", "shoes", "headwear", "hair", "bag")
 UNKNOWN = {"", "unknown", "unclear", "unsure", "not visible", "n/a", "na"}
 
 COLOURS = {"black", "white", "grey", "red", "blue", "navy", "green", "yellow", "orange", "purple", "pink",
@@ -209,7 +212,7 @@ def judge(expected: dict[str, str], answer: dict, left: tuple[float, float], see
     p = sighting_probability(agreements, on_screen)
     # Without one agreeing feature, two people running with no description would add up to 75%: a "match"
     # on behaviour alone. Such a look stays on its own (uncertain at most).
-    agrees = any(a > 0.5 for a in agreements.values())
+    agrees = any(agreements.get(f, 0.5) > 0.5 for f in DISTINCTIVE)
     combined = combine([q for _, q in earlier_weak] + [p]) if agrees else p
     if agrees and (p >= MATCH_AT or (p >= WEAK_AT and combined >= MATCH_AT)):
         decision = "match"
