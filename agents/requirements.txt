@@ -1,4 +1,4 @@
 # Camera agents. --answers (recorded spotter answers) needs only the standard library + bus/ (stdlib).
 opencv-python-headless>=4.9   # clip lengths for the run clock; Wali's src/frames.py (--live)
-openai>=1.40                  # Wali's src/spotter.py (--live) talks to vLLM through it
+openai>=1.40,<=3.24.0         # Wali's src/spotter.py (--live) talks to vLLM through it; capped at the newest release older than 2 weeks (3.24.0, Oct 2), hackathon rule 2
 jsonschema>=4.18              # tests: events are checked with contracts/validate.py
