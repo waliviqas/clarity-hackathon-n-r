@@ -2,6 +2,7 @@
 (`python -m agents.run --answers <file>`), so the relay can be checked on a real model's answers without a GPU.
 
     python data/gym_answers.py --clips clip1 --out data/answers/clip1_system_v3_checker.json
+    python data/gym_answers.py --clips clip1,clip7 --out data/answers/multi_system_v3_checker.json   # annex_multi
 
 Inputs, each a file path or a git object (<ref>:<path>), read with `git show` so Wali's branch is never checked
 out (it holds videos):

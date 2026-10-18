@@ -3,7 +3,10 @@
 Writes (paths under --root, default the repo root; <site> is --site, default annex):
     data/sites/<site>/cameras.json   camera graph: positions, neighbors, travel times, clip sources
     data/ground_truth/take<N>.json   per incident: subject, activity, outfit, path on the run clock, camera roles
+                                     (--site-truth: data/ground_truth/<site>/take<N>.json, so a site that reuses
+                                     takes another site has ground truth for leaves those files alone)
     data/manifests/<site>.json       camera_id -> clip file + start_ts, for feeds/
+Several logs build one site from all their takes (each take in one log only).
 
 Routes: one row per camera, each take's route rows in route order. Roles: an optional `approach` (the suspect is
 seen before the crime), the `crime`, any number of `path` cameras (`junction` is the older name for one), the
@@ -13,7 +16,8 @@ exit. Consecutive route cameras are linked, and so are the decoy and the camera 
 Run clock: each take is lined up on its crime: the crime row's suspect_enter is run-clock take offset + 5 s
 (5 / 15 / 25 s for takes 1/2/3), so the three separately filmed takes replay overlapped with their crimes 10 s
 apart. --run-offset S gives every take built the offset S instead (a one-take demo site uses 0, so its crime
-plays at 5 s like take 1's). The other route clips follow by one of two rules, so a clip may start before
+plays at 5 s like take 1's); --run-offset 3=0,2=7 sets it per take (a take not named keeps its default), e.g.
+take 2's crime 7 s after take 3's. The other route clips follow by one of two rules, so a clip may start before
 run-clock 0 (feeds skips frames with ts < 0):
   clock     the clips show a seconds clock. At clip second `clock_shown_at_s` it reads `clock_reading_hhmmss`, so
             clip second t is wall time reading + (t - clock_shown_at_s). A link's travel time is the next camera's
@@ -54,6 +58,9 @@ Run from the repo root (stdlib only):
          the Brev box runs Linux, where IMG_0001.MOV and img_0001.mov are different files)
     python data/build_site.py data/staged/clip_log_take3.csv --site annex_clip1 \\
         --site-name "Red Hat Annex (clip 1)" --run-offset 0      # a one-take site of its own (clip 1)
+    python data/build_site.py data/staged/clip_log_take2.csv data/staged/clip_log_take3.csv --site annex_multi \\
+        --site-name "Red Hat Annex (staged clips 1 and 7)" --run-offset 3=0,2=7 --site-truth
+        (two takes on one map, clip 7's crime 7 s after clip 1's; ground truth in data/ground_truth/annex_multi/)
 Then check: python contracts/validate.py data/sites/annex/cameras.json
 Tests (fixture logs in a temp folder): python data/check_build_site.py
 """
@@ -206,7 +213,8 @@ def read_text(path: Path) -> str:
     return text
 
 
-def read_rows(path: Path) -> list[dict]:
+def read_rows(path: Path, name_file: bool = False) -> list[dict]:
+    """The log's rows; name_file (several logs): messages say 'row 3 of <file>' instead of 'row 3'."""
     reader = csv.DictReader(io.StringIO(read_text(path), newline=""))
     missing = [c for c in COLUMNS if c not in (reader.fieldnames or [])]
     if missing:
@@ -216,7 +224,7 @@ def read_rows(path: Path) -> list[dict]:
     for line, raw in enumerate(reader, 2):
         row = {k: (v or "").strip() for k, v in raw.items() if k}
         if any(row.values()):
-            rows.append({**row, "_line": line})
+            rows.append({**row, "_line": f"{line} of {path.name}" if name_file else line})
     return rows
 
 
@@ -296,6 +304,39 @@ def _take(text: str) -> int:
     if text not in {str(n) for n in TAKE_OFFSETS}:
         raise ValueError(f"take must be one of {', '.join(map(str, TAKE_OFFSETS))}")
     return int(text)
+
+
+def parse_run_offset(text: str) -> float | dict[int, float]:
+    """--run-offset: seconds for every take built ('0'), or per take ('3=0,2=7')."""
+    def seconds(value: str) -> float:
+        try:
+            s = float(value)
+        except ValueError:
+            s = math.nan
+        if not (math.isfinite(s) and s >= 0):
+            raise SystemExit(f"ERROR --run-offset: expected seconds >= 0 (got {value!r})")
+        return s
+
+    if "=" not in text:
+        return seconds(text.strip())
+    offsets = {}
+    for part in text.split(","):
+        take, sep, value = part.partition("=")
+        try:
+            n = _take(take.strip())
+        except ValueError as e:
+            raise SystemExit(f"ERROR --run-offset: {e} (got {take.strip()!r} in {text!r})") from None
+        if not sep or n in offsets:
+            raise SystemExit(f"ERROR --run-offset: expected TAKE=SECONDS pairs like 3=0,2=7, each take once "
+                             f"(got {text!r})")
+        offsets[n] = seconds(value.strip())
+    return offsets
+
+
+def take_offset(n: int, run_offset: float | dict[int, float] | None) -> float:
+    if isinstance(run_offset, dict):
+        return run_offset.get(n, TAKE_OFFSETS[n])
+    return TAKE_OFFSETS[n] if run_offset is None else run_offset
 
 
 def _camera_id(text: str) -> str:
@@ -541,9 +582,10 @@ def manifest(takes: list[dict], site_id: str = SITE_ID) -> dict:
 
 
 def build(rows: list[dict], wanted: set[int] | None, clip_dir: Path | None = None,
-          run_speed: float = RUN_SPEED_M_S, run_offset: float | None = None, site_id: str = SITE_ID,
-          site_name: str = SITE_NAME) -> tuple[dict, list[dict], dict]:
-    """run_offset: every take's run-clock offset (None: TAKE_OFFSETS, so the takes overlap 10 s apart)."""
+          run_speed: float = RUN_SPEED_M_S, run_offset: float | dict[int, float] | None = None,
+          site_id: str = SITE_ID, site_name: str = SITE_NAME) -> tuple[dict, list[dict], dict]:
+    """run_offset: every take's run-clock offset, or {take: offset} (a take not in it, or None: TAKE_OFFSETS, so
+    the takes overlap 10 s apart)."""
     problems = Problems()
     if wanted:
         rows = [r for r in rows if r.get("take") in {str(n) for n in wanted}]
@@ -564,7 +606,7 @@ def build(rows: list[dict], wanted: set[int] | None, clip_dir: Path | None = Non
 
     takes = []
     for n in sorted({p["take"] for p in parsed if p["take"] is not None}):
-        offset = TAKE_OFFSETS[n] if run_offset is None else run_offset
+        offset = take_offset(n, run_offset)
         t = build_take(n, [p for p in parsed if p["take"] == n], problems, str(n) in clocked, run_speed, offset)
         if t:
             takes.append(t)
@@ -590,7 +632,8 @@ def write_json(path: Path, data: dict) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("log", type=Path, help="filled clip log CSV")
+    parser.add_argument("log", type=Path, nargs="+",
+                        help="filled clip log CSV; several logs build one site from all their takes")
     parser.add_argument("--takes", default="", help="comma-separated takes to build, e.g. 1 or 1,2 (default: all)")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent,
                         help="folder that receives data/... (default: the repo root)")
@@ -600,10 +643,15 @@ def main() -> int:
     parser.add_argument("--run-speed", type=float, default=RUN_SPEED_M_S, metavar="M_PER_S",
                         help="takes without a clock: escape speed for links without travel_s, used on the "
                              f"straight-line lat/lon distance (default {RUN_SPEED_M_S:g})")
-    parser.add_argument("--run-offset", type=float, metavar="SECONDS",
+    parser.add_argument("--run-offset", metavar="SECONDS",
                         help="run-clock offset of every take built, so its crime plays at SECONDS + "
                              f"{CRIME_AT_S:g} (default: 0 / 10 / 20 for takes 1/2/3, so they overlap 10 s apart; "
-                             "a one-take demo site uses 0)")
+                             "a one-take demo site uses 0); or per take, e.g. 3=0,2=7 (a take not named keeps "
+                             "its default)")
+    parser.add_argument("--site-truth", action="store_true",
+                        help="write ground truth to data/ground_truth/<site>/take<N>.json instead of "
+                             "data/ground_truth/take<N>.json (a site that reuses takes another site already has "
+                             "ground truth for, e.g. annex_multi)")
     parser.add_argument("--site", default=SITE_ID,
                         help=f"site id: writes data/sites/<site>/cameras.json and data/manifests/<site>.json "
                              f"(default {SITE_ID}; lower-case letters, digits and _)")
@@ -617,15 +665,18 @@ def main() -> int:
         raise SystemExit(f"ERROR --takes: expected numbers like 1,2 (got {args.takes!r})")
     if not (math.isfinite(args.run_speed) and args.run_speed > 0):
         raise SystemExit(f"ERROR --run-speed: expected metres per second > 0 (got {args.run_speed:g})")
-    if args.run_offset is not None and not (math.isfinite(args.run_offset) and args.run_offset >= 0):
-        raise SystemExit(f"ERROR --run-offset: expected seconds >= 0 (got {args.run_offset:g})")
+    run_offset = None if args.run_offset is None else parse_run_offset(args.run_offset)
     if not SITE_ID_FORMAT.match(args.site):
         raise SystemExit(f"ERROR --site: lower-case letters, digits and _ only, e.g. annex_clip1 (got {args.site!r})")
     if not args.site_name.strip():
         raise SystemExit("ERROR --site-name: must not be blank")
 
-    cameras, takes, clips = build(read_rows(args.log), wanted, args.check_clips, args.run_speed, args.run_offset,
-                                  args.site, args.site_name.strip())
+    rows = [row for log in args.log for row in read_rows(log, name_file=len(args.log) > 1)]
+    cameras, takes, clips = build(rows, wanted, args.check_clips, args.run_speed, run_offset, args.site,
+                                  args.site_name.strip())
+    unused = sorted(set(run_offset) - {t["take"] for t in takes}) if isinstance(run_offset, dict) else []
+    if unused:
+        print(f"WARNING --run-offset: take {', '.join(map(str, unused))} not built, so its offset is unused")
     for t in takes:
         hops = " -> ".join(f"{p['camera_id']}@{p['t_enter']}s" for p in t["path"])
         links = ", ".join(f"{a}-{b} {s}s" for (a, b), s in t["links"].items())
@@ -641,9 +692,10 @@ def main() -> int:
     if args.check_clips:
         print(f"all {sum(len(take_cameras(t)) for t in takes)} clips found in {args.check_clips}")
     data = args.root / "data"
+    truth = data / "ground_truth" / args.site if args.site_truth else data / "ground_truth"
     write_json(data / "sites" / args.site / "cameras.json", cameras)
     for t in takes:
-        write_json(data / "ground_truth" / f"take{t['take']}.json", ground_truth(t, args.site))
+        write_json(truth / f"take{t['take']}.json", ground_truth(t, args.site))
     write_json(data / "manifests" / f"{args.site}.json", clips)
     print(f"next: python contracts/validate.py \"{data / 'sites' / args.site / 'cameras.json'}\"")
     return 0
