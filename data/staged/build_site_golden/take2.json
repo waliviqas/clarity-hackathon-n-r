@@ -1,0 +1,33 @@
+{
+  "site_id": "annex",
+  "take": 2,
+  "run_offset_s": 10.0,
+  "incident_id": "inc_take2",
+  "subject_id": "subj_take2",
+  "activity": "purse_snatch",
+  "appearance": "yellow jacket",
+  "path": [
+    {
+      "camera_id": "cam_05",
+      "t_enter": 15.0,
+      "t_exit": 20.0
+    },
+    {
+      "camera_id": "cam_06",
+      "t_enter": 16.5,
+      "t_exit": 21.5
+    },
+    {
+      "camera_id": "cam_07",
+      "t_enter": 43.25,
+      "t_exit": 47.75
+    }
+  ],
+  "decoy_camera_id": "cam_08",
+  "camera_roles": {
+    "cam_05": "crime",
+    "cam_06": "junction",
+    "cam_07": "exit",
+    "cam_08": "decoy"
+  }
+}

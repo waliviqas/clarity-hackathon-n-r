@@ -1,0 +1,321 @@
+{
+  "schema_version": "0.1",
+  "site_id": "annex",
+  "site_name": "Red Hat Annex (staged takes)",
+  "map": {
+    "center": {
+      "lat": 35.775243,
+      "lon": -78.636551
+    },
+    "zoom": 18,
+    "site_image": null
+  },
+  "cameras": [
+    {
+      "camera_id": "cam_01",
+      "name": "Route 1: south walkway",
+      "take": 1,
+      "position": {
+        "lat": 35.7752,
+        "lon": -78.6375
+      },
+      "site_xy": null,
+      "heading_deg": 90.0,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 8.5,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/take1_cam01.mp4",
+        "start_ts": -5.0
+      }
+    },
+    {
+      "camera_id": "cam_02",
+      "name": "Route 1: west door",
+      "take": 1,
+      "position": {
+        "lat": 35.7756,
+        "lon": -78.6375
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_01",
+          "travel_time_s": 8.5,
+          "direction": "south"
+        },
+        {
+          "camera_id": "cam_03",
+          "travel_time_s": 11.5,
+          "direction": "north"
+        },
+        {
+          "camera_id": "cam_04",
+          "travel_time_s": 28.0,
+          "direction": "east"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/take1_cam02.mp4",
+        "start_ts": 0.5
+      }
+    },
+    {
+      "camera_id": "cam_03",
+      "name": "Route 1: camera 3",
+      "take": 1,
+      "position": {
+        "lat": 35.7761111,
+        "lon": -78.6375
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 11.5,
+          "direction": "south"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/take1_cam03.mp4",
+        "start_ts": 9.0
+      }
+    },
+    {
+      "camera_id": "cam_04",
+      "name": "Route 1: courtyard gate",
+      "take": 1,
+      "position": {
+        "lat": 35.7756,
+        "lon": -78.637
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_02",
+          "travel_time_s": 28.0,
+          "direction": "west"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take1/take1_cam04.mp4",
+        "start_ts": 0.5
+      }
+    },
+    {
+      "camera_id": "cam_05",
+      "name": "Route 2: bike rack",
+      "take": 2,
+      "position": {
+        "lat": 35.7748,
+        "lon": -78.6368
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_06",
+          "travel_time_s": 0.0,
+          "direction": "east"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/take2_cam05.mp4",
+        "start_ts": 11.0
+      }
+    },
+    {
+      "camera_id": "cam_06",
+      "name": "Route 2: plaza steps",
+      "take": 2,
+      "position": {
+        "lat": 35.7748,
+        "lon": -78.6364
+      },
+      "site_xy": null,
+      "heading_deg": 270.5,
+      "neighbors": [
+        {
+          "camera_id": "cam_05",
+          "travel_time_s": 0.0,
+          "direction": "west"
+        },
+        {
+          "camera_id": "cam_07",
+          "travel_time_s": 21.8,
+          "direction": "south"
+        },
+        {
+          "camera_id": "cam_08",
+          "travel_time_s": 25.5,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/take2_cam06.mp4",
+        "start_ts": 13.5
+      }
+    },
+    {
+      "camera_id": "cam_07",
+      "name": "Route 2: camera 3",
+      "take": 2,
+      "position": {
+        "lat": 35.7745,
+        "lon": -78.6364
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_06",
+          "travel_time_s": 21.8,
+          "direction": "north"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/take2_cam07.mp4",
+        "start_ts": 41.25
+      }
+    },
+    {
+      "camera_id": "cam_08",
+      "name": "Route 2: north lawn",
+      "take": 2,
+      "position": {
+        "lat": 35.7751,
+        "lon": -78.6364
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_06",
+          "travel_time_s": 25.5,
+          "direction": "south"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take2/take2_cam08.mp4",
+        "start_ts": 13.5
+      }
+    },
+    {
+      "camera_id": "cam_09",
+      "name": "Route 3: east lot",
+      "take": 3,
+      "position": {
+        "lat": 35.775,
+        "lon": -78.6361111
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_10",
+          "travel_time_s": 3.5,
+          "direction": "northeast"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/take3_cam09.mp4",
+        "start_ts": 19.0
+      }
+    },
+    {
+      "camera_id": "cam_10",
+      "name": "Route 3: loading dock",
+      "take": 3,
+      "position": {
+        "lat": 35.7753,
+        "lon": -78.6358
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_09",
+          "travel_time_s": 3.5,
+          "direction": "southwest"
+        },
+        {
+          "camera_id": "cam_11",
+          "travel_time_s": 11.0,
+          "direction": "north"
+        },
+        {
+          "camera_id": "cam_12",
+          "travel_time_s": 30.5,
+          "direction": "east"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/take3_cam10.mp4",
+        "start_ts": 30.5
+      }
+    },
+    {
+      "camera_id": "cam_11",
+      "name": "Route 3: side gate",
+      "take": 3,
+      "position": {
+        "lat": 35.7756,
+        "lon": -78.6358
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_10",
+          "travel_time_s": 11.0,
+          "direction": "south"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/take3_cam11.mp4",
+        "start_ts": 47.5
+      }
+    },
+    {
+      "camera_id": "cam_12",
+      "name": "Route 3: camera 4",
+      "take": 3,
+      "position": {
+        "lat": 35.7753,
+        "lon": -78.6354
+      },
+      "site_xy": null,
+      "heading_deg": null,
+      "neighbors": [
+        {
+          "camera_id": "cam_10",
+          "travel_time_s": 30.5,
+          "direction": "west"
+        }
+      ],
+      "source": {
+        "kind": "replay",
+        "uri": "data/raw/staged/take3/take3_cam12.mp4",
+        "start_ts": 30.5
+      }
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+take,activity,role,camera_id,phone_owner,spot_description,lat,lon,heading_deg,clip_file,clock_shown_at_s,clock_reading_hhmmss,suspect_enter_s,suspect_exit_s,travel_s,notes
+1,purse_snatch,crime,cam_01,,bus shelter,35.7745,-78.6386,,clip8_cam1.mp4,,,3.25,7.75,,"suspect outfit: black hoodie, dark grey trousers; snatch at 6.5 s; raw GPS from the clip metadata, accuracy 14 m; source clip IMG_7380.MOV"
+1,purse_snatch,path,cam_02,,sidewalk by tree grate,35.7744,-78.6386,,clip8_cam2.mp4,,,1.25,2.5,3,"travel_s: estimated running time over about 11 m; raw GPS from the clip metadata, accuracy 26 m; source clip IMG_7381.MOV"
+1,purse_snatch,exit,cam_03,,covered walkway,35.7746,-78.6386,,clip8_cam3.mp4,,,1.5,4.1,6,"still visible at the clip end; travel_s: estimated running time over about 22 m; raw GPS from the clip metadata, accuracy 28 m; source clip IMG_7382.MOV"

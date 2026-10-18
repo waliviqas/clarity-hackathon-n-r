@@ -7,113 +7,122 @@ The Clarity team filmed this footage during the NVIDIA x Red Hat Small Models Ha
 
 ## What it is
 
-There are three staged incidents. The team filmed them outside the Red Hat Annex (190 Davie St, Raleigh, NC) on Oct 17, 2026.
+One staged incident, seen from three camera views along the suspect's escape route. Teammates filmed it on a street in downtown Raleigh, NC, near the Red Hat Annex (190 Davie St), on the afternoon of Oct 17, 2026.
 
-| Take | Label (`activity`) | What happens |
+| Clip | Label (`activity`) | What happens |
 |---|---|---|
-| 1 | `fistfight` | A scuffle with staged shoves. No real hits. |
-| 2 | `purse_snatch` | A bag is snatched and the suspect walks off. |
-| 3 | `purse_snatch` | A phone is grabbed from someone's hand, and the suspect escapes along a different route. |
+| 8 | `purse_snatch` | At a bus shelter, the suspect walks up to a person, snatches something from their hand and runs off. |
 
-Each incident has its own **route of 4 phone cameras**:
+The route has **3 cameras**, `cam_01` to `cam_03`:
 
 ```
-start camera ──► junction ──► exit A   (the suspect goes this way)
-                     │
-                     └──────► exit B   (filmed as an empty path: nobody comes)
+cam_01 bus shelter (the snatch) ──► cam_02 sidewalk by tree grate ──► cam_03 covered walkway (exit)
 ```
 
-The suspect takes one exit. We film the other exit as an empty path, so the camera agents get a real "no match" to reject instead of a made-up one. Across the 3 routes that makes 12 cameras, `cam_01` to `cam_12`.
+There is no decoy: no camera films an empty path, so the footage never gives the camera agents a real "no match" view.
+
+Only clip 8 is used, and it is a test clip. Clips 4, 11 and 12 from the same filming session are never published.
 
 The footage contains no stabbing. `stabbing` is still a label the models can output, but we found no openly licensed stabbing footage, and we don't stage scenes with knives or anything that looks like one.
 
 ## How it was filmed
 
-- **Phones:** iPhones in landscape, propped about 2 m high and angled down, so the view looks like a CCTV camera. The filming checklist also asked for exposure/focus lock and Do Not Disturb. TODO: confirm the recording settings actually used (the plan was 1080p at 30 fps; was HDR on?).
-- **One take per incident:** three phones record at the same time, at the start camera, the junction, and the exit the suspect takes. The teammates act out the scene and the escape.
-- **The empty exit:** after each take, a phone films about 2 minutes of the other exit with nobody walking through.
-- **Clock sync:** the cameras are too far apart for one clap to be seen by all of them. Instead, after recording starts, someone holds a large seconds clock (time.is) up to each camera for about 2 s. The clip log records the clip second where the clock is visible and what it reads. That puts every clip of a take on one wall clock. The iPhone's file creation time is the backup.
-- **The unfilmed link:** nobody walks from the junction to the empty exit on camera, so a teammate timed that walk with a stopwatch.
-- **Positions:** each camera's latitude and longitude is read from the iPhone Compass app at its spot (TODO: confirm for the final takes). The direction the phone faces (`heading_deg`) is optional.
-- **Labels:** after filming, the clock reading and the seconds when the suspect enters and leaves each view were read off every clip and typed into the clip log (one row per camera). TODO: state whether this was done by hand or with model help, and who checked it.
+- **One phone, three runs.** A single iPhone filmed the three camera views one after another. The teammates acted the scene once per view, and the phone moved to the next spot between runs. So each view shows a separate run of the same scene, not one run seen by three cameras at once. The source files are IMG_7380, IMG_7381 and IMG_7382, recorded at 16:41:45, 16:43:28 and 16:43:50. The gaps between them are setup time, not the suspect's running time.
+- **Views:** high-angle views looking down at the sidewalk, like a CCTV camera. The copies we processed are 1080p H.264 at 30 fps, with audio (removed in processing, see below). TODO: confirm how the phone was held or mounted.
+- **No clock sync.** No clock is in view, and the runs were separate anyway. The time between views comes from **estimated running times** (`travel_s` in the clip log), based on the distance between the spots: 3 s from `cam_01` to `cam_02` (about 11 m) and 6 s from `cam_02` to `cam_03` (about 22 m). They are estimates, not measurements.
+- **Positions:** the GPS position in each clip's metadata, collected in the team's camera-position sheet (`video-data/custom-clips/camera_positions.csv`, on Wali's branch). Its accuracy is ±14–28 m, which is more than the 11–22 m between the cameras. The direction the phone faces (`heading_deg`) was not recorded.
+- **Labels:** the seconds when the suspect enters and leaves each view were read from frame contact sheets in 0.25 s steps and typed into the clip log: `cam_01` 3.25–7.75 s (the snatch at 6.5 s), `cam_02` 1.25–2.5 s, `cam_03` 1.5–4.1 s (still in view when the clip ends). TODO: state whether this was done by hand or with model help, and who checked it.
+
+### Raw GPS vs placed positions
+
+Raw GPS puts the cameras in the order `cam_02`, `cam_01`, `cam_03` from south to north. On the map, the path then doubles back: south from `cam_01` to `cam_02`, then north past `cam_01` to `cam_03`. From `cam_02`, both neighbors point north, so the graph can't tell them apart by direction (`build_site.py` warns about this).
+
+The cameras will be **hand-placed** in route order at their named spots, within the GPS error. Until then, `cameras.json` uses the raw GPS.
+
+| Camera | Spot | Raw GPS (lat, lon) | GPS accuracy | Placed (lat, lon) |
+|---|---|---|---|---|
+| `cam_01` | bus shelter | 35.7745, -78.6386 | ±14 m | TODO |
+| `cam_02` | sidewalk by tree grate | 35.7744, -78.6386 | ±26 m | TODO |
+| `cam_03` | covered walkway | 35.7746, -78.6386 | ±28 m | TODO |
 
 ## Safety and consent
 
 - **Only consenting teammates are on camera.** Everyone filmed agrees in writing (in the team chat) to publication under CC BY 4.0. TODO: confirm every person on camera has posted their consent before the clips are published.
-- **No weapons and no weapon-like props.** The fight is staged shoves only.
-- **No bystanders.** We filmed outside, away from offices and other hackathon attendees. Any take where a bystander's face could be recognized was re-filmed, or the face is blurred before publishing. TODO: list any clips that needed blurring, and how they were blurred (or write "none").
-- **No audio.** The conversion step strips the audio track, because it could carry bystanders' voices.
+- **No weapons and no weapon-like props.**
+- **No bystanders.** Any clip where a bystander's face could be recognized is re-filmed, blurred before publishing, or not published. TODO: `cam_03` (`clip8_cam3`) shows two other people walking away in the background for about its first 3 s; confirm who they are and whether a face can be recognized before publishing. List any clips that needed blurring, and how they were blurred (or write "none").
+- **No audio.** The conversion step strips the audio track, because it could carry bystanders' voices. The published clips have no audio stream (checked with ffprobe).
 - **Clip files are never in git.** Raw video lives in `data/raw/` (gitignored). The clips are published only through the dataset link.
 
-## Filmed separately, replayed simultaneously
+## Three runs, replayed as one
 
-This is a deliberate method choice, and we disclose it: **the three incidents did not happen at the same time.** Our small cast can't act out three incidents at once, so each take was filmed on its own.
+This is a deliberate method choice, and we disclose it: **the three views come from three separate runs of the scene**, not one continuous escape.
 
-For the demo, the three takes are lined up on one shared run clock so their crimes happen **5 s, 15 s and 25 s** into the run (takes 1, 2, 3). Only the start of each take is shifted. Inside a take, the clock sync keeps the real timing between cameras. Some junction or exit clips therefore start before run-clock 0, and the feeds skip those first frames.
+For the demo, the clips are placed on one run clock as if three cameras saw one escape. The suspect enters `cam_01` at run-clock 5 s. `cam_02`'s clip is placed so the suspect enters it 3 s after leaving `cam_01`'s view, and `cam_03`'s so the suspect enters it 6 s after leaving `cam_02`'s view:
 
-The empty-exit clip was filmed after its take, so its own clock is ignored. It starts at the same moment as that take's junction clip.
+| Camera | Suspect in view (run clock) | Clip starts at (run clock) |
+|---|---|---|
+| `cam_01` | 5.0–9.5 s | 1.75 s |
+| `cam_02` | 12.5–13.75 s | 11.25 s |
+| `cam_03` | 19.75–22.35 s | 18.25 s |
 
-This lets us test the system on three overlapping incidents. It does not show three real crimes happening at once.
+This lets us test the camera-to-camera handoff on real footage. The times between views are built from the estimates, so they can't be used to measure how well a system predicts travel times.
 
 ## Processing pipeline
 
 Run these from the repo root with Python 3.10+. `convert_clips.py` and `build_site.py` use only the standard library. `convert_clips.py` also needs `ffmpeg` on PATH (`sudo apt-get install -y ffmpeg` on the Linux GPU box). The other two steps need `pip install -r contracts/requirements.txt -r feeds/requirements.txt`. If a path contains spaces, quote it.
 
-**Before step 1:**
-- Copy the clips to `data/raw/staged/take1/`, `take2/` and `take3/`, named `take<N>_cam<NN>.mov`.
-- Copy `data/staged/clip_log_template.csv` to `data/staged/clip_log.csv` and fill it in, one row per camera.
-- Point the `clip_file` cells at the `.mp4` names that step 1 writes.
+**Before step 1:** put the original clips in a folder of their own. The committed clip log, `data/staged/clip_log_take1.csv`, already points at the converted names (`clip8_cam1.mp4` to `clip8_cam3.mp4`). The published clips are already converted, so if you download them, put them in `data/raw/staged/take1/` and start at step 2.
 
 ```
-python data/convert_clips.py data/raw/staged
-python data/build_site.py data/staged/clip_log.csv --check-clips data/raw/staged
+python data/convert_clips.py "<folder with the original clips>" --out data/raw/staged/take1
+python data/build_site.py data/staged/clip_log_take1.csv --check-clips data/raw/staged
 python contracts/validate.py data/sites/annex/cameras.json
 python -m feeds.replay --cameras data/sites/annex/cameras.json --check
 ```
 
-1. **Convert** (`data/convert_clips.py`) writes a `.mp4` copy next to each clip and never changes the original. The settings are 720 px tall, a constant 10 fps, H.264 8-bit and no audio:
+1. **Convert** (`data/convert_clips.py`) writes a `.mp4` copy of each clip and never changes the original. Originals that are already `.mp4` need `--out`. The settings are 720 px tall, a constant 10 fps, H.264 8-bit and no audio:
    `ffmpeg -i in -vf "scale=-2:720,format=yuv420p" -r 10 -fps_mode cfr -an -c:v libx264 -preset veryfast -crf 23 -movflags +faststart out.mp4`
-   (ffmpeg older than 5.1 uses `-vsync cfr` instead of `-fps_mode cfr`; the script switches automatically.) iPhone clips are HEVC with a variable frame rate, which some OpenCV builds can't decode and which breaks the frame-index clock. A constant frame rate fixes both.
-2. **Build** (`data/build_site.py`) turns the clip log into the three output files below. It stops and names the row and column of every blank or malformed cell, and it writes nothing until the whole log is clean. `--check-clips` also confirms that every `clip_file` exists in `data/raw/staged/take<N>/` with the exact upper/lower case (the GPU box runs Linux, where file names are case-sensitive). Add `--takes 1` to build only the takes logged so far.
+   (ffmpeg older than 5.1 uses `-vsync cfr` instead of `-fps_mode cfr`; the script switches automatically.) Phone clips often have a variable frame rate, which breaks the frame-index clock, and iPhone HEVC clips don't decode in every OpenCV build. A constant frame rate and H.264 fix both.
+2. **Build** (`data/build_site.py`) turns the clip log into the three output files below. It stops and names the row and column of every blank or malformed cell, and it writes nothing until the whole log is clean. `--check-clips` also confirms that every `clip_file` exists in `data/raw/staged/take<N>/` with the exact upper/lower case (the GPU box runs Linux, where file names are case-sensitive).
 3. **Validate** (`contracts/validate.py`) checks `cameras.json` against the team's contract schema.
 4. **Check the clips** (`feeds.replay --check`) opens every clip and prints its resolution, fps, frame count, duration and codec. It exits with code 1 if any clip is missing or unreadable.
 
 How `build_site.py` turns the log into numbers:
-- **Travel time** between two filmed cameras is the time the suspect walks between them on the run clock: the moment they enter the next camera minus the moment they left the previous one (0 if the views overlap). The junction-to-empty-exit time is the stopwatch walk.
-- **Direction** between cameras is computed from their lat/lon as one of 8 compass directions. Every link is written in both directions. A warning flags a junction whose two exits point in the same direction, because then the graph can't tell the exits apart.
-- **Camera names stay neutral**, because models and prompts may see them: `Route <N>: <spot description>`, or `Route <N>: camera <k>`. A spot description that names a role or a crime is an error. Camera roles (start camera, junction, exit, empty exit) appear only in the ground truth.
+- **Travel time** between two cameras: with no clock in view (this footage), it is the logged `travel_s`, or else the straight-line distance between the cameras at a running speed (`--run-speed`, default 4 m/s). The suspect enters the next view `travel_s` after leaving the previous one. Footage that shows a clock is synced by the clock instead, and travel times are then measured.
+- **Direction** between cameras is computed from their lat/lon as one of 8 compass directions. Every link is written in both directions. A warning flags any camera with two neighbors in the same direction, because then the graph can't tell them apart.
+- **Camera names stay neutral**, because models and prompts may see them: `Route <N>: <spot description>`, or `Route <N>: camera <k>`. A spot description that names a role or a crime is an error. Camera roles (crime, path, exit) appear only in the ground truth.
 
 ## Output files
 
 | File | Contents |
 |---|---|
 | `data/sites/annex/cameras.json` | The camera graph, following `contracts/schemas/cameras.schema.json`. For each camera it gives the neutral name, route (`take`), lat/lon, optional `heading_deg` and neighbors (each with `travel_time_s` and `direction`). It also gives the clip source as `uri` (`data/raw/staged/take<N>/<clip_file>`) and `start_ts`, the run-clock second where the clip starts. |
-| `data/ground_truth/take<N>.json` | One file per incident: `incident_id`, `subject_id`, `activity`, the suspect's outfit (`appearance`), the take's run-clock offset, and the suspect's `path` as `[{camera_id, t_enter, t_exit}]` on the run clock. It also has `decoy_camera_id` (the empty exit) and `camera_roles`, which maps each of the 4 camera IDs to `crime`, `junction`, `exit` or `decoy`. |
+| `data/ground_truth/take<N>.json` | One file per incident: `incident_id`, `subject_id`, `activity`, the suspect's outfit (`appearance`), the take's run-clock offset, and the suspect's `path` as `[{camera_id, t_enter, t_exit}]` on the run clock. It also has `decoy_camera_id` (`null`: no decoy) and `camera_roles`, which maps each camera ID to its role (`crime`, `path` or `exit`). |
 | `data/manifests/annex.json` | Maps each `camera_id` to its take, clip file, `uri` and `start_ts`, for the feeds. |
-| Clip log | The filled log, `data/staged/clip_log.csv`, stays local and out of git (gitignored) because its `phone_owner` column names the phone owners. The build never copies that column into the outputs. A sanitized copy with `phone_owner` blank is published so the build can be reproduced. TODO: path or link of the sanitized copy. The columns are listed in `data/staged/clip_log_template.csv`. |
+| `data/staged/clip_log_take1.csv` | The clip log the site is built from, with `phone_owner` blank. It rebuilds the three files above exactly (`python data/check_build_site.py` checks this). The team's working log, `data/staged/clip_log.csv`, stays local and out of git (gitignored) because its `phone_owner` column names the phone owners; the build never copies that column into the outputs. The columns are listed in `data/staged/clip_log_template.csv`. |
 
-**Reusing the clips:** the `uri` paths are relative to the repo root. Put the downloaded clips in `data/raw/staged/take<N>/`, or set `CLARITY_CLIP_ROOT` to a folder that contains `data/raw/staged/...`.
+**Reusing the clips:** the `uri` paths are relative to the repo root. Put the downloaded clips in `data/raw/staged/take1/`, or set `CLARITY_CLIP_ROOT` to a folder that contains `data/raw/staged/...`.
 
-TODO: if the spotter model is fine-tuned on any of these clips, list here which clips are for training and which are for testing (they must stay separate).
+**Training vs test:** clip 8 is a test clip. If the spotter model is fine-tuned, clip 8 stays out of its training data (training and test clips must stay separate).
 
 ## License and attribution
 
-The clips, ground truth, manifest, camera map and sanitized clip log are licensed under **Creative Commons Attribution 4.0 International (CC BY 4.0)**: https://creativecommons.org/licenses/by/4.0/
+The clips, ground truth, manifest, camera map and clip log are licensed under **Creative Commons Attribution 4.0 International (CC BY 4.0)**: https://creativecommons.org/licenses/by/4.0/
 
 Attribution line:
 
-> Clarity staged multi-camera incidents (Red Hat Annex, Raleigh, Oct 17, 2026), by the Clarity team, NVIDIA x Red Hat Small Models Hack. CC BY 4.0. TODO: dataset link
+> Clarity staged incident, three camera views (Raleigh, Oct 17, 2026), by the Clarity team, NVIDIA x Red Hat Small Models Hack. CC BY 4.0. TODO: dataset link
 
 The processing scripts are code, not data. Their license is set in the repo's main README.
 
 ## Known limitations
 
-- **One location, one day, daylight only.** All footage was filmed outside one building, in daylight, on Oct 17, 2026.
-- **Three takes, one per incident.** There are no repeat takes of the same incident to average over.
-- **Small cast.** Only teammates appear, so there are few distinct people, outfits and body types.
-- **Staged acting.** The shoves and snatches are acted, so they may look gentler or more obvious than real incidents.
-- **Filmed separately, replayed together.** See the section above.
-- **The route grouping leaks.** The `Route <N>:` camera names, the `take` field in `cameras.json` and the `take<N>/` folder in each clip path all reveal which four cameras belong to one incident. The graph also has no links between routes. A system that reads these fields could use them as a shortcut.
-- **One empty exit per route.** It was filmed after its take, and its travel time comes from a single stopwatch walk.
-- **Phone positions.** Lat/lon come from the iPhone Compass app, so they carry phone GPS error.
+- **One incident, one location, one afternoon.** One staged snatch, filmed on one street in daylight on Oct 17, 2026. There are no repeat takes to average over.
+- **Three runs, not one escape.** Each view is a separate run of the scene, so the suspect's moves and the light differ slightly between views (see [Three runs, replayed as one](#three-runs-replayed-as-one)).
+- **Estimated travel times.** The 3 s and 6 s between views are distance-based estimates. The ground-truth times after the snatch are built from them, so they are not independent measurements.
+- **Small cast.** The suspect and the victim are teammates, so there are few distinct people, outfits and body types.
+- **Staged acting.** The snatch is acted, so it may look gentler or more obvious than a real one.
+- **No decoy.** No camera films an empty path, so this footage never asks an agent to reject a non-match.
+- **Phone positions.** Raw GPS is accurate to ±14–28 m, more than the 11–22 m between cameras, and puts the cameras out of route order (see [Raw GPS vs placed positions](#raw-gps-vs-placed-positions)). Hand-placed positions are within that error but still approximate, and so are the 8-way directions between cameras.
+- **The route grouping leaks.** The `Route 1:` camera names, the `take` field in `cameras.json` and the `take1/` folder in each clip path all reveal which cameras belong to the incident. A system that reads these fields could use them as a shortcut.
 - **No stabbing footage** (see [What it is](#what-it-is)).
