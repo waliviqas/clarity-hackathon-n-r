@@ -2,7 +2,7 @@
 
 > When a crime happens, one dispatcher is watching dozens of camera feeds and has minutes to act. Clarity follows the suspect from camera to camera and tells officers where to head next, even with three incidents at once.
 
-**At Clarity's core is a small vision model we fine-tuned for one job.** Our spotter is Qwen3-VL-2B, fine-tuned on clips our team filmed. It looks at a few frames from one security camera, says whether a crime is happening and what kind (stabbing, assault or theft) or whether someone is running away, and describes the suspect in words.
+**At Clarity's core is a small vision model we are fine-tuning for one job.** Our spotter is Qwen3-VL-2B, being fine-tuned on clips our team filmed (training in progress; base-model results below). It looks at a few frames from one security camera, says whether a crime is happening and what kind (stabbing, assault or theft) or whether someone is running away, and describes the suspect in words.
 
 **Clarity is the application that puts that model to work.** A small agent beside each camera passes the spotter's suspect description to the cameras along the suspect's likely path. A coordinator agent pulls the reports together and recommends where officers should go. A human operator confirms or dismisses every recommendation on a map.
 
@@ -78,7 +78,7 @@ In our own words, the Fine-Tuned track asks for three things: a small open model
 | A small model, specialized for one job | Qwen3-VL-2B (2.13B), fine-tuned to spot a crime and describe the suspect from a few camera frames |
 | Data behind the specialization | Clips our team filmed and labeled during the hack, published with the method (see [Data](#data)) |
 | A fair before-and-after | Base vs. fine-tuned on the same held-out test clips, never used in training, plus an external check on public clips ([table above](#the-fine-tuned-spotter)) |
-| The model doing real work | Its suspect descriptions feed the camera relay, the coordinator's recommendation and the operator's dashboard (see [The application](#the-application-a-camera-relay-for-the-operator)) |
+| The model doing real work | In progress: its suspect descriptions are meant to feed the camera relay, the coordinator's recommendation and the operator's dashboard; in the current demo run the detections are still scripted (see [The application](#the-application-a-camera-relay-for-the-operator)) |
 
 ---
 
@@ -117,7 +117,7 @@ Wali's and Michael's parts live on their own branches until they merge. TODO: up
 
 ## The application: a camera relay for the operator
 
-Clarity shows the fine-tuned spotter doing its job in a realistic setting. Several small models split the work: the spotter screens each camera, a larger checker model double-checks what it flags, camera agents pass the suspect description along, and the coordinator recommends where to send officers.
+Clarity is built to show the fine-tuned spotter doing its job in a realistic setting (wiring in progress; the table below says what is real and what is scripted today). Several small models split the work: the spotter screens each camera, a larger checker model double-checks what it flags (if it is served; not confirmed yet), camera agents pass the suspect description along, and the coordinator recommends where to send officers.
 
 **What the demo shows (current scope: one incident)**
 
@@ -245,17 +245,17 @@ The clip names, license checks and caveats for CAVIAR and MEVA are in [`data/REA
 
 ### How the staged clips were made
 
-The full method (filming, clip conversion, ground truth) is in [`data/staged/README.md`](data/staged/README.md). This is the short version. Filming facts come from Wali's `camera_positions.csv` (on his branch until it merges). TODO: bring `data/staged/README.md` in line with these facts (it still describes the filming plan).
+The method for the demo clip (test clip 8: filming, positions, timing, conversion, ground truth) is in [`data/staged/README.md`](data/staged/README.md); the other clips were filmed the same way. This is the short version. Filming facts come from Wali's `camera_positions.csv` (on his branch until it merges).
 
 - **Who:** only consenting teammates act. No weapons or props that look like weapons; the stabbing is mimed with empty hands.
 - **What:** 13 clips, each showing one incident or a scene with no crime. The test clips hold mimed stabbings (clips 1, 3 and 4), a pickpocket (7), a phone snatch (8), an assault (13) and a no-crime scene (12). <!-- source: labels in before.json --> TODO: describe the training clips.
 - **Where and when:** sidewalks, a plaza, a cafe patio, a bus shelter and a parking garage around the Red Hat Annex in Raleigh, plus a few indoor views, filmed on Oct 17 between about 4:05 and 5:40 PM. <!-- source: camera_positions.csv (recorded_at, spot_name) -->
 - **Cameras:** iPhones placed like fixed security cameras, 1 to 4 per clip along the suspect's path, 34 camera views in total. Each spot's position is read from the phone's GPS (accuracy 5 to 189 m, worse indoors), with the distance from the previous camera and an estimated running time. <!-- source: camera_positions.csv -->
-- **Filmed separately, replayed together.** The views of one clip are short shots (2.4 to 12.5 s) filmed one after another, not at the same moment. For the demo they are replayed on one shared clock as if several cameras watched the same run. TODO: describe how the views are placed on that clock (estimated running time between spots, or the clock-sync method in `data/staged/README.md`). <!-- source: camera_positions.csv (duration_s, gap_from_prev_cam_s) -->
+- **Filmed separately, replayed together.** The views of one clip are short shots (2.4 to 12.5 s) filmed one after another, not at the same moment. For the demo they are replayed on one shared clock as if several cameras watched the same run. Each view is placed on that clock by the estimated running time from the previous spot (3 s and 6 s for clip 8), because the clips share no clock. <!-- source: camera_positions.csv (duration_s, gap_from_prev_cam_s) -->
 - **Clip format.** [`data/convert_clips.py`](data/convert_clips.py) (ffmpeg) turns each iPhone clip into a 720p, constant 10 fps, H.264 copy with the audio removed, so every clip decodes the same way and no bystander voices are kept. The originals are not changed.
-- **Labels and ground truth:** per camera view, what happens, the crime type and the suspect's description (see [The fine-tuned spotter](#the-fine-tuned-spotter)). For replay, [`data/build_site.py`](data/build_site.py) turns a filled clip log (template: `data/staged/clip_log_template.csv`) into the camera map (`data/sites/annex/cameras.json`), ground truth (`data/ground_truth/take<N>.json`) and clip manifest (`data/manifests/annex.json`). TODO: build these for clip 8.
+- **Labels and ground truth:** per camera view, what happens, the crime type and the suspect's description (see [The fine-tuned spotter](#the-fine-tuned-spotter)). For replay, [`data/build_site.py`](data/build_site.py) turns a clip log (clip 8's is committed as `data/staged/clip_log_take1.csv`; template: `data/staged/clip_log_template.csv`) into the camera map (`data/sites/annex/cameras.json`), ground truth (`data/ground_truth/take<N>.json`) and clip manifest (`data/manifests/annex.json`), all built and committed for clip 8.
 - **Train/test split:** test clips 1, 3, 4, 7, 8, 12 and 13 are never used in training; the demo replays only test clip 8. TODO: list the training clips.
-- **Published:** the clips except 4, 11 and 12, audio stripped, with the method in [`data/staged/README.md`](data/staged/README.md). TODO: dataset link. TODO: commit `data/ground_truth/` and `data/sites/annex/` once built. The filled clip log stays out of git because it names phone owners; only its outputs are published.
+- **Published:** the clips except 4, 11 and 12, audio stripped, with the method in [`data/staged/README.md`](data/staged/README.md). TODO: dataset link. The site files and a cleaned clip log (no phone owners) are committed.
 
 ### Attribution
 
@@ -364,7 +364,7 @@ Clips live in `data/raw/staged/take<N>/` on the GPU box and are never committed.
 ```bash
 sudo apt-get install -y ffmpeg                       # convert_clips.py needs ffmpeg on PATH
 python data/convert_clips.py data/raw/staged         # 720p, constant 10 fps, H.264, no audio .mp4 copy next to each clip
-python data/build_site.py data/staged/clip_log.csv --check-clips data/raw/staged
+python data/build_site.py data/staged/clip_log_take1.csv --takes 1 --check-clips data/raw/staged
 python contracts/validate.py data/sites/annex/cameras.json
 ```
 
@@ -409,11 +409,8 @@ Copy [`.env.example`](.env.example) to `.env` and fill it in. It contains only p
 | `CLARITY_LLM_MODEL` | Coordinator: the served model name, `dispatcher` |
 | `CLARITY_LLM_API_KEY` | Coordinator: only needed if its vLLM server is started with `--api-key` |
 | `SPOTTER_*`, `CHECKER_*` | Base URL and served model name for the spotter and checker servers. TODO: confirm the names with Wali |
-| `OPENAI_API_KEY` | Must match the other vLLM servers' `--api-key`, if one is set (`EMPTY` otherwise). TODO: confirm which parts still read it |
 | `HF_TOKEN` | Only if a model download needs it |
 | `VITE_BUS_URL` | Bus address for the dashboard (goes in `dashboard/.env`; never put secrets in `VITE_` variables) |
-
-TODO: `.env.example` still has the earlier `DISPATCHER_*`, `EMBED_BASE_URL` and `RERANK_BASE_URL` lines; update it to match this table.
 
 The bus binds to `127.0.0.1` on the GPU box by default. From a laptop, reach it with `brev port-forward <instance> --port 8080:8080` (and `--port 8003:8003` for the coordinator's model server). TODO: confirm the model servers bind to `127.0.0.1`.
 

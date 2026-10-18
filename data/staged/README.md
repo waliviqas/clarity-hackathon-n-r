@@ -23,7 +23,7 @@ There is no decoy: no camera films an empty path, so the footage never gives the
 
 Only clip 8 is used, and it is a test clip. Clips 4, 11 and 12 from the same filming session are never published.
 
-The footage contains no stabbing. `stabbing` is still a label the models can output, but we found no openly licensed stabbing footage, and we don't stage scenes with knives or anything that looks like one.
+Clip 8 (a phone snatch) contains no stabbing. Other clips from the session include mimed stabbings, acted with empty hands: we found no openly licensed stabbing footage, and we never stage scenes with knives or anything that looks like one.
 
 ## How it was filmed
 
@@ -47,7 +47,7 @@ The cameras will be **hand-placed** in route order at their named spots, within 
 
 ## Safety and consent
 
-- **Only consenting teammates are on camera.** Everyone filmed agrees in writing (in the team chat) to publication under CC BY 4.0. TODO: confirm every person on camera has posted their consent before the clips are published.
+- **Only consenting teammates are on camera.** The three actors are teammates and agreed to publication under CC BY 4.0 (confirmed by the team on Oct 17).
 - **No weapons and no weapon-like props.**
 - **No bystanders.** Any clip where a bystander's face could be recognized is re-filmed, blurred before publishing, or not published. TODO: `cam_03` (`clip8_cam3`) shows two other people walking away in the background for about its first 3 s; confirm who they are and whether a face can be recognized before publishing. List any clips that needed blurring, and how they were blurred (or write "none").
 - **No audio.** The conversion step strips the audio track, because it could carry bystanders' voices. The published clips have no audio stream (checked with ffprobe).

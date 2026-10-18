@@ -11,7 +11,7 @@ Raw downloads go in `data/raw/` (gitignored). Only small derived files (`cameras
 3. **Train/test split** if the spotter is fine-tuned: test clips never appear in training.
 4. **A real-world map** for the dashboard.
 
-**Primary open data:** our staged clips (published with the method, see below) plus OpenStreetMap. The team decided to skip MEVA for the demo; three MEVA example clips and eight CAVIAR clips are spotter training candidates (see "Training clips" below).
+**Primary open data:** our staged clips (published with the method, see below) plus OpenStreetMap. Our staged clips are split into training and test clips for the spotter fine-tune (Wali's `labels.csv`, `split` column); the demo uses only test clip 8. Eight CAVIAR clips and three MEVA example clips are an external check set (Wali's `labels_external.csv`, `results/before_external.json`); see "External check clips" below. TODO: Wali to confirm none of them are used in training.
 
 ## Sources
 
@@ -68,9 +68,9 @@ python data/check_build_site.py          # after changing build_site.py or the l
 
 `build_site.py` writes `data/sites/annex/cameras.json`, `data/ground_truth/take<N>.json` and `data/manifests/annex.json` (stdlib only). Any blank or malformed cell stops the build with the row and column named; nothing is written until the whole log is clean. `phone_owner` is never copied into the outputs.
 
-## Training clips (spotter fine-tune candidates)
+## External check clips (CAVIAR and MEVA)
 
-Only used if the spotter is fine-tuned. These are **training** clips; our Annex staged clips stay **test-only** and are never trained on (hard rule 6). Videos and frames live in `data/raw/training/` (gitignored). `data/training/staged_clips.csv` holds the labels (one row per person once verified); `data/training/SOURCES.md` has the license research and the shortfall against the 20-clip mix.
+Collected first as training candidates; the spotter is now trained on the train split of our own staged clips, and these 11 public clips serve as an external check set, filmed elsewhere (TODO: Wali to confirm none are used in training; hard rule 6). Videos and frames live in `data/raw/training/` (gitignored). `data/training/staged_clips.csv` holds the labels (one row per person once verified); `data/training/SOURCES.md` has the license research and the shortfall against the 20-clip mix.
 
 - **CAVIAR** (8 clips): Fight_RunAway1, Fight_RunAway2, Fight_OneManDown, Fight_Chase, Walk1, Walk2, Meet_WalkTogether1, Browse1. Source: EC Funded CAVIAR project/IST 2001 37540, http://homepages.inf.ed.ac.uk/rbf/CAVIAR/. License: CC BY-SA. We modified the clips (frame extraction, labels).
 - **MEVA** (3 example clips): ex085-theft, ex007-embrace-interaction, ex050-people-talking. "Multiview Extended Video with Activities" (MEVA) dataset by Kitware Inc., https://mevadata.org. License: CC BY 4.0 (https://mevadata.org/resources/MEVA-data-license.txt). We modified the clips (frame extraction, labels).
