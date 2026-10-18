@@ -651,3 +651,30 @@ def test_unknown_confidence_is_not_written_as_zero(graph):
     del d["confidence"]
     out = Dispatcher(graph, None).process([d, rel("rel_1", 1, "cam_03", "cam_05", "subj_1", ["det_1"])])
     assert "(conf" not in out[-1]["reason"] and "stabbing detected;" in out[-1]["reason"]
+
+
+# --- spotter reports no direction: heading must not come from relays out of a junction ----
+
+def directionless_junction(decoy_first: bool):
+    msgs = [det("det_1", "cam_03", 0, "purse_snatch", 0.8, direction=None),
+            rel("rel_1", 1, "cam_03", "cam_05", "subj_7", ["det_1"], direction="north"),
+            det("det_2", "cam_05", 40, direction=None),
+            ver("ver_1", 41, "cam_05", "subj_7", "match", ["rel_1", "det_2"])]
+    out = [rel("rel_dc", 42, "cam_05", "cam_06", "subj_7", ["det_2"], direction="east"),
+           rel("rel_ex", 42, "cam_05", "cam_08", "subj_7", ["det_2"], direction="north")]
+    return msgs + (out if decoy_first else out[::-1])
+
+
+@pytest.mark.parametrize("decoy_first", [True, False])
+def test_heading_from_arrival_relay_not_outgoing_relays(graph, decoy_first):
+    from dispatcher.rules import subject_direction
+    c = case_from(directionless_junction(decoy_first))
+    assert subject_direction(c, "cam_05") == "north"  # the relay that brought them to cam_05
+    assert predicted_next(c, path(c), graph, CFG)[0] == {"camera_id": "cam_08", "probability": 0.75}
+
+
+def test_no_direction_anywhere_means_no_heading_guess():
+    from dispatcher.rules import subject_direction
+    c = case_from([det("det_1", "cam_03", 0, "purse_snatch", 0.8, direction=None),
+                   rel("rel_1", 1, "cam_03", "cam_05", "subj_7", ["det_1"], direction="north")])
+    assert subject_direction(c, "cam_03") is None  # only an outgoing relay: don't treat its edge as the heading

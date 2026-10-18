@@ -161,7 +161,8 @@ class Dispatcher:
     def _predict(self, case: SubjectCase, cam_path: list[dict]) -> list[dict]:
         if self.predict_next and cam_path:
             try:
-                pred = self.predict_next(cam_path[-1]["camera_id"], subject_direction(case))
+                last = cam_path[-1]["camera_id"]
+                pred = self.predict_next(last, subject_direction(case, last))
                 valid = [{"camera_id": p["camera_id"], "probability": float(p["probability"])}
                          for p in pred if p.get("camera_id") in self.graph.cameras]
                 return valid[: self.cfg.max_predictions]

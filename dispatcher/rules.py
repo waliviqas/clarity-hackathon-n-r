@@ -112,14 +112,24 @@ def subject_appearance(case: SubjectCase) -> str | None:
     return _latest(case, "appearance")
 
 
-def subject_direction(case: SubjectCase) -> str | None:
-    """Observed heading: detections first. A relay's direction is the edge it was sent along, and an agent
-    relays to every neighbor (exit and decoy), so relays only count when no detection has a direction."""
+def subject_direction(case: SubjectCase, last_camera: str | None = None) -> str | None:
+    """Observed heading.
+
+    1. The latest detection that reports a direction (what a camera actually saw).
+    2. Otherwise the relay that brought the subject to `last_camera`: the direction they really travelled.
+       Relays *out of* a camera are not used: an agent relays to every neighbor (exit and decoy), so their
+       directions describe the edges, not the subject (the spotter currently reports no direction).
+    3. Otherwise unknown.
+    """
     skip = (None, "", "unknown")
     seen = [d for d in case.of_type("detection") if d.get("direction") not in skip]
     if seen:
         return seen[-1]["direction"]
-    return _latest(case, "direction", skip)
+    if last_camera:
+        arrived = [r for r in case.of_type("relay") if r["to_camera"] == last_camera and r.get("direction") not in skip]
+        if arrived:
+            return arrived[-1]["direction"]
+    return None
 
 
 def predicted_next(case: SubjectCase, cam_path: list[dict], graph: CameraGraph, cfg: RuleConfig) -> list[dict]:
@@ -127,7 +137,8 @@ def predicted_next(case: SubjectCase, cam_path: list[dict], graph: CameraGraph, 
         return []
     visited = {p["camera_id"] for p in cam_path}
     answered = {v["camera_id"] for v in case.of_type("agent_verdict")}
-    last, heading = cam_path[-1]["camera_id"], subject_direction(case)
+    last = cam_path[-1]["camera_id"]
+    heading = subject_direction(case, last)
     # Only relays sent from where the subject was last confirmed: once they've moved on, older relays are stale.
     pending = {r["to_camera"] for r in case.of_type("relay") if r["from_camera"] == last} - answered - visited
 
