@@ -4,7 +4,8 @@
 //   npm run check:text                                          formatter + receipts checks (no bus needed)
 //   npm run check:text -- --events ../runs/<id>/events.jsonl    + every dispatch of a recorded run: no camera
 //                                                               code or doubled name left, no "Operator review
-//                                                               needed." on a card, procedure split off
+//                                                               needed." on a card, procedure split off, no card
+//                                                               recommendation that repeats its title
 //   ... --cameras ../data/sites/<site>/cameras.json             cameras for --events (default: placeholder site)
 //
 // Real dispatcher text (dispatcher/rules.py + guidance.py) gets tidied; scripted text (bus/fake_scenario.py)
@@ -17,7 +18,9 @@ import { LABELS } from '../src/lib/constants.ts';
 import { cameraName } from '../src/lib/state.ts';
 import { buildRows } from '../src/panels/receipts.ts';
 import type { ReceiptRow } from '../src/panels/receipts.ts';
-import { cardText, reasonText, splitRecommendation, withCameraNames } from '../src/panels/text.ts';
+import {
+  cardHeading, cardText, incidentTypeLabel, reasonText, splitRecommendation, withCameraNames, withoutRepeatedTitle,
+} from '../src/panels/text.ts';
 import type { CameraNamer } from '../src/panels/text.ts';
 
 declare const process: { argv: string[]; exitCode?: number };
@@ -83,6 +86,14 @@ function cameraCodes(): void {
   same(w('male, red hoodie, blue jeans matches the relay from cam_01; arrived on time, moving north.'),
     'male, red hoodie, blue jeans matches the relay from Route 1: south walkway; arrived on time, moving north.',
     'scripted verdict reason: same as before');
+  same(w('cam_01-cam_02'), 'Route 1: south walkway – Route 1: west door', 'hyphen-joined codes: each named, joined by a spaced en dash');
+  same(w('Path: cam_01-cam_02-cam_03.'), 'Path: Route 1: south walkway – Route 1: west door – Route 1: north corner.',
+    'three hyphen-joined codes');
+  same(w('between (cam_01-cam_02)'), 'between (Route 1: south walkway – Route 1: west door)', 'hyphen-joined codes in brackets');
+  same(w('cam_01-cam_99'), 'Route 1: south walkway – cam_99', 'hyphen-joined, one unknown: the known one named');
+  same(w('cam_98-cam_99'), 'cam_98-cam_99', 'hyphen-joined, all unknown: unchanged');
+  same(w('cam_01-02 and cam_03-'), 'cam_01-02 and Route 1: north corner-', '"cam_01-02" is not two codes: left alone');
+  same(w('cam_03.'), 'Route 1: north corner.', 'code before a full stop');
   same(w('Send officer to cam_99'), 'Send officer to cam_99', 'unknown code stays as it is');
   same(w('Back gate (cam_99)'), 'Back gate (cam_99)', 'unknown code after a name stays (nothing to check it against)');
   same(w('cam_99 (cam_99)'), 'cam_99', 'unknown code repeated in brackets says it once');
@@ -127,7 +138,13 @@ function recommendations(): void {
   const lead = splitRecommendation('Procedure: separate the parties.', nameOf, true);
   check(lead.text === 'Procedure: separate the parties.' && lead.procedure === '', 'nothing before "Procedure:": not split');
   const two = splitRecommendation('Send officers to cam_03. Procedure: a. Procedure: b.', nameOf, true);
-  check(two.text === 'Send officers to Route 1: north corner. Procedure: a.' && two.procedure === 'b.', 'two procedures: the trailing one splits');
+  check(two.text === 'Send officers to Route 1: north corner.' && two.procedure === 'a. Procedure: b.',
+    'two procedures: split at the first (nothing procedural left in the recommendation)');
+  const modelProc = splitRecommendation(`Send officer to cam_03. Procedure: approach from the north. ${'Procedure: separate the parties.'}`, nameOf, true);
+  check(modelProc.text === 'Send officer to Route 1: north corner.' && modelProc.procedure === 'approach from the north. Procedure: separate the parties.',
+    "model's own procedure + guidance: split at the first");
+  const leadTwo = splitRecommendation('Procedure: a. Procedure: b.', nameOf, true);
+  check(leadTwo.text === 'Procedure: a. Procedure: b.' && leadTwo.procedure === '', 'starts with "Procedure:": not split (never blank)');
   same(splitRecommendation('Follow the usual procedure: call it in.', nameOf, true).procedure, '', 'lowercase "procedure:" inside a sentence: not split');
   for (const s of SCRIPTED) {
     const r = splitRecommendation(s, nameOf, true);
@@ -171,38 +188,109 @@ function dispatch(id: string, ts: number, fields: Partial<Dispatch>): Dispatch {
 }
 
 function cards(): void {
+  console.log('-- card title');
+  const h = cardHeading({ incident_type: 'fistfight', path: [{ camera_id: 'cam_01', ts: 0, event_id: 'det_h' }] }, nameOf);
+  check(h.type === 'Fistfight' && h.where === 'Route 1: south walkway' && h.title === 'Fistfight at Route 1: south walkway',
+    'title: type at the first path camera');
+  same(cardHeading({ incident_type: 'purse_snatch', path: [{ camera_id: 'cam_99', ts: 0, event_id: 'det_h' }] }, nameOf).title,
+    'Purse snatch at cam_99', 'unknown camera: its code');
+  const noPath = cardHeading({ incident_type: 'stabbing', path: [] }, nameOf);
+  check(noPath.title === 'Stabbing' && noPath.where === null, 'no path: just the type');
+  same(incidentTypeLabel('car_theft'), 'Car theft', 'unknown type: sentence case');
+  check(incidentTypeLabel('none') === 'Incident' && incidentTypeLabel(null) === 'Incident' && incidentTypeLabel('constructor') === 'Constructor',
+    'none / null / "constructor": no inherited label');
+  same(cardHeading({ incident_type: 7, path: 'x' } as unknown as Dispatch, nameOf).title, '7', 'junk fields: no throw');
+
   console.log('-- card text');
+  // The dispatcher's two alerts, each on an incident that started where the crime was (the card title's place).
   const c1 = cardText(dispatch('dsp_r1', 56, { recommendation: REAL_1, reason: REAL_REASON }), nameOf);
-  same(c1.reco, 'Send officer to Route 1: north corner; fistfight at Route 1: south walkway.', 'real #1: recommendation');
+  same(c1.heading.title, 'Fistfight at Route 1: south walkway', 'real #1: card title');
+  same(c1.reco, 'Send officer to Route 1: north corner.', 'real #1: recommendation without the clause that repeats the title');
   same(c1.procedure, 'separate the parties, check for injuries, request EMS if needed.', 'real #1: procedure line');
-  same(c1.meta, 'Medium priority. Suspect: male, red hoodie, blue jeans. Fistfight detected (80% confidence); subject confirmed at 3 cameras.',
-    'real #1: meta line');
-  same(c1.title, 'Send officer to Route 1: north corner; fistfight at Route 1: south walkway. Procedure: separate the parties, check for injuries, request EMS if needed.',
+  same(c1.meta, 'Medium priority. Fistfight (80% confidence), seen at 3 cameras. Suspect: male, red hoodie, blue jeans.',
+    'real #1: meta line, what was detected first');
+  same(c1.title, 'Send officer to Route 1: north corner. Procedure: separate the parties, check for injuries, request EMS if needed.',
     'real #1: hover title has the procedure');
   const c2 = cardText(dispatch('dsp_r2', 86, {
-    recommendation: REAL_2, priority: 'low', subject_appearance: 'male, black cap, grey backpack',
-    reason: 'purse snatch detected (conf 0.80); subject confirmed at 3 camera(s)',
+    recommendation: REAL_2, priority: 'low', subject_appearance: 'male, black cap, grey backpack', incident_type: 'purse_snatch',
+    path: [{ camera_id: 'cam_09', ts: 70, event_id: 'det_r2' }], reason: 'purse snatch detected (conf 0.80); subject confirmed at 3 camera(s)',
   }), nameOf);
-  same(c2.reco, 'Send officer to Route 3: west sidewalk; purse snatch at Route 3: bike rack.', 'real #2: recommendation');
+  same(c2.heading.title, 'Purse snatch at Route 3: bike rack', 'real #2: card title');
+  same(c2.reco, 'Send officer to Route 3: west sidewalk.', 'real #2: recommendation');
   same(c2.procedure, "take the victim's statement and broadcast the suspect description.", 'real #2: procedure line');
-  same(c2.meta, 'Low priority. Suspect: male, black cap, grey backpack. Purse snatch detected (80% confidence); subject confirmed at 3 cameras.',
+  same(c2.meta, 'Low priority. Purse snatch (80% confidence), seen at 3 cameras. Suspect: male, black cap, grey backpack.',
     'real #2: meta line');
 
-  // Scripted: exactly the words the cards showed before text.ts (recommendation as sent, meta as before).
-  const look = 'male, red hoodie, blue jeans';
-  SCRIPTED.forEach((reco, i) => {
-    const c = cardText(dispatch(`dsp_s${i}`, i, { recommendation: reco, reason: SCRIPTED_REASONS[i], subject_appearance: look }), nameOf);
-    check(c.reco === reco && c.procedure === '' && c.title === reco
-      && c.meta === `Medium priority. Suspect: ${look}. ${SCRIPTED_REASONS[i]}`, `scripted card #${i + 1}: unchanged`);
+  // The trailing clause goes only when it repeats this card's own title.
+  const reco = (fields: Partial<Dispatch>) =>
+    cardText(dispatch('dsp_x', 1, { recommendation: REAL_1, reason: REAL_REASON, ...fields }), nameOf).reco;
+  const KEPT = 'Send officer to Route 1: north corner; fistfight at Route 1: south walkway.';
+  same(reco({ path: [{ camera_id: 'cam_02', ts: 0, event_id: 'det_x' }] }), KEPT, 'title at another camera: clause kept (it says where the fight was)');
+  same(reco({ path: [] }), KEPT, 'no path (title is just "Fistfight"): clause kept');
+  same(reco({ incident_type: 'stabbing' }), KEPT, 'another incident type in the title: clause kept');
+  same(reco({ recommendation: 'Send officer to cam_03;  FISTFIGHT at route 1:  south walkway.' }), 'Send officer to Route 1: north corner.',
+    'case, spacing and a full stop aside: dropped');
+  same(reco({ recommendation: 'Send officer to cam_03; fistfight at cam_01; check on the victim' }),
+    'Send officer to Route 1: north corner; fistfight at Route 1: south walkway; check on the victim.', 'not the last clause: kept');
+  same(reco({ recommendation: 'fistfight at cam_01' }), 'fistfight at Route 1: south walkway.', 'nothing before it: kept (never blank)');
+  same(reco({ recommendation: 'Send officer to cam_03; fistfight at cam_01 and cam_02' }),
+    'Send officer to Route 1: north corner; fistfight at Route 1: south walkway and Route 1: west door.', 'says more than the title: kept');
+  same(withoutRepeatedTitle('A; b', ''), 'A; b', 'no title: unchanged');
+
+  // Meta line: the dispatcher's reason first (shortened), the suspect last.
+  const meta = (fields: Partial<Dispatch>) =>
+    cardText(dispatch('dsp_m', 1, { recommendation: REAL_1, reason: REAL_REASON, ...fields }), nameOf).meta;
+  same(meta({ reason: 'fistfight detected (conf 0.80); subject confirmed at 1 camera(s)' }),
+    'Medium priority. Fistfight (80% confidence), seen at 1 camera. Suspect: male, red hoodie, blue jeans.', 'one camera: singular');
+  same(meta({ subject_appearance: null }), 'Medium priority. Fistfight (80% confidence), seen at 3 cameras.', 'no suspect description');
+  same(meta({ reason: '' }), 'Medium priority. Suspect: male, red hoodie, blue jeans.', 'no reason');
+  same(meta({ reason: 'fistfight detected (conf 0.80) near cam_01' }),
+    'Medium priority. Fistfight detected (80% confidence) near Route 1: south walkway. Suspect: male, red hoodie, blue jeans.',
+    'only the exact dispatcher phrase is shortened');
+  same(meta({ priority: 'high', reason: 'Two cameras saw cam_01 (Route 1: south walkway) fight; heading north' }),
+    'High priority. Two cameras saw Route 1: south walkway fight; heading north. Suspect: male, red hoodie, blue jeans.',
+    "a model's own reason: also first, only codes tidied");
+  check(!(c1.meta + c2.meta).includes('·') && /^[A-Z]/.test(c1.meta), 'meta: sentence case, no middle-dot separators');
+
+  // Scripted (bus/fake_scenario.py, source "fake_scenario"): all nine dispatches read exactly as before:
+  // title, recommendation and meta (priority, suspect, reason).
+  const INC = [
+    { type: 'fistfight', start: 'cam_01', priority: 'medium', look: 'male, red hoodie, blue jeans', title: 'Fistfight at Route 1: south walkway' },
+    { type: 'purse_snatch', start: 'cam_05', priority: 'low', look: 'female, yellow jacket, black pants', title: 'Purse snatch at Route 2: plaza steps' },
+    { type: 'purse_snatch', start: 'cam_09', priority: 'low', look: 'male, black cap, grey backpack', title: 'Purse snatch at Route 3: bike rack' },
+  ] as const;
+  const SCRIPTED_RUN: [number, string, string][] = [
+    [0, SCRIPTED[0], SCRIPTED_REASONS[0]], [0, SCRIPTED[1], SCRIPTED_REASONS[1]], [0, SCRIPTED[2], SCRIPTED_REASONS[2]],
+    [1, 'Watch Route 2: side entrance; send an officer toward Route 2: plaza steps.', 'Purse snatch at Route 2: plaza steps; suspect heading east.'],
+    [1, 'Suspect passed Route 2: side entrance; officers toward Route 2: east sidewalk or Route 2: loading dock.',
+      'Confirmed at Route 2: side entrance, moving east.'],
+    [1, 'Send officers to Route 2: east sidewalk; check on the victim at Route 2: plaza steps.',
+      'Seen at Route 2: plaza steps, Route 2: side entrance, then Route 2: east sidewalk; Route 2: loading dock saw no match.'],
+    [2, 'Watch Route 3: crosswalk; send an officer toward Route 3: bike rack.', 'Purse snatch at Route 3: bike rack; suspect heading west.'],
+    [2, 'Suspect passed Route 3: crosswalk; officers toward Route 3: west sidewalk or Route 3: parking lot.',
+      'Confirmed at Route 3: crosswalk, moving west.'],
+    [2, 'Send officers to Route 3: west sidewalk; check on the victim at Route 3: bike rack.',
+      'Seen at Route 3: bike rack, Route 3: crosswalk, then Route 3: west sidewalk; Route 3: parking lot saw no match.'],
+  ];
+  SCRIPTED_RUN.forEach(([n, r, why], i) => {
+    const inc = INC[n];
+    const c = cardText(dispatch(`dsp_s${i}`, i, {
+      source: 'fake_scenario', incident_type: inc.type, priority: inc.priority, subject_appearance: inc.look, recommendation: r, reason: why,
+      path: [{ camera_id: inc.start, ts: 0, event_id: `det_s${i}` }],
+    }), nameOf);
+    const before = `${inc.priority === 'low' ? 'Low' : 'Medium'} priority. Suspect: ${inc.look}. ${why}`;
+    const ok = c.heading.title === inc.title && c.reco === r && c.procedure === '' && c.title === r && c.meta === before;
+    check(ok, `scripted dispatch #${i + 1}: unchanged${ok ? '' : `\n        got: ${JSON.stringify([c.heading.title, c.reco, c.meta])}`}`);
   });
 
   const blank = cardText(dispatch('dsp_b', 1, { recommendation: '', reason: '', subject_appearance: null }), nameOf);
   check(blank.reco === '' && blank.procedure === '' && blank.title === '' && blank.meta === 'Medium priority.', 'empty strings: nothing invented');
   const junk = cardText({ recommendation: 7, reason: null, priority: 'constructor', subject_appearance: 3 } as unknown as Dispatch, nameOf);
-  check(junk.reco === '' && junk.meta === '' && junk.procedure === '', 'junk field values: empty, no throw');
+  check(junk.reco === '' && junk.meta === '' && junk.procedure === '' && junk.heading.title === 'Incident', 'junk field values: empty, no throw');
   const plain = cardText(dispatch('dsp_p', 1, { recommendation: 'Send officers to cam_03', reason: 'subject seen at cam_03' }), nameOf);
   check(plain.reco === 'Send officers to Route 1: north corner.' && plain.title === plain.reco
-    && plain.meta.endsWith('Subject seen at Route 1: north corner.'), 'no procedure: no procedure line, title = recommendation');
+    && plain.meta === 'Medium priority. Subject seen at Route 1: north corner. Suspect: male, red hoodie, blue jeans.',
+    'no procedure: no procedure line, title = recommendation');
 }
 
 // ---------------------------------------------------------------- receipts rows
@@ -253,12 +341,13 @@ function receipts(): void {
       reason: 'fistfight detected (conf 0.80); subject confirmed at 1 camera(s)',
     }),
     dispatch('dsp_t1_18', 86, { recommendation: REAL_2, priority: 'low', reason: 'purse snatch detected (conf 0.80); subject confirmed at 3 camera(s)',
-      incident_id: 'inc_r2', subject_id: 'subj_r2', incident_type: 'purse_snatch' }),
+      incident_id: 'inc_r2', subject_id: 'subj_r2', incident_type: 'purse_snatch', path: [{ camera_id: 'cam_09', ts: 70, event_id: 'det_r2' }] }),
     { ...BASE, type: 'operator_action', event_id: 'op_1', ts: 90, incident_id: 'inc_r2', action: 'confirm', note: null },
   ];
   const rr = rowsByKey(real);
   same(rr.get('dsp_t1_18')?.text ?? '', 'Coordinator needs your decision: send officer to Route 3: west sidewalk; purse snatch at Route 3: bike rack',
-    'real alert: no doubled names, no review prefix, no procedure in the line');
+    'real alert: no doubled names, no review prefix, no procedure in the line; keeps the clause the card drops');
+  same(cardText(real[1] as Dispatch, nameOf).reco, 'Send officer to Route 3: west sidewalk.', '... while the same dispatch on its card drops it');
   same(rr.get('dsp_t1_18')?.detail ?? '',
     "Low priority. Purse snatch detected (80% confidence); subject confirmed at 3 cameras. Procedure: take the victim's statement and broadcast the suspect description.",
     'real alert: reason tidied, procedure in the detail');
@@ -267,7 +356,11 @@ function receipts(): void {
   same(rr.get('dsp_t1_01')?.detail ?? '',
     'Medium priority. Fistfight detected (80% confidence); subject confirmed at 1 camera. Procedure: separate the parties, check for injuries, request EMS if needed.',
     'real tracking: detail');
-  same(rr.get('op_1')?.text ?? '', 'Operator confirmed the purse snatch at Route 1: south walkway', 'operator_action line unchanged');
+  same(rr.get('op_1')?.text ?? '', 'Operator confirmed the purse snatch at Route 3: bike rack', 'operator_action line unchanged');
+  const hyphen = rowsByKey([dispatch('dsp_h', 5, { recommendation: 'Watch cam_02-cam_03. Procedure: a. Procedure: b.', reason: '' })]);
+  same(hyphen.get('dsp_h')?.text ?? '', 'Coordinator needs your decision: watch Route 1: west door – Route 1: north corner',
+    'receipt: hyphen-joined codes named, split at the first "Procedure:"');
+  same(hyphen.get('dsp_h')?.detail ?? '', 'Medium priority. Procedure: a. Procedure: b.', 'receipt detail: the whole procedure');
 
   // Cameras the dashboard doesn't know: codes stay, nothing is doubled.
   const unknown = rowsByKey([dispatch('dsp_u', 5, { recommendation: 'Send officer to Back gate (cam_99); fistfight at cam_98', reason: '' })]);
@@ -304,12 +397,16 @@ function recorded(path: string, camerasPath: string | undefined): void {
     if (/^operator review needed\s*[.!:]\s*\S/i.test(c.reco)) bad.push(`${d.event_id}: card starts with the review prefix`);
     if (/\sProcedure:/.test(c.reco)) bad.push(`${d.event_id}: procedure left in the card recommendation`);
     if (/\(conf\s|\d\s*\w+\(s\)/i.test(c.meta)) bad.push(`${d.event_id}: raw "conf" or "(s)" in the meta line`);
+    if (c.reco.toLowerCase().replace(/[.\s]+$/, '').endsWith(`; ${c.heading.title.toLowerCase()}`)) {
+      bad.push(`${d.event_id}: card recommendation repeats its title`);
+    }
   }
   check(dispatches.length > 0, `${dispatches.length} dispatches in the log`);
   check(bad.length === 0, `every dispatch reads cleanly on cards and receipts${bad.length ? `\n        ${bad.slice(0, 10).join('\n        ')}` : ''}`);
   for (const [inc, d] of latest) {
     const c = cardText(d, namer);
-    console.log(`   ${inc} [${d.status}${d.requires_human_confirm ? ', asks' : ''}]  ${c.reco}`);
+    console.log(`   ${inc} [${d.status}${d.requires_human_confirm ? ', asks' : ''}]  ${c.heading.title}`);
+    console.log(`        ${c.reco}`);
     if (c.procedure) console.log(`        Procedure: ${c.procedure}`);
     console.log(`        ${c.meta}`);
   }

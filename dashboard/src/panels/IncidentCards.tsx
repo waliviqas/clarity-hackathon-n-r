@@ -6,9 +6,11 @@
 // the recommendation); tracking cards ~85 px; resolved cards collapse to one ~44 px line. The title
 // wraps to a second line instead of hiding the place name. Clamped text stays in the DOM (screen
 // readers get all of it) and is repeated in a title attribute for hover.
-// The words come from text.ts (shared with the receipts): camera codes as names, no "Operator review
-// needed." (the status already asks), and the dispatcher's "Procedure: …" as a small line under the
-// recommendation on cards with Confirm / Dismiss (it fits beside the button group); elsewhere on hover.
+// The words come from text.ts (shared with the receipts): the title, camera codes as names, no "Operator
+// review needed." (the status already asks), no trailing "; fistfight at <place>" that repeats the title,
+// the dispatcher's "Procedure: …" as a small line under the recommendation on cards with Confirm /
+// Dismiss (it fits beside the button group; elsewhere on hover), and a meta line that leads with what
+// was detected (the suspect description last; scripted cards keep their old order).
 // "Watch last sighting" opens SightingModal: the camera clip of the newest path step. It sits in the
 // button group after Confirm / Dismiss (or alone there on tracking cards); one-line resolved cards
 // have no button group, so it stays on their single line.
@@ -18,17 +20,10 @@ import type { MouseEvent } from 'react';
 import {
   LABELS, cameraName, select, sendOperatorAction, useCameras, useConnection, useIncidents, useStore,
 } from '../lib';
-import type { Camera, IncidentView, OperatorDecision } from '../lib';
+import type { IncidentView, OperatorDecision } from '../lib';
 import SightingModal from './SightingModal.tsx';
-import { cardText } from './text.ts';
+import { cardText, incidentTypeLabel } from './text.ts';
 import './IncidentCards.css';
-
-const TYPE_LABEL: Record<string, string> = {
-  stabbing: 'Stabbing',
-  fistfight: 'Fistfight',
-  purse_snatch: 'Purse snatch',
-  none: 'Incident',
-};
 
 const MSG_NETWORK = "Couldn't reach the event bus. Try again when it reconnects.";
 const MSG_REJECTED = "The event bus didn't accept this decision. Try again.";
@@ -49,13 +44,6 @@ interface SendError {
 /** A table's own entry, never an inherited one (a junk value like "constructor" gets undefined). */
 function own<T>(table: Readonly<Record<string, T>>, key: unknown): T | undefined {
   return typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : undefined;
-}
-
-function sentenceType(t: string): string {
-  const known = own(TYPE_LABEL, t);
-  if (known) return known;
-  const words = String(t ?? '').replace(/_/g, ' ').trim();
-  return words ? words.charAt(0).toUpperCase() + words.slice(1) : TYPE_LABEL.none;
 }
 
 function phaseOf(inc: IncidentView): Phase {
@@ -79,14 +67,6 @@ function statusOf(inc: IncidentView): { word: string; tone: Tone } {
   }
   if (d.status === 'resolved') return { word: LABELS.status.resolved, tone: 'resolved' };
   return { word: LABELS.status.tracking, tone: 'tracking' };
-}
-
-/** Camera name of the first path step (where the incident started), or null. */
-function whereOf(inc: IncidentView, byId: Readonly<Record<string, Camera>>): string | null {
-  const path = inc.dispatch.path;
-  const first = Array.isArray(path) && path.length ? path[0] : null;
-  if (!first || typeof first.camera_id !== 'string') return null;
-  return cameraName(own(byId, first.camera_id), first.camera_id);
 }
 
 /** True when the path has a step with a camera and a time (something to watch). */
@@ -183,14 +163,12 @@ export default function IncidentCards() {
               const d = inc.dispatch;
               const phase = phaseOf(inc);
               const status = statusOf(inc);
-              const where = whereOf(inc, byId);
-              const type = sentenceType(d.incident_type);
-              const title = where ? `${type} at ${where}` : type;
+              const said = cardText(d, nameOf);
+              const { type, where, title } = said.heading;
               const spoken = where ? `${type.toLowerCase()} at ${where}` : `${type.toLowerCase()} ${inc.incident_id}`;
               const showButtons = d.requires_human_confirm === true && !inc.action;
               const busy = own(sending, inc.incident_id);
               const error = inc.action ? undefined : own(errors, inc.incident_id);
-              const said = cardText(d, nameOf);
               const { meta, reco } = said;
               // Resolved cards collapse to one line, unless they somehow still ask for a decision.
               const oneLine = phase === 'done' && !showButtons;
@@ -289,7 +267,7 @@ export default function IncidentCards() {
       {watched && (
         <SightingModal
           incident={watched}
-          typeWord={watched.dispatch.incident_type === 'none' ? '' : sentenceType(watched.dispatch.incident_type).toLowerCase()}
+          typeWord={watched.dispatch.incident_type === 'none' ? '' : incidentTypeLabel(watched.dispatch.incident_type).toLowerCase()}
           onClose={() => setWatching(null)}
         />
       )}

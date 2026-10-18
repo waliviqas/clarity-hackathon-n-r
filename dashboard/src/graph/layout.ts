@@ -14,6 +14,11 @@
 //
 // Every camera's line to the coordinator drops straight down to a shared bend line and then fans into
 // the coordinator in left-to-right order, so no line crosses another line.
+//
+// Labels: the shapes above leave room for LABEL_MAX characters. When a name is longer and the panel has
+// room (few cameras, e.g. a 3-camera site), every horizontal distance grows by the same factor, which
+// makes room for labels that much longer, up to LABEL_WIDE. Short names or a full panel (the 12-camera
+// placeholder) keep factor 1, the layout above as it is.
 // Units are SVG viewBox units, sized so that at 1080p (graph panel ~770 x 270 px) 1 unit ~ 1 px.
 
 import type { Camera } from '../lib';
@@ -67,7 +72,7 @@ const GROUP_MIN = 196;
 const TITLE_DX = -30;
 /** Rough width of the longest group title ("Route 3  Purse snatch", 15px semibold). */
 const TITLE_W = 150;
-/** Half of a long label (14 characters at 14px measure ~85-105 px), so the outermost labels stay in view. */
+/** Half of a long label (14 characters at 14px measure ~85-105 px), so the outermost labels stay in view (times the spread). */
 const LABEL_HALF = 50;
 const MARGIN = 4;
 /** Where every spoke stops dropping and starts fanning into the coordinator. */
@@ -93,7 +98,12 @@ const DEEP_ZIG = 30;
 const ZIG_STEP = 60;
 const ZIG_Y = [70, 108];
 const OTHER_PER_GROUP = 4;
+/** Label length the shapes above leave room for (at spread 1). */
 const LABEL_MAX = 14;
+/** Longest label when there's room to spread out for it; longer names are still cut. */
+const LABEL_WIDE = 28;
+/** The spread steps down by this much while the graph is wider than the panel. */
+const SPREAD_STEP = 0.05;
 
 /** Undirected key for a camera pair. */
 export function edgeKey(a: string, b: string): string {
@@ -117,6 +127,9 @@ export function shortLabel(text: string, max = LABEL_MAX): string {
 const ID_ORDER = new Intl.Collator('en', { numeric: true }).compare;
 
 interface Placed { id: string; x: number; y: number; slot: Slot }
+interface LocalGroup { title: string; route: number | null; placed: Placed[] }
+/** All groups side by side (before centering), and the x range of what's drawn. */
+interface Row { nodes: (Placed & { group: number })[]; groups: GraphGroup[]; lo: number; hi: number }
 
 export function buildLayout(cameras: readonly Camera[]): GraphLayout {
   // 1. Cameras (first of a duplicated camera_id wins) and the undirected neighbor graph.
@@ -144,38 +157,36 @@ export function buildLayout(cameras: readonly Camera[]): GraphLayout {
   const titles = routeTitles(routes, cams, index);
 
   // 3. Place each group in local coordinates (first node at x = 0), then side by side.
-  const local: { title: string; placed: Placed[]; route: number | null }[] = routes.map((comp, i) => ({
+  const local: LocalGroup[] = routes.map((comp, i) => ({
     title: `Route ${titles[i]}`, route: titles[i], placed: placeRoute(comp, adj, index),
   }));
   for (let i = 0; i < singles.length; i += OTHER_PER_GROUP) {
     const placed = zigzag(singles.slice(i, i + OTHER_PER_GROUP), 'single');
     local.push({ title: 'Other cameras', route: null, placed });
   }
-  const widths = local.map(({ placed }) => {
-    const xs = placed.map((p) => p.x);
-    return Math.max(GROUP_MIN, Math.max(...xs) - Math.min(...xs) + GROUP_PAD + GROUP_RIGHT);
-  });
-  const nodes: GraphNode[] = [];
-  const groups: GraphGroup[] = [];
-  let groupLeft = 0;
-  local.forEach(({ title, route, placed }, g) => {
-    const x0 = groupLeft + GROUP_PAD;
-    groups.push({ title, x: x0 + TITLE_DX });
-    for (const p of placed) {
-      const cam = cams[index.get(p.id)!];
-      const name = typeof cam.name === 'string' && cam.name.trim() ? cam.name.trim() : cam.camera_id;
-      nodes.push({ camera_id: p.id, name, label: labelFor(name, route, p.id), x: x0 + p.x, y: p.y, slot: p.slot, group: g });
-    }
-    groupLeft += widths[g];
-  });
+  const nameOf = (id: string) => {
+    const cam = cams[index.get(id)!];
+    return typeof cam.name === 'string' && cam.name.trim() ? cam.name.trim() : cam.camera_id;
+  };
+  const texts = new Map<string, string>();
+  for (const { route, placed } of local) for (const p of placed) texts.set(p.id, labelText(nameOf(p.id), route));
+
+  // Spread for the longest label (see the top of the file); it steps back toward 1 until the graph
+  // fits the panel's width, and the labels get as many characters as the spread makes room for.
+  const longest = Math.max(LABEL_MAX, ...[...texts.values()].map((t) => Math.min(t.length, LABEL_WIDE)));
+  let spread = longest / LABEL_MAX;
+  let row = arrange(local, spread);
+  while (spread > 1 && row.hi - row.lo + 2 * MARGIN > W_MIN) {
+    spread = Math.max(1, spread - SPREAD_STEP);
+    row = arrange(local, spread);
+  }
+  const labelChars = Math.floor(LABEL_MAX * spread + 1e-6);
+  const nodes: GraphNode[] = row.nodes.map(({ id, x, y, slot, group }) => ({
+    camera_id: id, name: nameOf(id), label: shortLabel(texts.get(id)!, labelChars) || id, x, y, slot, group,
+  }));
+  const { groups, lo, hi } = row;
 
   // Fit the viewBox to what's drawn (outermost labels and titles included) and center it.
-  let lo = 0;
-  let hi = 0;
-  if (nodes.length) {
-    lo = Math.min(...nodes.map((n) => n.x - LABEL_HALF), ...groups.map((g) => g.x));
-    hi = Math.max(...nodes.map((n) => n.x + LABEL_HALF), ...groups.map((g) => g.x + TITLE_W));
-  }
   const width = Math.max(W_MIN, hi - lo + 2 * MARGIN);
   const shift = Math.round((width - (hi - lo)) / 2 - lo);
   for (const n of nodes) n.x += shift;
@@ -341,11 +352,36 @@ function zigzag(ids: readonly string[], slot: Slot): Placed[] {
   return ids.map((id, i) => ({ id, x: i * ZIG_STEP, y: ZIG_Y[i % 2], slot }));
 }
 
-/** On-screen label: drop the "Route N:" prefix when the group's title already says it. */
-function labelFor(name: string, route: number | null, id: string): string {
+/**
+ * Groups side by side, every horizontal distance (inside a group, its padding and the labels' room)
+ * times `spread`. Titles keep their size: GROUP_MIN and TITLE_* don't grow. Spread 1 = the shapes as drawn above.
+ */
+function arrange(local: readonly LocalGroup[], spread: number): Row {
+  const nodes: Row['nodes'] = [];
+  const groups: GraphGroup[] = [];
+  let groupLeft = 0;
+  local.forEach(({ title, placed }, g) => {
+    const xs = placed.map((p) => p.x);
+    const x0 = groupLeft + spread * GROUP_PAD;
+    groups.push({ title, x: Math.round(x0 + TITLE_DX) });
+    for (const p of placed) nodes.push({ ...p, x: Math.round(x0 + spread * p.x), group: g });
+    groupLeft += Math.max(GROUP_MIN, spread * (Math.max(...xs) - Math.min(...xs) + GROUP_PAD + GROUP_RIGHT));
+  });
+  if (!nodes.length) return { nodes, groups, lo: 0, hi: 0 };
+  const half = spread * LABEL_HALF;
+  return {
+    nodes,
+    groups,
+    lo: Math.min(...nodes.map((n) => n.x - half), ...groups.map((g) => g.x)),
+    hi: Math.max(...nodes.map((n) => n.x + half), ...groups.map((g) => g.x + TITLE_W)),
+  };
+}
+
+/** A label before any cut: no "Route N:" prefix when the group's title already says it, no "(...)" detail. */
+function labelText(name: string, route: number | null): string {
   const parsed = parseRouteName(name);
   const text = parsed && parsed.route === route ? parsed.rest : name;
-  return shortLabel(text) || id;
+  return text.replace(/\s*\(.*$/, '').trim() || text.trim();
 }
 
 function r1(v: number): number {

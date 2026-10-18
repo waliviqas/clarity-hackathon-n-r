@@ -15,6 +15,7 @@ import {
   useEvents, useEventsById, useIncidents, useLiveDetections, useRecent, useSelection, useSubjectColors,
 } from '../lib';
 import type { Activity, ClarityEvent, VerdictDecision } from '../lib';
+import { cardText } from '../panels/text.ts';
 import { buildLayout, edgePath, NODE_R } from './layout.ts';
 import type { GraphLayout } from './layout.ts';
 import { deriveGraphState, groupSubject } from './derive.ts';
@@ -81,6 +82,8 @@ export default function AgentGraph() {
 
   const { coordinator: co } = layout;
   const lastDispatch = g.dispatch;
+  // Same words as the incident card's hover: cameras by name, no doubled names, "Procedure:" at the end.
+  const coordSays = lastDispatch ? cardText(lastDispatch, nameOf).title : '';
   // The coordinator's outline takes the subject's color while its newest dispatch is still recent (a few
   // seconds), then goes back to neutral: with reduced motion this is the visible change instead of the pulse.
   const recentDispatch = newestRecentDispatch(recent, byId);
@@ -198,7 +201,7 @@ export default function AgentGraph() {
           {/* coordinator */}
           <g className={`ag-coord${lastDispatch ? ' ag-click' : ''}`}
             {...clickable(lastDispatch?.event_id, `${LABELS.coordinator}: latest recommendation`)}>
-            <title>{lastDispatch ? `${LABELS.coordinator}: ${lastDispatch.recommendation}` : LABELS.coordinator}</title>
+            <title>{coordSays ? `${LABELS.coordinator}: ${coordSays}` : LABELS.coordinator}</title>
             {hl(g.dispatchIds) && (
               <rect className="ag-halo" x={co.x - co.w / 2 - 5} y={co.y - co.h / 2 - 5}
                 width={co.w + 10} height={co.h + 10} rx={7} />
