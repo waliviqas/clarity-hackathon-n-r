@@ -91,6 +91,19 @@ def check_model(base_url: str, model: str, timeout_s: float = 5.0) -> None:
                          f"not CLARITY_LLM_MODEL={model}")
 
 
+def warm_up(llm) -> float:
+    """One throwaway request with the real prompt and schema, so vLLM compiles the JSON grammar and warms up
+    before the first incident (the first call after a server start took ~18 s in the live run; later ~1.6 s)."""
+    from .llm import PROPOSAL_SCHEMA, SYSTEM_PROMPT
+    started = time.monotonic()
+    try:
+        case = '{"subject_id":"subj_warmup","path":[],"evidence":[]}'
+        llm.complete_json(SYSTEM_PROMPT, "Case:" + chr(10) + case, PROPOSAL_SCHEMA)
+    except Exception as e:  # a failed warm-up isn't fatal; the model check already passed
+        log.warning("warm-up request failed (%s); continuing", type(e).__name__)
+    return time.monotonic() - started
+
+
 def fetch_cameras(bus_url: str) -> dict:
     with urllib.request.urlopen(f"{bus_url.rstrip('/')}/cameras", timeout=3) as resp:
         return json.loads(resp.read().decode("utf-8"))
@@ -126,6 +139,7 @@ def main() -> None:
         check_model(os.environ.get("CLARITY_LLM_BASE_URL", DEFAULT_BASE_URL),
                     os.environ.get("CLARITY_LLM_MODEL", DEFAULT_MODEL))
         llm = OpenAICompatBackend.from_env()
+        log.info("model warm-up took %.1f s", warm_up(llm))
 
     predict_next = load_predict_next()
     run_tag = "r" + secrets.token_hex(2)  # unique per process: inc_r3fa9_1, dsp_r3fa9_01

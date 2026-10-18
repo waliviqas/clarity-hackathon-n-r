@@ -6,6 +6,7 @@ and every model answer is verified against the evidence before it is emitted.
 """
 from __future__ import annotations
 
+import logging
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +19,8 @@ from .models import HEADER, SCHEMA_VERSION, SubjectCase
 from .rules import (ACTIVITY_ALIASES, RuleConfig, confirmed_match, gate, incident_type, normalize_activity, path,
                     predicted_next, subject_appearance, subject_direction, template)
 from .verify import MAX_RECOMMENDATION, verify
+
+log = logging.getLogger("dispatcher")
 
 # Fields that identify a message instance rather than its content.
 _INSTANCE_FIELDS = {"event_id", "ts"}
@@ -184,12 +187,15 @@ class Dispatcher:
                 )
             except ValueError as exc:  # unparseable answer (e.g. cut off at max_tokens): worth one more try
                 errors = [f"your previous answer was not valid JSON ({exc}); answer with compact JSON only"]
+                log.info("%s: model answer %d rejected: invalid JSON", case.subject_id, calls)
                 continue
             except Exception as exc:  # timeout, server down: fail safe
                 errors = [f"model call failed: {type(exc).__name__}: {exc}"]
                 break
             room = MAX_RECOMMENDATION - (len(guidance_for(incident_type(case))) + 1 if self.guidance else 0)
             errors = verify(proposal, case, known, intercept_camera(cam_path, pred), max_recommendation=room)
+            if errors:
+                log.info("%s: model answer %d rejected: %s", case.subject_id, calls, "; ".join(errors))
             if not errors:
                 return {k: proposal[k] for k in ("status", "priority", "recommendation", "reason", "evidence_event_ids")}, "model", calls, []
         return self._fallback(case, cam_path, pred), "fallback", calls, errors
