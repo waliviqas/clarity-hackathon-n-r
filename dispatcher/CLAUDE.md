@@ -1,24 +1,7 @@
-# Clarity: notes for Claude Code (team-wide)
+<!-- Lives in dispatcher/ (not the repo root) so it doesn't clash with teammates' local root CLAUDE.md files. -->
+# Dispatcher (Michael): notes for Claude Code
 
-Clarity watches multiple cameras, tracks a subject across them, and tells an operator where to send officers. Three parts, three owners:
-
-| Part | Owner | Lives in |
-|---|---|---|
-| Feeds, message bus, dashboard, contracts, data | Mina | `bus/`, `contracts/`, `data/`, dashboard |
-| Spotter (fine-tuned Qwen3-VL-2B), checker, camera agents, camera graph | Wali | his branch (`graph/` provides `predict_next`) |
-| Dispatcher (Nemotron Nano 9B v2 on vLLM) | Michael | `dispatcher/`, `scripts/bench_dispatcher.py`, `tests/` |
-
-**Rules for everyone**
-- `contracts/` (Mina, v0.1) is the single source of truth for every message. Don't rename or remove fields in your own code; propose changes to the team first.
-- Don't edit another owner's folder. If you need a change there, say so and tell the owner.
-- Branches: each person pushes to their own branch. Merging happens on `integration`; `main` is only updated once the full pipeline runs, so it always works for recording the demo.
-- Before any push: run the tests and check the diff for secrets (keys, tokens, invite links, personal emails or paths). Never commit `data/raw/`.
-
-Add a section for your own part below. Keep it about how others plug into it.
-
----
-
-## Dispatcher (Michael): how to plug into it
+**Ground rules:** `contracts/` (Mina, v0.1) is the source of truth for every message. Don't edit `dispatcher/` from another part without telling Michael. Merging happens on `integration`; `main` only gets the full working pipeline. Check diffs for secrets before pushing.
 
 Full details: `dispatcher/README.md`. Change-by-change measurements (vLLM bounty evidence): `dispatcher/IMPROVEMENTS.md`.
 
@@ -45,6 +28,6 @@ The dispatcher model is served by vLLM on port 8003 (serve command in `dispatche
 
 **IDs:** each dispatcher process tags its IDs, e.g. `inc_r3fa9_1` / `dsp_r3fa9_01`, so restarts and other producers (like `bus/fake_scenario.py`'s stand-in dispatches) can't collide. Use the `incident_id` from the latest `dispatch` when sending an `operator_action`.
 
-**Priorities (team decision):** stabbing high, fistfight medium, purse_snatch low. Only a stabbing is auto-alerted by rules; everything else goes to the model, capped at its priority. Every recommendation ends with a fixed procedure line for its incident type, written by code (`dispatcher/guidance.py`).
+**Priorities (team decision):** stabbing high, fistfight medium, purse_snatch low. A stabbing is alerted by rules immediately; fistfight / purse_snatch go to the model (capped at their priority) and become `alert` as soon as a camera agent confirms a `match` downstream, so the operator gets the Confirm/Dismiss decision. A missing `activity_confidence` falls back to the detection's `confidence`; if both are missing the incident goes to the model rather than being dropped. Every recommendation ends with a fixed procedure line for its incident type, written by code (`dispatcher/guidance.py`).
 
 **Verified so far:** with Mina's `bus/server.py` + `bus/fake_scenario.py` (3 overlapping incidents with decoys), the bus accepted every dispatch under strict schema validation, and officers were never sent to a decoy.

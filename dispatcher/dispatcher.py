@@ -15,8 +15,8 @@ from .graph import CameraGraph
 from .guidance import guidance_for, with_guidance
 from .llm import PROPOSAL_SCHEMA, SYSTEM_PROMPT, LLMBackend, build_user_message, intercept_camera
 from .models import HEADER, SCHEMA_VERSION, SubjectCase
-from .rules import (ACTIVITY_ALIASES, RuleConfig, gate, incident_type, normalize_activity, path, predicted_next,
-                    subject_appearance, subject_direction, template)
+from .rules import (ACTIVITY_ALIASES, RuleConfig, confirmed_match, gate, incident_type, normalize_activity, path,
+                    predicted_next, subject_appearance, subject_direction, template)
 from .verify import MAX_RECOMMENDATION, verify
 
 # Fields that identify a message instance rather than its content.
@@ -150,6 +150,10 @@ class Dispatcher:
             else:
                 body, route, calls, errors = self._fallback(case, cam_path, pred), "fallback", 0, ["no model configured"]
             if case.operator_action == "confirm":
+                body["status"] = "alert"
+            elif body["status"] != "alert" and incident_type(case) != "none" and confirmed_match(case):
+                # A camera agent confirmed the subject downstream of a real incident: ask the operator to decide,
+                # whatever the route (rules, model, or fallback). Priority stays capped by the activity.
                 body["status"] = "alert"
             out += self._emit(case, body, cam_path, pred, route, calls, errors, p["t0"])
         return out

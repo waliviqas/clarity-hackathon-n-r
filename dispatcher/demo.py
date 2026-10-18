@@ -44,9 +44,11 @@ CAMERAS = {
 
 
 def _det(eid, ts, cam, activity, conf, appearance, direction):
-    return {**_hdr("detection", eid, ts), "camera_id": cam, "track_id": f"trk_{eid}", "label": "person",
-            "confidence": 0.9, "bbox": None, "activity": activity, "activity_confidence": conf,
-            "appearance": appearance, "direction": direction}
+    d = {**_hdr("detection", eid, ts), "camera_id": cam, "track_id": f"trk_{eid}", "label": "person",
+         "confidence": 0.9, "bbox": None, "activity": activity, "appearance": appearance, "direction": direction}
+    if conf is not None:  # schema type is number: omit rather than send null (the strict bus rejects null)
+        d["activity_confidence"] = conf
+    return d
 
 
 def _rel(eid, ts, frm, to, subj, summary, appearance, direction, activity, ev):

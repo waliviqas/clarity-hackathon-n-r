@@ -53,6 +53,19 @@ class RuleConfig:
     heading_weight: float = 3.0  # a neighbor in the subject's direction of travel (exit vs decoy)
 
 
+def activity_conf(d: dict) -> float | None:
+    """activity_confidence, else the detection's overall confidence, else None (unknown, never treated as 0)."""
+    for key in ("activity_confidence", "confidence"):
+        if isinstance(d.get(key), (int, float)):
+            return float(d[key])
+    return None
+
+
+def confirmed_match(case: SubjectCase) -> bool:
+    """A camera agent confirmed the subject at a later camera (agent_verdict decision == "match")."""
+    return any(v["decision"] == "match" for v in case.of_type("agent_verdict"))
+
+
 def concerning(case: SubjectCase) -> list[dict]:
     return [d for d in case.of_type("detection") if d.get("activity") not in NO_ACTIVITY]
 
@@ -85,7 +98,7 @@ def incident_type(case: SubjectCase) -> str:
     """Most severe activity seen for the subject; a relay's `activity` covers a detection not received yet."""
     dets = concerning(case)
     if dets:
-        return max(dets, key=lambda d: (activity_severity(d["activity"]), d.get("activity_confidence") or 0))["activity"]
+        return max(dets, key=lambda d: (activity_severity(d["activity"]), activity_conf(d) or 0))["activity"]
     acts = [r["activity"] for r in case.of_type("relay") if r.get("activity") not in NO_ACTIVITY]
     return max(acts, key=activity_severity, default="none")
 
@@ -138,27 +151,30 @@ def gate(case: SubjectCase, cfg: RuleConfig) -> Gate:
     if not dets:
         return "ignore"
     sev = max(activity_severity(d["activity"]) for d in dets)
-    confs = [d.get("activity_confidence") or 0.0 for d in dets]
+    confs = [activity_conf(d) for d in dets]
+    known = [c for c in confs if c is not None]
 
-    # High-severity activity is never auto-ignored, however weak the detection.
-    if sev < cfg.alert_min_severity and (sev <= cfg.ignore_max_severity or max(confs) < cfg.ignore_max_confidence):
+    # High-severity activity is never auto-ignored, however weak the detection. A missing confidence is
+    # unknown, not 0: it can't get an incident ignored (or auto-alerted), so it goes to the model.
+    weak = bool(known) and len(known) == len(confs) and max(known) < cfg.ignore_max_confidence
+    if sev < cfg.alert_min_severity and (sev <= cfg.ignore_max_severity or weak):
         return "ignore"
     uncertain = any(v["decision"] == "uncertain" for v in case.of_type("agent_verdict"))
-    if (sev >= cfg.alert_min_severity and len({d["activity"] for d in dets}) == 1
-            and min(confs) >= cfg.alert_min_confidence and not uncertain):
+    if (sev >= cfg.alert_min_severity and len({d["activity"] for d in dets}) == 1 and len(known) == len(confs)
+            and min(known) >= cfg.alert_min_confidence and not uncertain):
         return "alert"
     return "ambiguous"
 
 
 def template(case: SubjectCase, cam_path: list[dict], pred: list[dict], graph: CameraGraph) -> dict:
     """Rules-written dispatch body for cases that don't need the model."""
-    top = max(concerning(case), key=lambda d: (activity_severity(d["activity"]), d.get("activity_confidence") or 0))
+    top = max(concerning(case), key=lambda d: (activity_severity(d["activity"]), activity_conf(d) or 0))
     what = top["activity"].replace("_", " ")
     target = pred[0]["camera_id"] if pred else cam_path[-1]["camera_id"] if cam_path else top["camera_id"]
     return {
         "status": "alert",
         "priority": priority_for(activity_severity(top["activity"])),
         "recommendation": f"Send officer to {graph.name(target)} ({target}); {what} at {graph.name(top['camera_id'])} ({top['camera_id']})",
-        "reason": f"{what} detected (conf {top.get('activity_confidence') or 0:.2f}); subject confirmed at {len(cam_path)} camera(s)",
+        "reason": f"{what} detected (conf {activity_conf(top) or 0:.2f}); subject confirmed at {len(cam_path)} camera(s)",
         "evidence_event_ids": [m["event_id"] for m in sorted(case.events.values(), key=lambda m: m["ts"])],
     }

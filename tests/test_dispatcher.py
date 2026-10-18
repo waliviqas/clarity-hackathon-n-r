@@ -38,9 +38,11 @@ def hdr(kind, eid, ts):
 
 
 def det(eid, cam, ts, activity="none", conf=None, appearance="male, grey hoodie, dark pants", direction="north"):
-    return {**hdr("detection", eid, ts), "camera_id": cam, "track_id": f"trk_{eid}", "label": "person",
-            "confidence": 0.9, "bbox": None, "activity": activity, "activity_confidence": conf,
-            "appearance": appearance, "direction": direction}
+    d = {**hdr("detection", eid, ts), "camera_id": cam, "track_id": f"trk_{eid}", "label": "person",
+         "confidence": 0.9, "bbox": None, "activity": activity, "appearance": appearance, "direction": direction}
+    if conf is not None:  # schema type is number: omit rather than send null
+        d["activity_confidence"] = conf
+    return d
 
 
 def rel(eid, ts, frm, to, subj, ev, activity=None, direction="north"):
@@ -553,3 +555,40 @@ def d_priority_cap_respected(msg, cap):
 
 def test_wali_stabbing_label_auto_alerts():
     assert gate(case_from([det("det_1", "cam_03", 0, "stabbing", 0.95)]), CFG) == "alert"
+
+
+# --- requests from Mina (dashboard Confirm moment, missing confidences, strict bus) ----
+
+@pytest.mark.parametrize("activity,priority", [("fistfight", "medium"), ("purse_snatch", "low")])
+def test_confirmed_match_raises_alert_even_without_model(graph, activity, priority):
+    msgs = [det("det_m1", "cam_03", 0, activity, 0.8),
+            rel("rel_m1", 1, "cam_03", "cam_05", "subj_m", ["det_m1"], activity=activity)]
+    d = Dispatcher(graph, None)  # no model: fallback path
+    before = d.process(msgs)[-1]
+    assert before["status"] == "tracking"  # not confirmed yet
+    after = d.process([det("det_m2", "cam_05", 40), ver("ver_m1", 41, "cam_05", "subj_m", "match", ["rel_m1", "det_m2"])])[-1]
+    assert after["status"] == "alert" and after["requires_human_confirm"] is True and after["priority"] == priority
+
+
+def test_no_match_does_not_raise_alert(graph):
+    msgs = [det("det_m1", "cam_03", 0, "purse_snatch", 0.8),
+            rel("rel_m1", 1, "cam_03", "cam_05", "subj_m", ["det_m1"]),
+            ver("ver_m1", 41, "cam_05", "subj_m", "no_match", ["rel_m1"])]
+    assert Dispatcher(graph, None).process(msgs)[-1]["status"] == "tracking"
+
+
+def test_missing_activity_confidence_falls_back_to_confidence():
+    d = det("det_1", "cam_03", 0, "stabbing")  # no activity_confidence; detection confidence is 0.9
+    assert "activity_confidence" not in d and gate(case_from([d]), CFG) == "alert"
+
+
+def test_missing_all_confidences_is_ambiguous_not_ignored():
+    d = det("det_1", "cam_03", 0, "purse_snatch")
+    del d["confidence"]
+    assert gate(case_from([d]), CFG) == "ambiguous"
+
+
+def test_generated_messages_never_send_null_confidences():
+    from dispatcher.demo import MESSAGES
+    for m in MESSAGES + DOC:
+        assert m.get("activity_confidence", 0) is not None, m["event_id"]
