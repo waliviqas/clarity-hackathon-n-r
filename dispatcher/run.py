@@ -76,6 +76,21 @@ def load_predict_next():
     return predict_next
 
 
+def check_model(base_url: str, model: str, timeout_s: float = 5.0) -> None:
+    """Stop with one line if the dispatcher model isn't served at base_url, before anything is published.
+    Without this, every model call fails and each incident quietly becomes "Operator review needed"."""
+    url = f"{base_url.rstrip('/')}/models"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout_s) as resp:
+            served = [m.get("id") for m in json.loads(resp.read().decode("utf-8")).get("data", [])]
+    except Exception as e:
+        raise SystemExit(f"model check: can't read {url} ({type(e).__name__}); start the model "
+                         f"(infra/serve_dispatcher.sh) or run with --no-model")
+    if model not in served:
+        raise SystemExit(f"model check: {url} serves {', '.join(map(str, served)) or 'nothing'}, "
+                         f"not CLARITY_LLM_MODEL={model}")
+
+
 def fetch_cameras(bus_url: str) -> dict:
     with urllib.request.urlopen(f"{bus_url.rstrip('/')}/cameras", timeout=3) as resp:
         return json.loads(resp.read().decode("utf-8"))
@@ -107,7 +122,9 @@ def main() -> None:
 
     llm = None
     if not args.no_model:
-        from .llm import OpenAICompatBackend
+        from .llm import DEFAULT_BASE_URL, DEFAULT_MODEL, OpenAICompatBackend
+        check_model(os.environ.get("CLARITY_LLM_BASE_URL", DEFAULT_BASE_URL),
+                    os.environ.get("CLARITY_LLM_MODEL", DEFAULT_MODEL))
         llm = OpenAICompatBackend.from_env()
 
     predict_next = load_predict_next()

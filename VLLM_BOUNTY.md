@@ -10,10 +10,10 @@ Every model Clarity runs is served by vLLM on **one NVIDIA A100 80 GB** (Brev), 
 |---|---|---|---|---|
 | `nvidia/NVIDIA-Nemotron-Nano-9B-v2` | Dispatcher: decides what the operator should do for each incident | 8.89B | `:8003`, served as `dispatcher` | `--gpu-memory-utilization 0.30` (~26.8 GB measured) |
 | `Qwen/Qwen3-VL-2B-Instruct` | Spotter, base model (before fine-tuning) | 2.13B | `:8001` | `0.2` (~14.8 GB measured) |
-| Wali's fine-tuned spotter (LoRA merged into Qwen3-VL-2B) | Spotter, fine-tuned (the Fine-Tuned track model) | 2.13B | `:8005`, served as `spotter-ft` | `0.2` (~14.8 GB measured) |
-| `nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16` | Checker | 13.18B | downloaded, **not served** | — |
+| Wali's fine-tuned spotter v3 (LoRA merged into Qwen3-VL-2B) | Spotter, fine-tuned (the Fine-Tuned track model): crime and crime type | 2.13B | `:8005`, served as `spotter-ft` | `0.2` (~14.8 GB measured) |
+| `nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16` | Checker: describes the suspect on cameras the spotter flags (`src/checker.py`) | 13.18B | `:8002`, served as `checker` | **TODO** (from Wali) |
 
-Together the three servers use **0.70 of the A100** (0.30 + 0.2 + 0.2). Generative parameters in the running system: dispatcher 8.89B + spotter 2.13B = **11.02B**; with the checker it would be 24.20B (both ≤ 33B; exact counts from the published safetensors). The base and fine-tuned spotter are the same model before and after training, served side by side only for the before/after comparison.
+Generative parameters in the final system: dispatcher 8.89B + spotter 2.13B + checker 13.18B = **24.20B ≤ 33B** (exact counts from the published safetensors). The base and fine-tuned spotter are the same 2.13B model before and after training; the base is served only for the before/after comparison.
 
 ```
 cameras ─► spotter (Qwen3-VL-2B, vLLM :8001) ─► camera agents ─► bus ─► dispatcher (Nano 9B v2, vLLM :8003) ─► dashboard
@@ -51,7 +51,7 @@ vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --ho
 
 Client side: `temperature=0`, `max_tokens=400`, `response_format` = JSON schema, one retry on unparseable JSON.
 
-Spotter (Wali), base and fine-tuned, on the same A100:
+Spotter (Wali), base and fine-tuned, on the same A100 (checker serve command: **TODO** from Wali; client in `src/checker.py`, `CHECKER_BASE_URL=http://localhost:8002/v1`, `CHECKER_MODEL=checker`):
 
 ```bash
 vllm serve Qwen/Qwen3-VL-2B-Instruct --port 8001 --gpu-memory-utilization 0.2 --max-model-len 16384
@@ -119,8 +119,9 @@ python -m dispatcher.run                                  # live dispatcher on t
 ## TODO before submission
 
 - [ ] Reliability numbers (`scripts/reliability_dispatcher.py`), after Wali's GPU evaluation finishes
-- [x] Spotter serve commands and memory shares (Wali); checker is downloaded but not served
-- [ ] Decide whether the checker is part of the submitted system (if not, the README's model table and budget should say 11.02B, not 24.20B)
+- [x] Spotter serve commands and memory shares (Wali)
+- [x] Checker is part of the final system (served on :8002 as `checker`, Wali's `src/checker.py`); budget 24.20B
+- [ ] Checker serve command and memory share (Wali)
 - [ ] Spotter throughput rerun on the fine-tuned model (optional)
 - [ ] End-to-end latency with `bus.metrics` (Mina, one full run)
 - [ ] Final pass: numbers match the latest runs
