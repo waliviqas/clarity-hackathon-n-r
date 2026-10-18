@@ -10,7 +10,7 @@
     "zoom": 15,
     "site_image": null
   },
-  "notes": "cam_04-cam_13: test clips 7, 1 and 3, exactly as in data/sites/annex_trio. cam_14 (no neighbors, not linked to any route): Placed on Hillsborough St for this scripted story, and the ~30 min gap after Route 2's crime is set for it (start_ts = Route 2's crime detection 18.3 + 1800 - 1.25). Footage: clip 8 cam2, filmed about 4 min after clip 7 (16:43:28 vs 16:39:30) about 60 m from it (56-67 m by the phones' GPS), not on Hillsborough St. Used by the run runs/run_trio_lookout/: the three crimes are the camera agents on recorded model answers; only the cam_14 pickup is scripted.",
+  "notes": "cam_04-cam_06 (Route 2, test clip 7): as in data/sites/annex_trio. cam_07-cam_10 (Route 3, test clip 1): on Wali's aligned spots from his updated take-3 log. cam_11-cam_13 (Route 4, test clip 3): on Wali's demo3 spots for the same clip files (data/sites/demo3/cameras.json). cam_14 (no neighbors, not linked to any route): placed on Hillsborough St for a scripted story, and the ~30 min gap after Route 2's crime is set for it; footage: clip 8 cam2, filmed about 4 min after clip 7 (16:43:28 vs 16:39:30) about 60 m from it (56-67 m by the phones' GPS), not on Hillsborough St. Used by runs/run_trio_lookout/: Routes 3 and 4 are the camera agents on recorded model answers; Route 2 and the cam_14 pickup are scripted from ground truth.",
   "cameras": [
     {
       "camera_id": "cam_04",
@@ -33,7 +33,8 @@
         "kind": "replay",
         "uri": "data/raw/staged/take2/clip7_cam1.mp4",
         "start_ts": 2.43
-      }
+      },
+      "recorded_at": "2026-10-17T16:39:02-04:00"
     },
     {
       "camera_id": "cam_05",
@@ -61,7 +62,8 @@
         "kind": "replay",
         "uri": "data/raw/staged/take2/clip7_cam2.mp4",
         "start_ts": 12.2
-      }
+      },
+      "recorded_at": "2026-10-17T16:39:30-04:00"
     },
     {
       "camera_id": "cam_06",
@@ -84,15 +86,16 @@
         "kind": "replay",
         "uri": "data/raw/staged/take2/clip7_cam3.mp4",
         "start_ts": 19.45
-      }
+      },
+      "recorded_at": "2026-10-17T16:40:19-04:00"
     },
     {
       "camera_id": "cam_07",
       "name": "Route 3: sidewalk by street parking",
       "take": 3,
       "position": {
-        "lat": 35.7755,
-        "lon": -78.6371
+        "lat": 35.77545,
+        "lon": -78.637095
       },
       "site_xy": null,
       "heading_deg": null,
@@ -107,15 +110,16 @@
         "kind": "replay",
         "uri": "data/raw/staged/take3/clip1_cam1.mp4",
         "start_ts": 0.8
-      }
+      },
+      "recorded_at": "2026-10-17T16:05:04-04:00"
     },
     {
       "camera_id": "cam_08",
       "name": "Route 3: sidewalk by painted parklet",
       "take": 3,
       "position": {
-        "lat": 35.7757,
-        "lon": -78.637
+        "lat": 35.77545,
+        "lon": -78.636873
       },
       "site_xy": null,
       "heading_deg": null,
@@ -135,15 +139,16 @@
         "kind": "replay",
         "uri": "data/raw/staged/take3/clip1_cam2.mp4",
         "start_ts": 14.0
-      }
+      },
+      "recorded_at": "2026-10-17T16:06:47-04:00"
     },
     {
       "camera_id": "cam_09",
       "name": "Route 3: crosswalk corner",
       "take": 3,
       "position": {
-        "lat": 35.7756,
-        "lon": -78.6368
+        "lat": 35.775593,
+        "lon": -78.636873
       },
       "site_xy": null,
       "heading_deg": null,
@@ -163,15 +168,16 @@
         "kind": "replay",
         "uri": "data/raw/staged/take3/clip1_cam3.mp4",
         "start_ts": 22.6
-      }
+      },
+      "recorded_at": "2026-10-17T16:07:08-04:00"
     },
     {
       "camera_id": "cam_10",
       "name": "Route 3: sidewalk by building column",
       "take": 3,
       "position": {
-        "lat": 35.77555,
-        "lon": -78.63671
+        "lat": 35.775593,
+        "lon": -78.637095
       },
       "site_xy": null,
       "heading_deg": null,
@@ -186,14 +192,15 @@
         "kind": "replay",
         "uri": "data/raw/staged/take3/clip1_cam4.mp4",
         "start_ts": 30.76
-      }
+      },
+      "recorded_at": "2026-10-17T16:08:02-04:00"
     },
     {
       "camera_id": "cam_11",
       "name": "Route 4: patio planters",
       "take": 4,
       "position": {
-        "lat": 35.77557,
+        "lat": 35.77575,
         "lon": -78.637
       },
       "site_xy": null,
@@ -209,7 +216,8 @@
         "kind": "replay",
         "uri": "data/raw/staged/take4/clip3_cam1.mp4",
         "start_ts": 5.0
-      }
+      },
+      "recorded_at": "2026-10-17T16:13:48-04:00"
     },
     {
       "camera_id": "cam_12",
@@ -237,7 +245,8 @@
         "kind": "replay",
         "uri": "data/raw/staged/take4/clip3_cam2.mp4",
         "start_ts": 19.5
-      }
+      },
+      "recorded_at": "2026-10-17T16:14:47-04:00"
     },
     {
       "camera_id": "cam_13",
@@ -260,7 +269,8 @@
         "kind": "replay",
         "uri": "data/raw/staged/take4/clip3_cam3.mp4",
         "start_ts": 28.8
-      }
+      },
+      "recorded_at": "2026-10-17T16:15:26-04:00"
     },
     {
       "camera_id": "cam_14",
@@ -278,7 +288,8 @@
         "uri": "data/raw/staged/take1/clip8_cam2.mp4",
         "start_ts": 1817.05
       },
-      "notes": "Placed on Hillsborough St for this scripted story, and the ~30 min gap after Route 2's crime is set for it (start_ts = Route 2's crime detection 18.3 + 1800 - 1.25). Footage: clip 8 cam2, filmed about 4 min after clip 7 (16:43:28 vs 16:39:30) about 60 m from it (56-67 m by the phones' GPS), not on Hillsborough St."
+      "notes": "Placed on Hillsborough St for this scripted story. Footage: clip 8 cam2 (filmed 16:43:28 about 200 m from clip 1). recorded_at is set by hand so the pickup shows exactly 30 minutes after Route 2's crime (demo choice, not the real filming time); every other camera's recorded_at is its real filming time from the camera-position sheet.",
+      "recorded_at": "2026-10-17T17:09:33.000-04:00"
     }
   ]
 }

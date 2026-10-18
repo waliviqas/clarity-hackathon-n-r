@@ -1,0 +1,39 @@
+{
+  "site_id": "annex_trio_lookout",
+  "take": 2,
+  "run_offset_s": 8.0,
+  "incident_id": "inc_take2",
+  "subject_id": "subj_take2",
+  "activity": "purse_snatch",
+  "appearance": "black hoodie, dark grey trousers",
+  "path": [
+    {
+      "camera_id": "cam_04",
+      "t_enter": 2.43,
+      "t_exit": 10.0
+    },
+    {
+      "camera_id": "cam_05",
+      "t_enter": 13.0,
+      "t_exit": 16.45
+    },
+    {
+      "camera_id": "cam_06",
+      "t_enter": 19.45,
+      "t_exit": 23.7
+    },
+    {
+      "camera_id": "cam_14",
+      "t_enter": 1818.3,
+      "t_exit": 1819.55
+    }
+  ],
+  "decoy_camera_id": null,
+  "camera_roles": {
+    "cam_04": "approach",
+    "cam_05": "crime",
+    "cam_06": "exit",
+    "cam_14": "lookout"
+  },
+  "notes": "Run-local copy of data/ground_truth/annex_trio/take2.json (test clip 7, a pickpocket: the suspect takes the man's phone) for runs/run_trio_lookout: site_id set to annex_trio_lookout, plus a far re-sighting at cam_14 (role lookout; clip 8 cam2 seconds 1.25-2.5 on cam_14's start_ts), so the unchanged bus.fake_scenario accepts it with --lookout cam_14. cam_14 is placed on Hillsborough St for this scripted story and the ~30 min gap is set for it."
+}
