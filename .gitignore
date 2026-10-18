@@ -265,3 +265,12 @@ dashboard/dist/
 
 # The filled clip log names phone owners: keep it local (outputs never include them; the template stays tracked)
 data/staged/clip_log.csv
+
+# From Michael's branch (merged into Integration): confidential reference notes (NVIDIA slides) and local planning docs
+*hack_reference*.md
+*hackathon_plan*.md
+friction-log*.txt
+notes/
+
+# Procedure-lookup data (parked on Michael's local branch lookup-rag); never commit the source PDF or extracted text
+data/procedures/
