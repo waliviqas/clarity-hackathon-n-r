@@ -11,7 +11,7 @@ Raw downloads go in `data/raw/` (gitignored). Only small derived files (`cameras
 3. **Train/test split** if the spotter is fine-tuned: test clips never appear in training.
 4. **A real-world map** for the dashboard.
 
-**Primary open data:** our staged clips (published with the method, see below) plus OpenStreetMap. The team decided to skip MEVA; it stays listed below with its license in case we add it later.
+**Primary open data:** our staged clips (published with the method, see below) plus OpenStreetMap. The team decided to skip MEVA for the demo; three MEVA example clips and eight CAVIAR clips are spotter training candidates (see "Training clips" below).
 
 ## Sources
 
@@ -20,6 +20,7 @@ Raw downloads go in `data/raw/` (gitignored). Only small derived files (`cameras
 | **MEVA** (Multiview Extended Video with Activities), mevadata.org | ~100 consenting actors, scripted activities, indoor + outdoor cameras with overlapping and non-overlapping views; geo-registered outdoor cameras; actor GPS logs; 37 annotated activities incl. threat-based `person_steals_object` and `person_abandons_package`. Collected under IRB approval. | **CC BY 4.0** (attribution required) | Multi-camera relay scenarios, ground-truth paths, `purse_snatch`-like events (`person_steals_object`) | **Optional (not used in the demo)** |
 | **MEVA drop-4 subset on Hugging Face** (`Voxel51/extended_video_activities_drop_4`) | 201 clips of MEVA Known Facility 1; the MeVID re-ID benchmark annotates the same people across cameras on this footage | CC BY 4.0 (videos from mevadata.org) | Fastest way to start; check how many people appear on 3+ cameras within this subset | **Optional (not used in the demo)** |
 | **Airtlab violence dataset** (github.com/airtlab/A-Dataset-for-Automatic-Violence-Detection-in-Videos) | 350 staged clips by non-professional actors (230 violent, 120 non-violent such as hugs and high-fives), filmed from **2 viewpoints** | "Freely released for research and educational purposes" (no formal license file) | `fistfight` examples and hard negatives for the VLM | Good secondary; note terms in README |
+| **CAVIAR** (INRIA lobby), homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/ | Clips acted by the CAVIAR team in an entrance lobby, one high wide-angle camera (384×288): fights, walking, meeting, browsing | **CC BY-SA** (version not stated; adaptations stay CC BY-SA) | Spotter training candidates: 4 `fistfight`, 4 `none` | **Training candidate** |
 | UCF-Crime | 13 anomaly classes incl. Fighting, Robbery, Stealing, Assault, Shoplifting; real surveillance footage | No license stated on the pages checked; real victims | Possibly eval only | **Avoid in the demo** (unclear license, real people) |
 | RWF-2000 | 2,000 fight/non-fight surveillance clips | Videos **not available for download** due to privacy; no redistribution without lab approval | — | **Can't use** |
 | **OpenStreetMap** via Leaflet | Map tiles around the Red Hat Annex (190 Davie St, Raleigh) | **ODbL**; show "© OpenStreetMap contributors" on the map | Dashboard base map | **Use** (also counts as open data) |
@@ -59,6 +60,20 @@ python -m feeds.replay --cameras data/sites/annex/cameras.json --check          
 
 `build_site.py` writes `data/sites/annex/cameras.json`, `data/ground_truth/take<N>.json` and `data/manifests/annex.json` (stdlib only). Any blank or malformed cell stops the build with the row and column named; nothing is written until the whole log is clean. `phone_owner` is never copied into the outputs.
 
+## Training clips (spotter fine-tune candidates)
+
+Only used if the spotter is fine-tuned. These are **training** clips; our Annex staged clips stay **test-only** and are never trained on (hard rule 6). Videos and frames live in `data/raw/training/` (gitignored). `data/training/staged_clips.csv` holds the labels (one row per person once verified); `data/training/SOURCES.md` has the license research and the shortfall against the 20-clip mix.
+
+- **CAVIAR** (8 clips): Fight_RunAway1, Fight_RunAway2, Fight_OneManDown, Fight_Chase, Walk1, Walk2, Meet_WalkTogether1, Browse1. Source: EC Funded CAVIAR project/IST 2001 37540, http://homepages.inf.ed.ac.uk/rbf/CAVIAR/. License: CC BY-SA. We modified the clips (frame extraction, labels).
+- **MEVA** (3 example clips): ex085-theft, ex007-embrace-interaction, ex050-people-talking. "Multiview Extended Video with Activities" (MEVA) dataset by Kitware Inc., https://mevadata.org. License: CC BY 4.0 (https://mevadata.org/resources/MEVA-data-license.txt). We modified the clips (frame extraction, labels).
+  - These example videos have MEVA's activity labels burned in (red boxes and text such as "Theft:1"), so a model trained on them can learn the overlay. The overlay also names the clean source file (ex085: `2018-03-15.15-10-00.15-15-00.bus.G331`, frame ~6383), which is in MEVA's public bucket.
+  - ex085 shows a bag lifted from the bench beside its seated owner, not grabbed from a person, so `purse_snatch` is questionable for it.
+
+```
+python data/scripts/fetch_staged_clips.py data/training/staged_clips.csv --fps 2 --local-dir data/videos   # frames + contact sheets for review
+python data/scripts/check_staged_clips.py data/training/staged_clips.csv                                   # label checks (needs pandas)
+```
+
 ## Derived files we commit
 
 | File | Contents | Consumers |
@@ -70,5 +85,6 @@ python -m feeds.replay --cameras data/sites/annex/cameras.json --check          
 ## Attribution text (put in the README and the video credits)
 
 - MEVA (only if used): Corona, K., Osterdahl, K., Collins, R., Hoogs, A. "MEVA: A Large-Scale Multiview, Multimodal Video Dataset for Activity Detection." WACV 2021. Data from mevadata.org, CC BY 4.0.
+- CAVIAR (training clips, if used): EC Funded CAVIAR project/IST 2001 37540, http://homepages.inf.ed.ac.uk/rbf/CAVIAR/. CC BY-SA.
 - Map data © OpenStreetMap contributors, ODbL.
 - Airtlab (if used): "A dataset for automatic violence detection in videos," Data in Brief, 2020 (https://pmc.ncbi.nlm.nih.gov/articles/PMC7725718/). Copy the authors from that page.
