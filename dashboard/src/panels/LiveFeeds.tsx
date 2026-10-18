@@ -103,16 +103,6 @@ export default function LiveFeeds() {
     });
     if (opening) focusSubject(id); else if (focused === id) focusSubject(null);
   };
-  // The newest suspect description per subject from the camera agents (relay / agent_verdict `appearance`).
-  const appearances = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const e of events) {
-      if (e.type !== 'relay' && e.type !== 'agent_verdict') continue;
-      const a = (e as { appearance?: unknown }).appearance;
-      if (typeof a === 'string' && a.trim()) m.set(e.subject_id, a.trim());
-    }
-    return m;
-  }, [events]);
   // The camera whose clip each feed shows when the operator picked one; no entry = follow the newest sighting.
   const [picked, setPicked] = useState<Readonly<Record<string, string>>>({});
   const pick = (subjectId: string, camera: string | null) => setPicked((p) => {
@@ -185,7 +175,6 @@ export default function LiveFeeds() {
         const isOpen = expanded.has(f.subjectId);
         const incident = bySubject.get(f.subjectId);
         const decided = incident?.action?.action;
-        const desc = incident?.dispatch.subject_appearance?.trim() || appearances.get(f.subjectId) || '';
         return (
           <section key={f.subjectId}
             ref={(el) => { if (el) feedEls.current.set(f.subjectId, el); else feedEls.current.delete(f.subjectId); }}
@@ -196,13 +185,9 @@ export default function LiveFeeds() {
               onClick={() => toggle(f.subjectId)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(f.subjectId); } }}>
               <span className="feed-dot" style={{ background: color }} />
-              <span className="feed-title">
-                <span className="feed-title-row">
-                  <strong style={{ color }}>{f.activity ? CRIME_WORDS[f.activity] ?? f.activity : 'Suspect'}</strong>
-                  <span className="feed-cam">{f.cameras.length === 1 ? 'Crime camera' : `Camera ${f.cameras.length}`}</span>
-                </span>
-                {isOpen && desc && <span className="feed-desc" title={desc}>{desc}</span>}
-              </span>
+              <strong style={{ color }}>{f.activity ? CRIME_WORDS[f.activity] ?? f.activity : 'Suspect'}</strong>
+              <span className="feed-cam">{f.cameras.length === 1 ? 'Crime camera' : `Camera ${f.cameras.length}`}</span>
+              <span className="feed-spacer" />
               {decided && (
                 <span className={`feed-decided is-${decided}`}>{decided === 'confirm' ? '✓ Confirmed' : 'Dismissed'}</span>
               )}
