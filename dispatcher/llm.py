@@ -68,7 +68,9 @@ def _evidence_view(m: dict, graph: CameraGraph, t0: float) -> dict:
                 base[extra] = str(m[extra])[:300]
     elif m["type"] == "relay":
         base.update(from_camera=m["from_camera"], to_camera=m["to_camera"], summary=m.get("summary"),
-                    appearance=m.get("appearance"), direction=m.get("direction"), confidence=m.get("confidence"))
+                    appearance=m.get("appearance"), direction=m.get("direction"))
+        if m.get("confidence_known") is not False:  # a placeholder confidence isn't evidence
+            base["confidence"] = m.get("confidence")
     elif m["type"] == "agent_verdict":
         base.update(camera_id=m["camera_id"], decision=m["decision"], confidence=m.get("confidence"),
                     reason=m.get("reason"))
@@ -103,6 +105,12 @@ def intercept_camera(cam_path: list[dict], pred: list[dict]) -> str | None:
     return cam_path[-1]["camera_id"] if cam_path else None
 
 
+# Where the dispatcher model is served (infra/serve_dispatcher.sh). Defaults match it, so an unset env var can't
+# silently point at the wrong port and turn every answer into "Operator review needed".
+DEFAULT_BASE_URL = "http://localhost:8003/v1"
+DEFAULT_MODEL = "dispatcher"
+
+
 class LLMBackend(Protocol):
     def complete_json(self, system: str, user: str, schema: dict) -> dict: ...
 
@@ -121,8 +129,8 @@ class OpenAICompatBackend:
     @classmethod
     def from_env(cls) -> "OpenAICompatBackend":
         return cls(
-            base_url=os.environ.get("CLARITY_LLM_BASE_URL", "http://localhost:8000/v1"),
-            model=os.environ["CLARITY_LLM_MODEL"],
+            base_url=os.environ.get("CLARITY_LLM_BASE_URL", DEFAULT_BASE_URL),
+            model=os.environ.get("CLARITY_LLM_MODEL", DEFAULT_MODEL),
             api_key=os.environ.get("CLARITY_LLM_API_KEY", "EMPTY"),
         )
 

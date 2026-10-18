@@ -722,3 +722,75 @@ def test_possible_relay_after_uncertain_is_not_a_confirmed_sighting():
             ver("ver_1", 41, "cam_05", "subj_7", "uncertain", ["rel_1", "det_2"]),
             {**rel("rel_2", 42, "cam_05", "cam_08", "subj_7", ["det_2"]), "basis": "possible"}]
     assert [p["camera_id"] for p in path(case_from(msgs))] == ["cam_03"]  # cam_05 was only uncertain
+
+
+# --- requests from Mina's integration review ----------------------------------
+
+def test_default_model_endpoint_is_the_dispatcher_port():
+    from dispatcher.llm import DEFAULT_BASE_URL, DEFAULT_MODEL
+    assert DEFAULT_BASE_URL.endswith(":8003/v1") and DEFAULT_MODEL == "dispatcher"
+
+
+def test_placeholder_relay_confidence_not_shown_to_model():
+    from dispatcher.llm import _evidence_view
+    r = {**rel("rel_1", 1, "cam_03", "cam_05", "subj_7", []), "confidence": 0.5, "confidence_known": False}
+    assert "confidence" not in _evidence_view(r, None, 0)
+    assert _evidence_view(rel("rel_2", 1, "cam_03", "cam_05", "subj_7", []), None, 0)["confidence"] == 0.82
+
+
+class _FakeModels:
+    """Tiny HTTP server answering GET /v1/models like vLLM."""
+
+    def __init__(self, served):
+        import http.server
+        import threading
+        body = json.dumps({"object": "list", "data": [{"id": m} for m in served]}).encode()
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200 if self.path.rstrip("/").endswith("/models") else 404)
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+
+        self.server = http.server.HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.server.server_port}/v1"
+
+    def close(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def test_model_check_passes_when_served():
+    from dispatcher.run import check_model
+    fake = _FakeModels(["dispatcher"])
+    try:
+        check_model(fake.url, "dispatcher")
+        check_model(fake.url + "/", "dispatcher")
+    finally:
+        fake.close()
+
+
+def test_model_check_stops_with_one_line_when_wrong_model():
+    from dispatcher.run import check_model
+    fake = _FakeModels(["spotter-ft"])
+    try:
+        with pytest.raises(SystemExit) as stop:
+            check_model(fake.url, "dispatcher")
+        assert "serves spotter-ft, not CLARITY_LLM_MODEL=dispatcher" in str(stop.value.code)
+        assert chr(10) not in str(stop.value.code)  # one line
+    finally:
+        fake.close()
+
+
+def test_model_check_stops_when_unreachable():
+    from dispatcher.run import check_model
+    fake = _FakeModels([])
+    url = fake.url
+    fake.close()
+    with pytest.raises(SystemExit) as stop:
+        check_model(url, "dispatcher", timeout_s=2)
+    assert "can't read" in str(stop.value.code) and "--no-model" in str(stop.value.code)
