@@ -30,20 +30,26 @@ Clip 8 (a phone snatch) contains no stabbing. Other clips from the session inclu
 - **One phone, three runs.** A single iPhone filmed the three camera views one after another. The teammates acted the scene once per view, and the phone moved to the next spot between runs. So each view shows a separate run of the same scene, not one run seen by three cameras at once. The source files are IMG_7380, IMG_7381 and IMG_7382, recorded at 16:41:45, 16:43:28 and 16:43:50. The gaps between them are setup time, not the suspect's running time.
 - **Views:** high-angle views looking down at the sidewalk, like a CCTV camera. The copies we processed are 1080p H.264 at 30 fps, with audio (removed in processing, see below). The phone was handheld, not on a fixed mount, so the view moves a little during the clips (most visibly in `cam_03`).
 - **No clock sync.** No clock is in view, and the runs were separate anyway. The time between views comes from **estimated running times** (`travel_s` in the clip log), based on the distance between the spots: 3 s from `cam_01` to `cam_02` (about 11 m) and 6 s from `cam_02` to `cam_03` (about 22 m). They are estimates, not measurements.
-- **Positions:** the GPS position in each clip's metadata, collected in the team's camera-position sheet (`video-data/custom-clips/camera_positions.csv`, on Wali's branch). Its accuracy is ±14–28 m, which is more than the 11–22 m between the cameras. The direction the phone faces (`heading_deg`) was not recorded.
+- **Positions:** each clip's metadata holds a GPS fix, collected in the team's camera-position sheet (`video-data/custom-clips/camera_positions.csv`, on Wali's branch). Its accuracy is ±14–28 m, which is more than the 11–22 m between the cameras, so the map positions are **placed by hand** in route order (see [Raw GPS vs placed positions](#raw-gps-vs-placed-positions)). The direction the phone faces (`heading_deg`) was not recorded.
 - **Labels:** the seconds when the suspect enters and leaves each view were read from frame contact sheets in 0.25 s steps and typed into the clip log: `cam_01` 3.25–7.75 s (the snatch at 6.5 s), `cam_02` 1.25–2.5 s, `cam_03` 1.5–4.1 s (still in view when the clip ends). They were read by our coding assistant (Claude Code, a development tool that is not part of Clarity's runtime) and shown to the team; nobody has re-checked them frame by frame yet.
 
 ### Raw GPS vs placed positions
 
-Raw GPS puts the cameras in the order `cam_02`, `cam_01`, `cam_03` from south to north. On the map, the path then doubles back: south from `cam_01` to `cam_02`, then north past `cam_01` to `cam_03`. From `cam_02`, both neighbors point north, so the graph can't tell them apart by direction (`build_site.py` warns about this).
+**Raw:** the GPS fix in each clip's metadata, given to 4 decimals (steps of about 10 m) with the phone's stated accuracy. Raw GPS puts the cameras in the order `cam_02`, `cam_01`, `cam_03` from south to north. On the map, the path then doubles back: south from `cam_01` to `cam_02`, then north past `cam_01` to `cam_03`. From `cam_02`, both neighbors point north, so the graph can't tell them apart by direction (`build_site.py` warned about this when the site was built from the raw fixes).
 
-The cameras will be **hand-placed** in route order at their named spots, within the GPS error. Until then, `cameras.json` uses the raw GPS.
+**Placed:** the cameras are placed by hand in route order, on a straight line heading north along the sidewalk:
+- `cam_01` (the snatch) stays at its GPS fix, the most accurate of the three (±14 m).
+- `cam_02` is 11 m north of `cam_01`, and `cam_03` is 22 m further north. These are the distances in the camera-position sheet, the same ones behind the 3 s and 6 s running times. They match the straight-line distance between consecutive raw fixes, so they are only as precise as the GPS.
+- Each placed position is within its own fix's accuracy: `cam_02` is 22 m from its fix (±26 m), and `cam_03` is 22 m from its fix (±28 m).
+- North is an assumption: the exit's fix (`cam_03`) is north of the snatch's (`cam_01`), but the direction of the sidewalk was not recorded.
 
 | Camera | Spot | Raw GPS (lat, lon) | GPS accuracy | Placed (lat, lon) |
 |---|---|---|---|---|
-| `cam_01` | bus shelter | 35.7745, -78.6386 | ±14 m | TODO |
-| `cam_02` | sidewalk by tree grate | 35.7744, -78.6386 | ±26 m | TODO |
-| `cam_03` | covered walkway | 35.7746, -78.6386 | ±28 m | TODO |
+| `cam_01` | bus shelter | 35.7745, -78.6386 | ±14 m | 35.77450, -78.63860 (its GPS fix) |
+| `cam_02` | sidewalk by tree grate | 35.7744, -78.6386 | ±26 m | 35.77460, -78.63860 (11 m north of `cam_01`) |
+| `cam_03` | covered walkway | 35.7746, -78.6386 | ±28 m | 35.77480, -78.63860 (22 m north of `cam_02`) |
+
+`cameras.json` uses the placed positions, so the route reads as one run north: from `cam_02`, `cam_01` is south and `cam_03` is north. The clip log keeps both: its `lat` and `lon` columns hold the placed positions, and three extra columns, `gps_lat`, `gps_lon` and `gps_accuracy_m`, hold the raw GPS (`build_site.py` ignores columns it doesn't read). Travel times and ground-truth times come from `travel_s`, not from positions, so the placement changed only the positions, the directions and the map center in `cameras.json`.
 
 ## Safety and consent
 
@@ -99,10 +105,10 @@ How `build_site.py` turns the log into numbers:
 
 | File | Contents |
 |---|---|
-| `data/sites/annex/cameras.json` | The camera graph, following `contracts/schemas/cameras.schema.json`. For each camera it gives the neutral name, route (`take`), lat/lon, optional `heading_deg` and neighbors (each with `travel_time_s` and `direction`). It also gives the clip source as `uri` (`data/raw/staged/take<N>/<clip_file>`) and `start_ts`, the run-clock second where the clip starts. |
+| `data/sites/annex/cameras.json` | The camera graph, following `contracts/schemas/cameras.schema.json`. For each camera it gives the neutral name, route (`take`), lat/lon (the placed positions), optional `heading_deg` and neighbors (each with `travel_time_s` and `direction`). It also gives the clip source as `uri` (`data/raw/staged/take<N>/<clip_file>`) and `start_ts`, the run-clock second where the clip starts. |
 | `data/ground_truth/take<N>.json` | One file per incident: `incident_id`, `subject_id`, `activity`, the suspect's outfit (`appearance`), the take's run-clock offset, and the suspect's `path` as `[{camera_id, t_enter, t_exit}]` on the run clock. It also has `decoy_camera_id` (`null`: no decoy) and `camera_roles`, which maps each camera ID to its role (`crime`, `path` or `exit`). |
 | `data/manifests/annex.json` | Maps each `camera_id` to its take, clip file, `uri` and `start_ts`, for the feeds. |
-| `data/staged/clip_log_take1.csv` | The clip log the site is built from, with `phone_owner` blank. It rebuilds the three files above exactly (`python data/check_build_site.py` checks this). The team's working log, `data/staged/clip_log.csv`, stays local and out of git (gitignored) because its `phone_owner` column names the phone owners; the build never copies that column into the outputs. The columns are listed in `data/staged/clip_log_template.csv`. |
+| `data/staged/clip_log_take1.csv` | The clip log the site is built from, with `phone_owner` blank. It rebuilds the three files above exactly (`python data/check_build_site.py` checks this). The team's working log, `data/staged/clip_log.csv`, stays local and out of git (gitignored) because its `phone_owner` column names the phone owners; the build never copies that column into the outputs. The columns are listed in `data/staged/clip_log_template.csv`; this log adds `gps_lat`, `gps_lon` and `gps_accuracy_m` for the raw GPS, and its `lat`/`lon` are the placed positions. |
 
 **Reusing the clips:** the `uri` paths are relative to the repo root. Put the downloaded clips in `data/raw/staged/take1/`, or set `CLARITY_CLIP_ROOT` to a folder that contains `data/raw/staged/...`.
 
@@ -126,6 +132,6 @@ The processing scripts are code, not data. Their license is set in the repo's ma
 - **Small cast.** The suspect and the victim are teammates, so there are few distinct people, outfits and body types.
 - **Staged acting.** The snatch is acted, so it may look gentler or more obvious than a real one.
 - **No decoy.** No camera films an empty path, so this footage never asks an agent to reject a non-match.
-- **Phone positions.** Raw GPS is accurate to ±14–28 m, more than the 11–22 m between cameras, and puts the cameras out of route order (see [Raw GPS vs placed positions](#raw-gps-vs-placed-positions)). Hand-placed positions are within that error but still approximate, and so are the 8-way directions between cameras.
+- **Phone positions.** Raw GPS is accurate to ±14–28 m, more than the 11–22 m between cameras, and puts the cameras out of route order, so the cameras are placed by hand (see [Raw GPS vs placed positions](#raw-gps-vs-placed-positions)). The placed positions are within that error but approximate: the north heading is assumed, and the 11 m and 22 m spacings are themselves distances between GPS fixes. The 8-way directions between cameras follow from the placement.
 - **The route grouping leaks.** The `Route 1:` camera names, the `take` field in `cameras.json` and the `take1/` folder in each clip path all reveal which cameras belong to the incident. A system that reads these fields could use them as a shortcut.
 - **No stabbing footage** (see [What it is](#what-it-is)).

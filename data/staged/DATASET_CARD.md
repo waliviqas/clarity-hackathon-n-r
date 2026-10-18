@@ -55,7 +55,7 @@ The three views are **three separate runs of the same scene**, filmed one after 
 | `cam2.mp4` | `cam_02` | sidewalk by a tree grate | 3.3 s, 33 frames | 1.25 to 2.5 s (runs past) |
 | `cam3.mp4` | `cam_03` | covered walkway: the exit | 4.3 s, 43 frames | 1.5 s to the end (still in view when the clip ends) |
 | `take1.json` | | | | Ground truth: crime type, suspect outfit, and the suspect's path across the three cameras on one run clock |
-| `clip_log_take1.csv` | | | | The per-view log the ground truth was built from: spot, raw GPS, clip file, enter/exit seconds, estimated travel time, notes |
+| `clip_log_take1.csv` | | | | The per-view log the ground truth was built from: spot, placed position and raw GPS, clip file, enter/exit seconds, estimated travel time, notes |
 
 All three videos are 1280x720, a constant 10 fps, H.264 (8-bit 4:2:0), with **no audio** and no location or device metadata. They were converted from the phone's 1080p, 30 fps originals (`IMG_7380`, `IMG_7381`, `IMG_7382`).
 
@@ -73,11 +73,11 @@ Enter and exit times were read from frame contact sheets in 0.25 s steps by our 
 
 | Camera | Spot | Raw GPS (lat, lon) | GPS accuracy | Placed (lat, lon) |
 |---|---|---|---|---|
-| `cam_01` | bus shelter | 35.7745, -78.6386 | ±14 m | TODO |
-| `cam_02` | sidewalk by a tree grate | 35.7744, -78.6386 | ±26 m | TODO |
-| `cam_03` | covered walkway | 35.7746, -78.6386 | ±28 m | TODO |
+| `cam_01` | bus shelter | 35.7745, -78.6386 | ±14 m | 35.77450, -78.63860 (its GPS fix) |
+| `cam_02` | sidewalk by a tree grate | 35.7744, -78.6386 | ±26 m | 35.77460, -78.63860 (11 m north of `cam_01`) |
+| `cam_03` | covered walkway | 35.7746, -78.6386 | ±28 m | 35.77480, -78.63860 (22 m north of `cam_02`) |
 
-The raw GPS comes from each clip's metadata. Its error (±14 to 28 m) is larger than the distance between the cameras (11 to 22 m), and it puts them out of route order (`cam_02` south of `cam_01`). The cameras will be hand-placed in route order, within the GPS error. The direction each phone faced was not recorded.
+The raw GPS comes from each clip's metadata. Its error (±14 to 28 m) is larger than the distance between the cameras (11 to 22 m), and it puts them out of route order (`cam_02` south of `cam_01`), so the path would double back. The cameras are therefore placed by hand in route order, on a straight line heading north: `cam_01` (the snatch) stays at its fix, the most accurate of the three; `cam_02` is 11 m north of it, and `cam_03` 22 m further north. Those spacings are the distances behind the running-time estimates, and they match the distances between consecutive raw fixes. Each placed position is within its own fix's error. North is an assumption: the exit's fix is north of the snatch's, but the direction of the sidewalk was not recorded, and neither was the direction each phone faced. In `clip_log_take1.csv`, `lat` and `lon` are the placed positions, and `gps_lat`, `gps_lon` and `gps_accuracy_m` are the raw GPS.
 
 ## Consent and privacy
 
@@ -108,7 +108,7 @@ In short:
 - **Few people.** Two teammates act: the suspect and the person robbed. The same actor, in the same outfit, also plays the suspect in the team's other takes, which are not part of this first release. There is little variety in people, outfits and body types.
 - **Small.** One incident, three clips, about 16 s of video, one street, one afternoon, daylight only.
 - **Not a fixed camera.** The phone was not on a fixed mount: the view moves during the clips, most visibly in `cam3`.
-- **GPS error.** Raw positions are accurate to only ±14 to 28 m, which is coarser than the spacing of the cameras.
+- **GPS error.** Raw positions are accurate to only ±14 to 28 m, which is coarser than the spacing of the cameras, so the cameras are placed by hand (see [Camera positions](#camera-positions)). The placed positions are within the GPS error but approximate, and the north heading is assumed.
 - **No decoy view.** No clip shows an empty path, so the footage never asks a system to reject a non-match.
 - **Blur edits.** In `cam1` and `cam3` the blurred regions are edited pixels, and the re-encoding changes the rest of the image slightly. Results on these files may differ a little from runs on the unblurred originals.
 
