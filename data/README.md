@@ -82,6 +82,13 @@ python data/scripts/fetch_staged_clips.py data/training/staged_clips.csv --fps 2
 python data/scripts/check_staged_clips.py data/training/staged_clips.csv                                   # label checks (needs pandas)
 ```
 
+## Public training clips (spotter fine-tune)
+
+Train split only; links, cuts and labels in `data/training/` (`public_clips_candidates.csv`, `labels_public.csv`; details in `training/SOURCES.md`). The clips are rebuilt from the links with `data/scripts/fetch_public_clips.py` and never re-hosted.
+- **AIRTLab**: stabbing, assault and non-violent IDs, cam1 + cam2. Research and education only (no LICENSE file); team decision: link only, don't re-host.
+- **Mixkit**: hand-picked thefts, one fleeing clip and normals, each page checked for the Stock Video Free License ("Restricted" items skipped); link only.
+- **MEVA** (drops-123-r13): 10–15 s cuts around annotated thefts and hugs, CC BY 4.0; we cut and re-encoded them. ex085's video is never used.
+
 ## Derived files we commit
 
 | File | Contents | Consumers |
@@ -95,4 +102,5 @@ python data/scripts/check_staged_clips.py data/training/staged_clips.csv        
 - MEVA (only if used): Corona, K., Osterdahl, K., Collins, R., Hoogs, A. "MEVA: A Large-Scale Multiview, Multimodal Video Dataset for Activity Detection." WACV 2021. Data from mevadata.org, CC BY 4.0.
 - CAVIAR (training clips, if used): EC Funded CAVIAR project/IST 2001 37540, http://homepages.inf.ed.ac.uk/rbf/CAVIAR/. CC BY-SA.
 - Map data © OpenStreetMap contributors, ODbL.
-- Airtlab (if used): "A dataset for automatic violence detection in videos," Data in Brief, 2020 (https://pmc.ncbi.nlm.nih.gov/articles/PMC7725718/). Copy the authors from that page.
+- AIRTLab (training clips): M. Bianculli, N. Falcionelli, P. Sernani, S. Tomassini, P. Contardo, M. Lombardi, A.F. Dragoni, "A dataset for automatic violence detection in videos," Data in Brief 33 (2020), doi:10.1016/j.dib.2020.106587 (citation as given in the dataset's readme).
+- Mixkit (training clips): stock videos from mixkit.co under the Mixkit Stock Video Free License; clip pages listed in `training/public_clips_candidates.csv`.

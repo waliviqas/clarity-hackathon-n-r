@@ -109,9 +109,9 @@ def font_option() -> str:
     return ""
 
 
-def extract_frames(cid: str, path: Path, fps: float) -> tuple[int, int]:
+def extract_frames(cid: str, path: Path, fps: float, frames_root: Path = FRAMES) -> tuple[int, int]:
     """Writes frames + contact sheets for one clip; returns (n_frames, n_sheets)."""
-    out = FRAMES / cid
+    out = frames_root / cid
     out.mkdir(parents=True, exist_ok=True)
     for old in [*out.glob("f_*.jpg"), *out.glob("contact_sheet*.jpg")]:
         old.unlink()  # a rerun at another fps must not leave stale frames or sheets behind

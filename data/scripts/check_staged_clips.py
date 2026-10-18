@@ -2,6 +2,7 @@
 """QA for data/training/staged_clips.csv. Run from the repo root on Brev:
 
     python scripts/check_staged_clips.py data/training/staged_clips.csv [--urls]
+    python data/scripts/check_staged_clips.py data/training/public_clips.csv --frames data/raw/training_public/frames
 
 Checks: exact header, equal column counts, loads in pandas, activity labels in
 the contract set, required fields non-empty, one clip_id -> one source, no
@@ -28,7 +29,7 @@ CONF = {"high", "med", "low", "Unknown"}
 MEDIA = (".mp4", ".avi", ".mov", ".webm", ".mkv", ".mpg", ".ogv", ".jpg", ".jpeg", ".png")
 
 
-def main(path: str, check_urls: bool) -> int:
+def main(path: str, check_urls: bool, frames_root: str = "data/raw/training/frames") -> int:
     errs = []
     with open(path, newline="", encoding="utf-8") as f:
         rows = list(csv.reader(f))
@@ -56,7 +57,7 @@ def main(path: str, check_urls: bool) -> int:
     if (df.local_path.str.len() > 0).any() and not df.local_path.str.startswith("data/raw/").all():
         errs.append("local_path must point into data/raw/")
     for r in df[df.verification_status == "verified"].drop_duplicates("clip_id").itertuples():
-        if not any(Path(f"data/raw/training/frames/{r.clip_id}").glob("f_*.jpg")):
+        if not any((Path(frames_root) / r.clip_id).glob("f_*.jpg")):
             errs.append(f"{r.clip_id}: marked verified but no frames on disk")
 
     if check_urls:
@@ -90,4 +91,5 @@ def main(path: str, check_urls: bool) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1], "--urls" in sys.argv))
+    frames = sys.argv[sys.argv.index("--frames") + 1] if "--frames" in sys.argv else "data/raw/training/frames"
+    sys.exit(main(sys.argv[1], "--urls" in sys.argv, frames))
