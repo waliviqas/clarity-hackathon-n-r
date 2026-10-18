@@ -63,7 +63,14 @@ vllm serve models/spotter-ft-merged --served-model-name spotter-ft --host 127.0.
 - **Fine-tuned model served as merged weights, not as a LoRA adapter:** LoRA serving (`--enable-lora`) crashes on vLLM 0.11 for Qwen3-VL with image inputs, so the LoRA add-on is merged into the base weights and served as its own model.
 - `--host 127.0.0.1` on every server: reachable only on the box and through the tunnel.
 
-Checker (Wali): Nemotron Nano 12B v2 VL served as `checker` on `:8002` with `--gpu-memory-utilization 0.40` (`infra/serve_checker.sh`); client `src/checker.py` (`CHECKER_BASE_URL=http://localhost:8002/v1`, `CHECKER_MODEL=checker`), 8 frames per call, JSON schema for the suspect fields.
+Checker (Wali, [`infra/serve_checker.sh`](infra/serve_checker.sh)):
+
+```bash
+vllm serve nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16 --served-model-name checker --host 127.0.0.1 --port 8002   --gpu-memory-utilization 0.40 --max-model-len 16384 --limit-mm-per-prompt '{"image": 8, "video": 0}' --trust-remote-code
+```
+
+- `--limit-mm-per-prompt '{"image": 8, "video": 0}'`: 8 frames per request as images; video input off, because vLLM's video warm-up crashes on this model.
+- Client `src/checker.py` (`CHECKER_BASE_URL=http://localhost:8002/v1`, `CHECKER_MODEL=checker`), JSON schema for the suspect fields. First request after startup ~15–60 s, then ~5 s per camera.
 
 ## Optimizations, one change at a time (dispatcher)
 
@@ -105,6 +112,7 @@ Ranges are two runs. The 5.56 s p95 at concurrency 4 was one outlier on the shar
 
 - **Prefix caching:** enabled, but `vllm:prefix_cache_queries_total` stayed 0; vLLM 0.11 doesn't apply it to this hybrid Mamba model.
 - **Per-request `disable_any_whitespace`:** accepted but ignored on vLLM 0.11. The JSON retry covers the occasional runaway whitespace instead.
+- **Video input for the checker:** vLLM's video warm-up crashes on Nemotron Nano 12B v2 VL, so frames are sent as 8 images (`"video": 0`).
 - **LoRA serving for the fine-tuned spotter:** `--enable-lora` crashes on vLLM 0.11 with Qwen3-VL and images. Workaround: merge the LoRA into the base weights and serve the merged model (`spotter-ft`, `:8005`).
 
 ## Reproduce
