@@ -34,7 +34,8 @@ python -m dispatcher.run --no-model      # rules only, if the dispatcher model i
 The dispatcher model is served by vLLM on port 8003 (serve command in `dispatcher/README.md`). It's currently **stopped** to give Wali's fine-tune the GPU; restart it before an end-to-end run.
 
 **What the dispatcher needs from Wali's agents** (all already in the contract):
-- `detection.activity` from the closed enum `stabbing | fistfight | purse_snatch | none`. `"none"` means no incident; anything else starts one.
+- `detection.activity` from the closed enum `stabbing | fistfight | purse_snatch | none`. `"none"` means no incident; anything else starts one. The dispatcher also accepts the spotter's `labels.csv` names (`assault` → `fistfight`, `stealing` → `purse_snatch`), but the bus validates against the contract, so the agents should send contract names until the team renames the enum.
+- `camera_id` must match `cameras.json` and the contract pattern (`cam_01`, not the clip folder name `cam1`).
 - `detection.direction` = the subject's observed movement. The dispatcher uses it to tell the real exit from a decoy. A `relay.direction` is only used when no detection has one.
 - Every `relay` / `agent_verdict` carries the `subject_id` and cites the detections it's based on in `evidence_event_ids`. That's how detections get attached to an incident.
 - On a `match`, send the relay to the next cameras *from the matching camera* (as the contract says). Relays from older cameras are treated as stale.

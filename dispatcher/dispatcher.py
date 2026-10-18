@@ -15,8 +15,8 @@ from .graph import CameraGraph
 from .guidance import guidance_for, with_guidance
 from .llm import PROPOSAL_SCHEMA, SYSTEM_PROMPT, LLMBackend, build_user_message, intercept_camera
 from .models import HEADER, SCHEMA_VERSION, SubjectCase
-from .rules import (RuleConfig, gate, incident_type, path, predicted_next, subject_appearance,
-                    subject_direction, template)
+from .rules import (ACTIVITY_ALIASES, RuleConfig, gate, incident_type, normalize_activity, path, predicted_next,
+                    subject_appearance, subject_direction, template)
 from .verify import MAX_RECOMMENDATION, verify
 
 # Fields that identify a message instance rather than its content.
@@ -82,6 +82,8 @@ class Dispatcher:
         self.clock = max(self.clock, float(msg["ts"]))
         kind = msg["type"]
 
+        if kind in ("detection", "relay") and msg.get("activity") in ACTIVITY_ALIASES:
+            msg = {**msg, "activity": normalize_activity(msg["activity"])}  # Wali's label names -> contract's
         if kind == "detection":
             self.detections[msg["event_id"]] = msg
             for sid in self._waiting.pop(msg["event_id"], set()):

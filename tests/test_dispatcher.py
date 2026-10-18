@@ -529,3 +529,27 @@ def test_stale_relay_to_decoy_ignored_after_subject_reaches_exit(graph):
 def test_heading_comes_from_detections_not_relay_edges():
     from dispatcher.rules import subject_direction
     assert subject_direction(case_from(junction_case())) == "north"
+
+
+# --- Wali's spotter labels (labels.csv: stabbing / assault / stealing / none) ----
+
+@pytest.mark.parametrize("label,contract_type,priority", [("assault", "fistfight", "medium"),
+                                                          ("stealing", "purse_snatch", "low")])
+def test_wali_label_names_map_to_contract(graph, label, contract_type, priority):
+    llm = SlowGrounded(delay=0)
+    msgs = [det("det_w1", "cam_03", 0, label, 0.8),
+            rel("rel_w1", 1, "cam_03", "cam_05", "subj_w", ["det_w1"], activity=label)]
+    out = Dispatcher(graph, llm).process(msgs)
+    assert out and out[-1]["incident_type"] == contract_type
+    assert_dispatch_contract(out[-1])
+    assert "Procedure:" in out[-1]["recommendation"]
+    assert d_priority_cap_respected(out[-1], priority)
+
+
+def d_priority_cap_respected(msg, cap):
+    from dispatcher.models import PRIORITY_RANK
+    return PRIORITY_RANK[msg["priority"]] <= PRIORITY_RANK[cap]
+
+
+def test_wali_stabbing_label_auto_alerts():
+    assert gate(case_from([det("det_1", "cam_03", 0, "stabbing", 0.95)]), CFG) == "alert"

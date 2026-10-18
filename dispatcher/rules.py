@@ -19,6 +19,14 @@ ACTIVITY_SEVERITY = {
     "none": 0,
 }
 NO_ACTIVITY = (None, "", "none")
+
+# Wali's spotter labels (labels.csv: stabbing / assault / stealing / none) -> contract v0.1 names.
+# If the team renames the contract enum to Wali's names, invert this mapping (and the keys above).
+ACTIVITY_ALIASES = {"assault": "fistfight", "stealing": "purse_snatch"}
+
+
+def normalize_activity(activity):
+    return ACTIVITY_ALIASES.get(activity, activity)
 UNKNOWN_SEVERITY = 2  # an activity outside the enum: not trusted for auto-alert, not ignored either
 
 Gate = Literal["alert", "ignore", "ambiguous"]
