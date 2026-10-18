@@ -33,6 +33,16 @@ The schema forces the first output token to be `{`, so Nano v2 can't start a rea
 
 7.6× the output throughput at 16 concurrent incidents for 2× the latency (vLLM continuous batching).
 
+**Run-to-run variation.** A repeat run on Sat Oct 17 night (same config, code at `df3a804`, GPU shared with the team's spotter) gave 65 → 477 output tok/s from 1 → 16 concurrent, p50 1.55 → 3.39 s, 64/64 verified, with one slow outlier at concurrency 4 (p95 5.6 s). Report throughput at 16 concurrent as **~477–514 tok/s**, not the best run alone.
+
+## Verification runs (no code changes, Sat Oct 17 night, code at `df3a804`)
+
+| Run | Setup | Result |
+|---|---|---|
+| Load test | `scripts/bench_dispatcher.py`, 1/4/8/16 concurrent, 16 requests each | 64/64 passed the verifier; 477 tok/s at 16 concurrent |
+| Full pipeline | Mina's `bus/server.py` (strict schema validation) + `bus/fake_scenario.py` (3 overlapping incidents with decoys) + `python -m dispatcher.run` with the model | 61/61 bus events valid, 0 invalid, 0 duplicate IDs; 13 dispatches; officers sent junction → real exit for all 3 incidents, **0 to a decoy**; fistfight medium / purse_snatch low; procedure line on every recommendation |
+| Spotter-shaped input | Wali's label names (`stabbing` / `stealing` / `assault`), no `activity_confidence`, spotter `what_happened` text, 3 incidents from `labels.csv` | stabbing → high (rules, immediate); stealing → purse_snatch low; assault → fistfight medium; all to the real exit; 0 fallbacks (3 invalid-JSON first attempts recovered by the retry) |
+
 ## Tried, didn't help (kept honest)
 
 - **Prefix caching:** `--enable-prefix-caching` is set, but `vllm:prefix_cache_queries_total` stayed 0; vLLM 0.11 doesn't apply it to this hybrid Mamba model. Not claimed.
