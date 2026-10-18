@@ -2,19 +2,83 @@
 
 > When a crime happens, one dispatcher is watching dozens of camera feeds and has minutes to act. Clarity follows the suspect from camera to camera and tells officers where to head next, even with three incidents at once.
 
-Clarity is a team of small AI agents, one beside each security camera. When a camera sees a crime, its agent describes the suspect in words and passes that description to the cameras along the suspect's likely path. A coordinator agent pulls the reports together and recommends where officers should go. A human operator confirms or dismisses every recommendation on a map.
+**At Clarity's core is a small vision model we fine-tuned for one job.** Our spotter is Qwen3-VL-2B, fine-tuned on clips our team filmed. It looks at a few frames from one security camera, says whether a crime is happening and what kind (stabbing, assault or theft) or whether someone is running away, and describes the suspect in words.
+
+**Clarity is the application that puts that model to work.** A small agent beside each camera passes the spotter's suspect description to the cameras along the suspect's likely path. A coordinator agent pulls the reports together and recommends where officers should go. A human operator confirms or dismisses every recommendation on a map.
 
 **Design principle:** video stays on the agency's own hardware; only text descriptions move between agents.
 
-Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17–18, 2026). **Track: Multi-Agent Systems.**
+Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17–18, 2026). **Track: Fine-Tuned.** <!-- source: team decision Sat Oct 17 ~10 PM (Mina); docs/hackathon.md -->
 
 | | |
 |---|---|
+| Fine-tuned spotter (model) | TODO: published model link |
+| Base vs. fine-tuned on held-out test clips | [The fine-tuned spotter](#the-fine-tuned-spotter) (base measured; fine-tuned TODO) |
 | Demo video | TODO: unlisted YouTube or Vimeo link |
 | Screen capture of the working app | TODO: link (short clip of the dashboard during a run) |
-| Staged clip dataset | TODO: dataset link (planned: Hugging Face, CC BY 4.0) |
+| Staged clips + method (open data) | TODO: Hugging Face dataset link (planned license: CC BY 4.0) |
 
 > Naming: on screen and in this README the AI dispatcher agent is called the **coordinator**. In code and message contracts it is `dispatcher`. "Dispatcher" in the pitch above means the human at the console.
+
+---
+
+## The fine-tuned spotter
+
+**Its one job.** Given a few frames from one camera, in time order, the spotter answers in a fixed format:
+
+- what happens, in one or two sentences;
+- what is on screen: a **crime**, someone **fleeing**, or **nothing**;
+- the crime type: **stabbing**, **assault** or **stealing**;
+- the suspect, field by field: build, height, shirt, pants, shoes, hair, glasses, headwear, bag, weapon, vehicle.
+
+That answer becomes a `detection` event (see [`contracts/`](contracts/README.md)), and its suspect description is what the camera agents pass from camera to camera. TODO: Wali to confirm how the answer maps onto the contract's `activity` labels (`stabbing`, `fistfight`, `purse_snatch`, `none`).
+
+**Why fine-tune.** We scored the base model, `Qwen/Qwen3-VL-2B-Instruct`, on our held-out test clips before any training. It picked the right one of crime / fleeing / nothing in about half its answers, but it named the crime type wrong every time and almost never got the suspect's clothes right in its fields (table below). On our demo clip (clip 8, camera 1), it saw a crime but called a phone snatch an "assault", and its fields gave the suspect glasses and no shirt description, although its own summary mentions the man in the black hoodie. <!-- source: before.json on Wali's branch, clip8 cam1, same answer in 3 of 3 runs --> A 2B model is small enough to run beside every camera on an agency's own hardware, so we teach it this one job instead of using a bigger model.
+
+**How it is trained.** TODO: Wali to confirm every line.
+
+- **Base model:** `Qwen/Qwen3-VL-2B-Instruct` (2.13B parameters, see [Models and parameter budget](#models-and-parameter-budget)).
+- **Test split (held out, never trained on):** clips 1, 3, 4, 7, 8, 12 and 13, 18 camera views in total. Each view is asked 3 times. <!-- source: before.json on Wali's branch -->
+- **Training split:** TODO: list of training clips.
+- **External check:** 11 clips from CAVIAR (8) and MEVA (3), public datasets filmed elsewhere. TODO: say whether any of them are also used in training (if so, they stop being a fair check).
+- **Method:** TODO: full fine-tune or LoRA, tools, epochs, GPU and training time.
+- **Labels:** every camera view of our clips has a label (what happens, crime type, suspect fields). The CAVIAR and MEVA labels come from the datasets and were not checked frame by frame. <!-- source: "check" field in before_external.json --> TODO: how our clips were labeled, and who checked the labels.
+
+**Base vs. fine-tuned.** Same clips, prompt and settings for both rows of each split. TODO: confirm.
+
+| Spotter | Split | Camera views | On-screen accuracy | Crime-type accuracy | False-alarm rate | Description accuracy | Failed requests | Source |
+|---|---|---|---|---|---|---|---|---|
+| Qwen3-VL-2B-Instruct, base | test | 18 | 0.537 | 0.0 | 0.0 | 0.253 | 7 of 54 | `results/before.json`, Oct 17 9:22 PM |
+| Qwen3-VL-2B, fine-tuned (ours) | test | 18 | TODO | TODO | TODO | TODO | TODO | TODO |
+| Qwen3-VL-2B-Instruct, base | external (CAVIAR + MEVA) | 11 | 0.485 | 0.133 | 0.167 | n/a (no suspect labels) | 8 of 33 | `results/before_external.json`, Oct 17 9:29 PM |
+| Qwen3-VL-2B, fine-tuned (ours) | external (CAVIAR + MEVA) | 11 | TODO | TODO | TODO | n/a | TODO | TODO |
+
+Sources are Wali's result files on his branch (`wali-branch`, commit `cc8d3ae`) until it merges, also logged in `results/history.csv`. TODO: confirm the folder name at merge.
+
+How to read the columns (our reading of the result files; TODO: Wali to confirm):
+
+- **On-screen accuracy:** share of all answers that pick the right one of crime / fleeing / nothing. A failed request counts as wrong.
+- **Crime-type accuracy:** on views where a crime happens, share of answers with the right crime type.
+- **False-alarm rate:** on views where nothing happens, share of answers that report a crime. In the test split that is only 2 views (6 answers), so this number says little.
+- **Description accuracy:** share of the suspect's description fields that match the label. Base model per field on the test split: shirt 0.062, pants 0.0, hair 0.0, build 0.0, versus headwear 0.854, bag 0.854 and weapon 1.0, where the right answer was usually "none". <!-- source: description_accuracy_by_field in before.json -->
+- **Failed requests:** answers that came back unusable (out of 18 views × 3 tries = 54 on test, 11 × 3 = 33 external).
+
+Caveats: two test clips (4 and 12) are not in the published dataset, so the published clips reproduce only part of the test split. The MEVA example clips have the dataset's activity labels burned into the video (see [`data/README.md`](data/README.md)); the base model's only correct crime types on the external set (2 answers) were on the MEVA theft clip, which shows such a label. <!-- source: before_external.json, meva_ex085_theft -->
+
+**Published model:** TODO: Hugging Face model link and license.
+
+---
+
+## Track fit: Fine-Tuned
+
+In our own words, the Fine-Tuned track asks for three things: a small open model specialized with data for one clear job; a fair before-and-after on test data the model never saw; and a working system in which the specialized model does real work.
+
+| What the track looks for (our paraphrase) | In Clarity |
+|---|---|
+| A small model, specialized for one job | Qwen3-VL-2B (2.13B), fine-tuned to spot a crime and describe the suspect from a few camera frames |
+| Data behind the specialization | Clips our team filmed and labeled during the hack, published with the method (see [Data](#data)) |
+| A fair before-and-after | Base vs. fine-tuned on the same held-out test clips, never used in training, plus an external check on public clips ([table above](#the-fine-tuned-spotter)) |
+| The model doing real work | Its suspect descriptions feed the camera relay, the coordinator's recommendation and the operator's dashboard (see [The application](#the-application-a-camera-relay-for-the-operator)) |
 
 ---
 
@@ -22,16 +86,18 @@ Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17
 
 | Part | Folder | Owner | Status |
 |---|---|---|---|
+| **Spotter fine-tune** (Qwen3-VL-2B, team clips, train/test split) | TODO: folder | Wali | Base model scored (Oct 17, 9:22 PM); fine-tune running. Published model: TODO |
+| Spotter + checker in the pipeline (crime detection) | `perception/` | Wali | In progress. Scripted in the current demo run |
+| Camera agents + camera graph | `agents/`, `graph/` | Wali | In progress. The camera agents are scripted in the current demo run |
 | Message contracts (JSON Schema) + validator | `contracts/` | shared | Built |
-| Event bus: server, client, scripted scenario, replay | `bus/` | Mina | Built (runs without any model) |
+| Event bus: server, client, scripted scenario, replay, run metrics | `bus/` | Mina | Built (runs without any model) |
 | Camera feeds (replay staged clips as cameras) | `feeds/` | Mina | In progress |
 | Staged clips, camera map, ground truth | `data/` | Mina | In progress |
-| Dashboard (map, agent graph, receipts) | `dashboard/` | Mina | In progress |
-| Spotter + checker (crime detection) | `perception/` | Wali | In progress |
-| Camera agents + camera graph | `agents/`, `graph/` | Wali | In progress |
-| Model serving on vLLM (Brev) | `infra/` | Michael | In progress |
-| Coordinator + lookup | `dispatcher/`, `lookup/` | Michael | In progress |
-| NeMo Gym environment + scoring | `eval/` | Michael | In progress |
+| Dashboard (map, agent graph, incident cards, receipts, sighting video) | `dashboard/` | Mina | Built; polishing |
+| Model serving on vLLM (Brev) | `infra/` | Michael | Coordinator model served (port 8003); base spotter served for its load test. TODO: fine-tuned spotter and checker |
+| Coordinator (Nemotron Nano 9B v2, rules for clear cases, a verifier) | `dispatcher/` | Michael | Built, on the `Michael` branch until it merges |
+| Lookup (RAG with Nemotron Embed + Rerank) | — | Michael | **Cut.** Replaced by fixed procedure lines in `dispatcher/guidance.py` |
+| NeMo Gym environment + scoring | `eval/` | Michael | TODO: not yet confirmed that we enter this bounty |
 
 Wali's and Michael's parts live on their own branches until they merge. TODO: update this table before submission (Sun Oct 18, 10:30 AM ET).
 
@@ -49,18 +115,29 @@ Wali's and Michael's parts live on their own branches until they merge. TODO: up
 
 ---
 
-## What the demo will show
+## The application: a camera relay for the operator
 
-The dashboard and the real model pipeline are still in progress. Today the same story runs end to end through the event bus as a scripted scenario (see Quick start). The demo will show:
+Clarity shows the fine-tuned spotter doing its job in a realistic setting. Several small models split the work: the spotter screens each camera, a larger checker model double-checks what it flags, camera agents pass the suspect description along, and the coordinator recommends where to send officers.
 
-1. Three crimes starting within about 20 seconds of each other on different cameras (one fistfight, two purse snatches).
-2. Each camera agent lighting up when it spots the suspect and passing a description in words to the next cameras on the map.
-3. On each route, one camera is a **decoy exit** the suspect never reaches. Its agent should answer "no match", and the real exit "match".
-4. The coordinator combining the reports with the camera map and recommending where to send officers.
-5. Clicking any message to see its **receipt**: what the agent saw and which earlier events it relied on.
-6. The operator clicking **Confirm**.
+**What the demo shows (current scope: one incident)**
 
-If any part runs without its model during a recording, the screen will say so (for example "coordinator: rules mode").
+1. **Test clip 8 only:** a phone snatched at a bus shelter, seen by 3 cameras along the suspect's run (bus shelter, sidewalk, covered walkway). It is a test clip, never used in training. The three views were filmed one after another and are replayed together as live cameras. <!-- source: camera_positions.csv on Wali's branch (clip8 cam1-cam3, recorded 4:41-4:43 PM) --> TODO: add more incidents if the multi-incident demo comes back.
+2. The crime camera's agent lights up and passes a description in words to the next cameras on the map. Each next camera's agent answers "match" or "no match".
+3. The coordinator combines those reports with the camera map. A stabbing would go to the operator at once; a theft like this one (contract label `purse_snatch`) goes to the coordinator's model and becomes an alert once another camera's agent confirms a match. Every model answer is checked by plain-code rules (the verifier) before it goes out, and the recommendation ends with a fixed procedure line. <!-- source: dispatcher/README.md on the Michael branch -->
+4. On the dashboard, the incident card turns to **Needs your decision**. The operator clicks **Confirm** or **Dismiss**, can open **Watch last sighting** to see the clip from the newest sighting, and can click any message in **Receipts** to see the earlier events it relied on.
+
+**What is real and what is scripted in the current demo run**
+
+| Part | In the demo run |
+|---|---|
+| Camera feeds | Real: test clip 8's three camera views, replayed as cameras |
+| Spotter, checker, camera agents | **Scripted** until the fine-tuned spotter is wired in. `python -m bus.fake_scenario --no-dispatch` publishes the detections, relays and camera-agent answers, each tagged `source: "fake_scenario"`, and the dashboard shows a **Scripted run** tag. The spotter's real results so far are the base vs. fine-tuned table above. TODO: the scripted events must follow clip 8 (today's script plays three example incidents on a placeholder map). |
+| Coordinator | Real model: Nemotron Nano 9B v2 on vLLM makes the decisions. If a recording runs it in rules-only mode (`--no-model`), the video says so ("coordinator: rules mode"). |
+| Event bus, dashboard, the operator's Confirm / Dismiss | Real |
+
+TODO: update this table when the fine-tuned spotter and the checker are wired in. TODO: run ID of the recorded demo run.
+
+**Three incidents at once (tested without the camera footage).** With three overlapping scripted incidents from `bus.fake_scenario`, the live coordinator model kept up: the slowest bus poll went from 3.9 s to 2.3 s after batching, with no fallbacks, and officers were never sent to a decoy exit (0 of 14 dispatches). <!-- source: dispatcher/IMPROVEMENTS.md on the Michael branch, changes #5 and #9 (1 run each) -->
 
 The video's closing line (narration): *"In a real deployment, no video leaves the building. Only words move between agents."*
 
@@ -72,14 +149,14 @@ What that line means, stated precisely: it describes how Clarity is **designed t
 
 ```mermaid
 flowchart LR
-  subgraph site["Agency's own GPU server (one NVIDIA Brev GPU for the hackathon). Models served by vLLM."]
+  subgraph site["Agency's own GPU server (an NVIDIA Brev GPU box for the hackathon). Models served by vLLM."]
     feeds["Camera feeds<br/>(replayed staged clips)"]
-    spotter["Spotter<br/>Qwen3-VL-2B"]
+    spotter["Spotter, fine-tuned by us<br/>Qwen3-VL-2B"]
     checker["Checker<br/>Nemotron Nano 12B v2 VL"]
     agents["Camera agents<br/>(one per camera)"]
-    coord["Coordinator<br/>Nemotron Nano 9B v2"]
+    coord["Coordinator<br/>Nemotron Nano 9B v2<br/>+ rules and a verifier"]
     camgraph["Camera graph<br/>(plain code, NetworkX)"]
-    lookup["Lookup<br/>Nemotron Embed + Rerank"]
+    guide["Procedure lines<br/>(fixed text)"]
     bus[("Event bus<br/>validates + logs every event")]
   end
   dash["Dashboard<br/>map, agent graph, receipts"]
@@ -87,11 +164,11 @@ flowchart LR
 
   feeds -->|frames| spotter
   spotter -->|possible crime| checker
-  checker -->|detection| agents
+  checker -->|"detection: crime + suspect description"| agents
   agents -->|"relay: suspect description in words"| agents
-  agents -->|verdicts| coord
+  agents -->|"detections, verdicts"| coord
   camgraph -->|likely next cameras| coord
-  lookup --> coord
+  guide --> coord
   coord -->|"recommendation: head to cam_X"| bus
   agents -.->|every message| bus
   bus -->|live events| dash
@@ -101,63 +178,53 @@ flowchart LR
 ```
 
 - Each agent sees only its own camera. Between agents, and from agents to the coordinator, **only words travel**.
+- **Today's demo run:** the spotter, checker and camera agents are stood in for by a script that publishes their events (see [The application](#the-application-a-camera-relay-for-the-operator)). The feeds, bus, coordinator and dashboard run for real.
+- **The coordinator** handles clear cases (such as a confident stabbing) with rules and no model call, sends ambiguous ones to the model with a JSON schema, and checks every model answer with a verifier: it must cite only evidence from the case, mention only the case's cameras, send officers where the suspect is heading, and stay within the priority the crime allows. A rejected answer gets one retry, then a safe fallback ("Operator review needed"). <!-- source: dispatcher/README.md on the Michael branch -->
 - **Deployment vs. our demo.** In a real deployment the dashboard runs inside the agency too, so video stays on its own hardware. In the demo, the Brev GPU box plays the agency's server and the dashboard runs on a laptop that reaches the bus through `brev port-forward`. Over that link the laptop receives the events and, when the operator opens a sighting, that camera's clip (`GET /clips/{camera_id}`).
 - Every message is a small JSON event defined in [`contracts/`](contracts/README.md): `detection`, `relay`, `agent_verdict`, `dispatch`, `operator_action`, `camera_status`.
 - Every decision lists the event IDs it relied on (`evidence_event_ids`). That's the receipts trail on the dashboard.
 - The bus appends every accepted event to `runs/<run_id>/events.jsonl`, so any run can be replayed into the dashboard later.
-- Deterministic work (timing, graph math, validation, scoring) is plain Python, not a model.
+- Deterministic work (timing, graph math, validation, scoring, the verifier) is plain Python, not a model.
+- **No lookup step.** We planned a search over procedures (RAG with Nemotron Embed + Rerank) and cut it. The coordinator appends a fixed procedure line per crime type from `dispatcher/guidance.py` instead, for example "Procedure: take the victim's statement and broadcast the suspect description." for a purse snatch.
 
 TODO: Wali to confirm which model, if any, the camera agents call to match a description at the next camera.
-TODO: Michael to describe what the lookup step retrieves for the coordinator.
 
 ### Tech stack
 
 | Layer | Tools |
 |---|---|
-| Models | Qwen3-VL-2B, Nemotron Nano 12B v2 VL, Nemotron Nano 9B v2, Nemotron Embed + Rerank |
-| Serving | vLLM (OpenAI-compatible API) on an NVIDIA Brev GPU instance |
+| Models | Qwen3-VL-2B, fine-tuned (spotter); Nemotron Nano 12B v2 VL (checker); Nemotron Nano 9B v2 (coordinator) |
+| Spotter fine-tune | TODO: training tools (Wali) |
+| Serving | vLLM 0.11.0 (OpenAI-compatible API) on an NVIDIA Brev GPU instance (A100 80 GB) <!-- source: dispatcher/IMPROVEMENTS.md --> |
 | Agents and pipeline | Python 3.10+, OpenAI-compatible client with structured outputs (JSON schema), NetworkX |
 | Event bus | FastAPI, uvicorn, WebSockets, jsonschema |
 | Dashboard | Vite, React, TypeScript, react-leaflet, OpenStreetMap tiles |
-| Evaluation | NeMo Gym |
-
----
-
-## Track fit: Multi-Agent Systems
-
-The track asks for several small models that divide the work, pass context, and build on each other's output. In Clarity:
-
-- **Divide the work.** A 2B vision model screens every frame cheaply. A 12.6B vision model checks only the frames the spotter flags. A 9B language model makes the final recommendation.
-- **Pass context.** Each camera agent hands a written suspect description to its neighbors along the likely path. The next agent uses it to decide "match" or "no match" on its own camera.
-- **Build on each other's output.** The coordinator's recommendation cites the exact agent messages it used, and the operator's decision feeds back to the coordinator.
-
-Our claim is that this team of small models follows a suspect better than one model given the same job. Results section 3 tests that claim against a single-model baseline.
+| Measurement | Wali's spotter scoring and load test, Michael's `scripts/bench_dispatcher.py`, `bus/metrics.py`. TODO: NeMo Gym, only if we enter that bounty |
 
 ---
 
 ## Models and parameter budget
 
-The hackathon cap is **33B parameters in total** across all generative language models, counting verifiers and routers too. Embedding and reranking models don't count.
+The hackathon cap is **33B parameters in total** across all generative language models, counting verifiers and routers too. Embedding and reranking models don't count. Our verifier is plain code, not a model. <!-- source: hackathon rules (docs/hackathon.md, from the event's Notion page) -->
 
-| Role | Model | Parameters[^cards] | Counts toward cap | Served on |
+| Role | Model | Parameters[^params] | Counts toward cap | Served on |
 |---|---|---|---|---|
-| Spotter (screens frames) | Qwen3-VL-2B | 2B | Yes | vLLM |
-| Checker (confirms crimes) | Nemotron Nano 12B v2 VL | 12.6B | Yes | vLLM |
-| Coordinator (recommends) | Nemotron Nano 9B v2 | 9B | Yes | vLLM |
-| Lookup embeddings | Nemotron Embed | n/a | No (embedding model) | TODO: confirm serving |
-| Lookup reranking | Nemotron Rerank | n/a | No (reranking model) | TODO: confirm serving |
-| **Total generative** | | **≈23.6B** (2 + 12.6 + 9) | **≤ 33B** | |
+| Spotter (screens frames), fine-tuned by us | `Qwen/Qwen3-VL-2B-Instruct` (base) | 2,127,532,032 | Yes | vLLM. TODO: port and served model name |
+| Checker (confirms crimes) | `nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16` | 13,181,860,358 | Yes | vLLM. TODO: port and served model name |
+| Coordinator (recommends) | `nvidia/NVIDIA-Nemotron-Nano-9B-v2` | 8,888,227,328 | Yes | vLLM, port 8003, served model name `dispatcher` |
+| **Total** | | **24.20B** | **≤ 33B** (8.80B to spare) | |
 
-TODO: exact model IDs (Hugging Face repo names, variant and precision) for all five models, from `infra/`.
+- No embedding or reranking models are used: the lookup step (Nemotron Embed + Rerank) was cut.
+- TODO: Wali to confirm how the fine-tuned spotter is stored (full weights or a LoRA adapter). If it is an adapter, add its parameters to the table.
+- TODO: confirm the spotter and checker checkpoints on the Brev box are exactly these (Michael's note).
 
-[^cards]: Counted from each model's official model card. TODO: add the five model card links.
+[^params]: Exact counts from the published safetensors files, as listed in `dispatcher/README.md` on the `Michael` branch ("Models and the 33B cap"). Earlier team notes rounded these to ≈23.6B (2 + 12.6 + 9).
 
 ### Why these models, and why vLLM
 
-- **Small enough to run on site.** The design is for all three generative models to share one GPU server the agency owns, so footage stays in the building (for the hackathon, a Brev GPU box plays that server). TODO: measured result (GPU type and memory used with all three loaded).
-- **Right size for each job.** By design, the cheap spotter runs on every frame, the larger checker runs only when the spotter flags something, and the coordinator works with text only.
-- **vLLM to serve all three side by side.** The design puts every model behind the same OpenAI-compatible API, and vLLM batches requests that arrive together; that is how we plan to handle three incidents at once. TODO: measured result (Results section 1).
-- TODO: Michael to add the deciding reasons from serving tests (memory fit, speed, structured output support).
+- **Small enough to run on site.** All three models share one GPU (on the hackathon Brev box: one A100 80 GB; the coordinator's vLLM server uses a 0.30 share of its memory). <!-- source: dispatcher/IMPROVEMENTS.md, setup line ("shared with the team's other two models") --> TODO: memory share of the spotter and checker servers.
+- **Right size for each job.** By design, the fine-tuned 2B spotter runs on every camera, the larger checker runs only when the spotter flags something, and the coordinator works with text only.
+- **vLLM for many cameras and incidents at once.** Every model sits behind the same OpenAI-compatible API, and vLLM batches requests that arrive together. Measured results are in [Best Use of Red Hat vLLM](#best-use-of-red-hat-vllm).
 
 ---
 
@@ -167,34 +234,34 @@ TODO: exact model IDs (Hugging Face repo names, variant and precision) for all f
 
 | Source | What we use it for | License | Attribution |
 |---|---|---|---|
-| **Our staged clips** (filmed during the hack) | Camera feeds for the demo, ground truth for evaluation and NeMo Gym tasks | TODO: license (planned: CC BY 4.0) | TODO: dataset link |
+| **Our staged clips** (13 clips filmed by the team on Oct 17) | Training and test clips for the spotter fine-tune, kept apart; the demo camera feeds (test clip 8); ground truth for evaluation. Published with the method, except clips 4, 11 and 12; audio is stripped. | TODO: license (planned: CC BY 4.0) | TODO: dataset link |
+| **CAVIAR** (8 acted clips from one lobby camera) | External check set for the spotter (4 fights, 4 without a crime). TODO: say whether any are also used in training | CC BY-SA | See Attribution below |
+| **MEVA** (3 example clips) | External check set for the spotter (1 theft, 2 without a crime). TODO: say whether any are also used in training | CC BY 4.0 | See Attribution below |
 | **OpenStreetMap** | Dashboard base map around the Red Hat Annex, Raleigh | ODbL | "© OpenStreetMap contributors" (shown on the map) |
 
-TODO: add any other public dataset we actually used (source, license, how we used it), or delete this line.
+The clip names, license checks and caveats for CAVIAR and MEVA are in [`data/README.md`](data/README.md). We looked at other public datasets there too and kept to footage we could film safely and publish with consent.
 
-We looked at other public datasets (see [`data/README.md`](data/README.md)) and kept the demo to footage we could film safely and publish with consent.
-
-**Stabbing** stays in the label set the models can output, but it is **not in the demo**: we found no openly licensed stabbing footage, and we don't stage scenes with knives or anything that looks like one.
+**Stabbing is mimed.** We found no openly licensed stabbing footage, and we never stage scenes with knives or anything that looks like one. So teammates act the stabbing out with empty hands.
 
 ### How the staged clips were made
 
-The full method (filming, clock sync, clip conversion, ground truth) is in [`data/staged/README.md`](data/staged/README.md). This is the short version.
+The full method (filming, clip conversion, ground truth) is in [`data/staged/README.md`](data/staged/README.md). This is the short version. Filming facts come from Wali's `camera_positions.csv` (on his branch until it merges). TODO: bring `data/staged/README.md` in line with these facts (it still describes the filming plan).
 
-TODO: check every line below against what we actually filmed (written from the filming plan, before filming).
-
-- **Who:** only consenting teammates on camera. No bystanders' faces. No weapons or props that look like weapons.
-- **Where:** outside the Red Hat Annex, Raleigh, with iPhones placed like fixed security cameras.
-- **What:** three incidents, one fistfight and two purse snatches. Each suspect wears a distinct outfit.
-- **Camera layout:** 12 camera spots, 4 per incident route: crime spot, junction, real exit, and a decoy exit the suspect never passes. TODO: real camera positions (planned: GPS read on the phone at each spot).
-- **Filmed separately, replayed together.** Each incident is filmed as its own take. Right after recording starts, each phone films a clock showing seconds (time.is). The converter [`data/build_site.py`](data/build_site.py) reads that clock time from the clip log and lines all clips of a take up on one run clock. Decoy clips (an empty path, filmed separately) are aligned to their route's junction camera. Each take is lined up on its crime, so the three crimes replay 10 s apart, at run-clock 5, 15 and 25 s (`data/build_site.py`). The three incidents did not really happen at the same moment; the video says so.
+- **Who:** only consenting teammates act. No weapons or props that look like weapons; the stabbing is mimed with empty hands.
+- **What:** 13 clips, each showing one incident or a scene with no crime. The test clips hold mimed stabbings (clips 1, 3 and 4), a pickpocket (7), a phone snatch (8), an assault (13) and a no-crime scene (12). <!-- source: labels in before.json --> TODO: describe the training clips.
+- **Where and when:** sidewalks, a plaza, a cafe patio, a bus shelter and a parking garage around the Red Hat Annex in Raleigh, plus a few indoor views, filmed on Oct 17 between about 4:05 and 5:40 PM. <!-- source: camera_positions.csv (recorded_at, spot_name) -->
+- **Cameras:** iPhones placed like fixed security cameras, 1 to 4 per clip along the suspect's path, 34 camera views in total. Each spot's position is read from the phone's GPS (accuracy 5 to 189 m, worse indoors), with the distance from the previous camera and an estimated running time. <!-- source: camera_positions.csv -->
+- **Filmed separately, replayed together.** The views of one clip are short shots (2.4 to 12.5 s) filmed one after another, not at the same moment. For the demo they are replayed on one shared clock as if several cameras watched the same run. TODO: describe how the views are placed on that clock (estimated running time between spots, or the clock-sync method in `data/staged/README.md`). <!-- source: camera_positions.csv (duration_s, gap_from_prev_cam_s) -->
 - **Clip format.** [`data/convert_clips.py`](data/convert_clips.py) (ffmpeg) turns each iPhone clip into a 720p, constant 10 fps, H.264 copy with the audio removed, so every clip decodes the same way and no bystander voices are kept. The originals are not changed.
-- **Ground truth:** for every take we log, per camera, when the suspect enters and leaves (template: `data/staged/clip_log_template.csv`). `data/build_site.py` turns that log into the ground truth (`data/ground_truth/take<N>.json`), the camera map (`data/sites/annex/cameras.json`) and the clip manifest (`data/manifests/annex.json`). Walking times between cameras come from the logged times; the walk to each decoy is timed with a stopwatch.
-- **Train/test split:** TODO: if the spotter is fine-tuned, list which clips were training and which were held-out test clips (never mixed); otherwise delete this line.
-- **Published:** method in [`data/staged/README.md`](data/staged/README.md). TODO: clip dataset link. TODO: commit `data/ground_truth/` and `data/sites/annex/` once built from the filled log. The filled clip log stays out of git because it names phone owners; only its outputs are published.
+- **Labels and ground truth:** per camera view, what happens, the crime type and the suspect's description (see [The fine-tuned spotter](#the-fine-tuned-spotter)). For replay, [`data/build_site.py`](data/build_site.py) turns a filled clip log (template: `data/staged/clip_log_template.csv`) into the camera map (`data/sites/annex/cameras.json`), ground truth (`data/ground_truth/take<N>.json`) and clip manifest (`data/manifests/annex.json`). TODO: build these for clip 8.
+- **Train/test split:** test clips 1, 3, 4, 7, 8, 12 and 13 are never used in training; the demo replays only test clip 8. TODO: list the training clips.
+- **Published:** the clips except 4, 11 and 12, audio stripped, with the method in [`data/staged/README.md`](data/staged/README.md). TODO: dataset link. TODO: commit `data/ground_truth/` and `data/sites/annex/` once built. The filled clip log stays out of git because it names phone owners; only its outputs are published.
 
 ### Attribution
 
 - Map data © OpenStreetMap contributors, ODbL.
+- CAVIAR: EC Funded CAVIAR project/IST 2001 37540, http://homepages.inf.ed.ac.uk/rbf/CAVIAR/. CC BY-SA. We modified the clips (frame extraction, labels).
+- MEVA: "Multiview Extended Video with Activities" (MEVA) dataset by Kitware Inc., https://mevadata.org. CC BY 4.0 (https://mevadata.org/resources/MEVA-data-license.txt). We modified the clips (frame extraction, labels). Paper: Corona, K., Osterdahl, K., Collins, R., Hoogs, A. "MEVA: A Large-Scale Multiview, Multimodal Video Dataset for Activity Detection." WACV 2021.
 - TODO: credit line for the staged clip dataset once it is published.
 
 ---
@@ -207,7 +274,7 @@ Run the Python steps from the repo root, on Linux or macOS (the Brev box is Linu
 
 ### 1. Event bus with a scripted incident
 
-This plays three overlapping scripted incidents through the real bus. Every scripted event is tagged `source: "fake_scenario"` so the dashboard can label it as scripted.
+This plays three overlapping scripted example incidents through the real bus, on a 12-camera placeholder map (not our filmed clips). Every scripted event is tagged `source: "fake_scenario"` so the dashboard can label it as scripted.
 
 ```bash
 git clone https://github.com/waliviqas/clarity-hackathon-n-r.git
@@ -242,10 +309,18 @@ curl -s "http://127.0.0.1:8080/events?type=dispatch"
 python contracts/validate.py runs/run_fake1/events.jsonl
 ```
 
+`python -m bus.fake_scenario --no-dispatch` leaves out the scripted coordinator decisions, so a running coordinator makes them instead (see [Reproduce the full demo](#reproduce-the-full-demo)).
+
 Replay a recorded run (this is also our demo fallback). Restart the bus with a new run ID so the copy is logged separately, then:
 
 ```bash
 python -m bus.replay runs/run_fake1/events.jsonl --speed 2
+```
+
+Timings for a recorded run (from the bus's own logs; runs with scripted events are labeled as scripted):
+
+```bash
+python -m bus.metrics runs/run_fake1
 ```
 
 Bus endpoints (details in [`contracts/README.md`](contracts/README.md) and [`bus/server.py`](bus/server.py)):
@@ -299,7 +374,7 @@ python contracts/validate.py data/sites/annex/cameras.json
 
 ### 4. Dashboard (laptop)
 
-Status: the map, agent graph and incident cards are committed. Chase arrows on the map, the receipts log and the sighting video pop-up are being finished.
+Status: the map (camera markers, chase paths, predicted next cameras), agent graph, incident cards with Confirm / Dismiss, receipts log and the "Watch last sighting" video pop-up are committed.
 
 We use Node 24. In a terminal on the laptop (PowerShell works too; use `copy` instead of `cp`):
 
@@ -313,6 +388,7 @@ npm run dev               # http://127.0.0.1:5173
 - If the bus runs on the Brev box, forward it first: `brev port-forward <instance> --port 8080:8080`.
 - The dev server must stay on port 5173: the bus accepts browser requests only from that origin (`CLARITY_BUS_CORS`).
 - With the bus and `python -m bus.fake_scenario` running (step 1), the scripted incidents stream in.
+- "Watch last sighting" needs the bus started with a site whose `cameras.json` names real clips (step 3). Without a clip, the pop-up says "No video for this camera yet."
 
 ---
 
@@ -329,13 +405,17 @@ Copy [`.env.example`](.env.example) to `.env` and fill it in. It contains only p
 | `CLARITY_CAMERAS` | The site's `cameras.json` |
 | `CLARITY_CLIP_ROOT` | Folder that relative clip paths in `cameras.json` start from, for feeds and `GET /clips` (default the repo root; not in `.env.example`) |
 | `CLARITY_BUS_CORS` | Browser origins the bus accepts (default the dashboard dev server, `http://localhost:5173,http://127.0.0.1:5173`; not in `.env.example`) |
-| `DISPATCHER_*`, `SPOTTER_*`, `CHECKER_*` | Base URL and served model name for each vLLM server |
-| `EMBED_BASE_URL`, `RERANK_BASE_URL` | Lookup servers |
-| `OPENAI_API_KEY` | Must match the vLLM `--api-key`, if one is set (`EMPTY` otherwise) |
+| `CLARITY_LLM_BASE_URL` | Coordinator: its vLLM server, `http://localhost:8003/v1` |
+| `CLARITY_LLM_MODEL` | Coordinator: the served model name, `dispatcher` |
+| `CLARITY_LLM_API_KEY` | Coordinator: only needed if its vLLM server is started with `--api-key` |
+| `SPOTTER_*`, `CHECKER_*` | Base URL and served model name for the spotter and checker servers. TODO: confirm the names with Wali |
+| `OPENAI_API_KEY` | Must match the other vLLM servers' `--api-key`, if one is set (`EMPTY` otherwise). TODO: confirm which parts still read it |
 | `HF_TOKEN` | Only if a model download needs it |
 | `VITE_BUS_URL` | Bus address for the dashboard (goes in `dashboard/.env`; never put secrets in `VITE_` variables) |
 
-The bus binds to `127.0.0.1` on the GPU box by default. From a laptop, reach it with `brev port-forward <instance> --port 8080:8080`. TODO: confirm the model servers also bind to `127.0.0.1`.
+TODO: `.env.example` still has the earlier `DISPATCHER_*`, `EMBED_BASE_URL` and `RERANK_BASE_URL` lines; update it to match this table.
+
+The bus binds to `127.0.0.1` on the GPU box by default. From a laptop, reach it with `brev port-forward <instance> --port 8080:8080` (and `--port 8003:8003` for the coordinator's model server). TODO: confirm the model servers bind to `127.0.0.1`.
 
 ---
 
@@ -343,12 +423,23 @@ The bus binds to `127.0.0.1` on the GPU box by default. From a laptop, reach it 
 
 TODO: fill in once each part is merged. Planned order:
 
-1. **Get the staged clips.** TODO: download command from the dataset link into `data/raw/staged/`.
-2. **Site data.** Convert the clips and build the site as in Quick start step 3 (`data/convert_clips.py`, then `data/build_site.py data/staged/clip_log.csv --check-clips data/raw/staged`). Then `python -m feeds.replay --cameras data/sites/annex/cameras.json --check` must report every camera OK. TODO: confirm once the log is filled.
-3. **Model servers (GPU box).** TODO: exact `vllm serve` commands and flags for the spotter, checker and coordinator, plus how to start Embed and Rerank (from `infra/`).
-4. **Bus.** `python -m bus.server` with `CLARITY_CAMERAS=data/sites/annex/cameras.json` and a fresh `CLARITY_RUN_ID`.
-5. **Pipeline.** Feeds: `python -m feeds.replay --cameras data/sites/annex/cameras.json` (plays the clips and publishes `camera_status`). TODO: commands for perception, camera agents and coordinator, in start order (perception reads frames through `feeds.base.open_feeds`).
-6. **Dashboard (laptop).** `cd dashboard && npm install && npm run dev`, then open http://127.0.0.1:5173 with the bus port-forwarded (Quick start step 4).
+1. **Get the staged clips.** TODO: download command from the dataset link into `data/raw/staged/`. The demo uses test clip 8.
+2. **Site data.** Convert the clips and build the site as in Quick start step 3. Then `python -m feeds.replay --cameras data/sites/annex/cameras.json --check` must report every camera OK. TODO: confirm for clip 8.
+3. **Spotter before/after.** TODO: Wali's command to score the base and the fine-tuned spotter on the test and external splits, and where to download the fine-tuned model.
+4. **Coordinator model server (GPU box)**, from `dispatcher/README.md` on the `Michael` branch:
+
+   ```bash
+   vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --port 8003 \
+     --gpu-memory-utilization 0.30 --max-model-len 8192 --max-num-seqs 16 \
+     --mamba_ssm_cache_dtype float32 --enable-prefix-caching --trust-remote-code
+   ```
+
+   TODO: spotter and checker servers, once they are wired in.
+5. **Bus.** `python -m bus.server` with `CLARITY_CAMERAS=data/sites/annex/cameras.json` and a fresh `CLARITY_RUN_ID`.
+6. **Coordinator.** `CLARITY_LLM_BASE_URL=http://localhost:8003/v1 CLARITY_LLM_MODEL=dispatcher python -m dispatcher.run`. Add `--no-model` for rules only (label any recording "coordinator: rules mode").
+7. **Feeds.** `python -m feeds.replay --cameras data/sites/annex/cameras.json` (plays the clips and publishes `camera_status`).
+8. **Perception (scripted for now).** `python -m bus.fake_scenario --no-dispatch` publishes the scripted detections, relays and camera-agent answers. TODO: a script that follows clip 8, then the commands for the fine-tuned spotter, checker and camera agents once they are wired in (perception reads frames through `feeds.base.open_feeds`).
+9. **Dashboard (laptop).** `cd dashboard && npm install && npm run dev`, then open http://127.0.0.1:5173 with the bus port-forwarded (Quick start step 4).
 
 **The demo video** will be recorded from a saved run replayed through the bus. TODO: run ID and how to replay it (`python -m bus.replay runs/<run_id>/events.jsonl`).
 
@@ -356,62 +447,96 @@ TODO: fill in once each part is merged. Planned order:
 
 ## Results
 
-Every number here comes from our own logged runs, with the source next to it. No estimates. Nothing is filled in yet.
+Every number here comes from our own logged runs, with the source next to it. No estimates. Sample sizes are small; read them as engineering measurements, not a benchmark.
 
-### 1. Three incidents at once on vLLM
+### 1. Spotter: base vs. fine-tuned
 
-| Setup | Time from crime on camera to coordinator recommendation | vLLM throughput | Source |
-|---|---|---|---|
-| One incident alone | TODO: measure (median and worst over TODO: number of runs) | TODO: measure (requests/s, tokens/s) | TODO: run ID |
-| Three incidents at once | TODO: measure | TODO: measure | TODO: run ID |
-
-How it's measured: `python -m bus.metrics runs/<run_id>` uses the bus's receive time for each event (`arrivals.jsonl`): wall seconds from the bus receiving the crime detection to receiving the coordinator's first dispatch, and to its first alert. Runs made with `bus.fake_scenario` are labeled SCRIPTED and are not model latency.
+The main result. Base model scored; fine-tuned row TODO. Table and caveats: [The fine-tuned spotter](#the-fine-tuned-spotter).
 
 ### 2. Spotter alone vs. spotter + checker
 
-| Setup | Precision | Recall | False alarms | Source |
+| Setup | On-screen accuracy | Crime-type accuracy | False-alarm rate | Source |
 |---|---|---|---|---|
-| Spotter (Qwen3-VL-2B) alone | TODO: measure | TODO: measure | TODO: measure | TODO: run ID |
-| Spotter + checker (Nemotron Nano 12B v2 VL) | TODO: measure | TODO: measure | TODO: measure | TODO: run ID |
+| Fine-tuned spotter alone | TODO: measure | TODO: measure | TODO: measure | TODO: run ID |
+| Fine-tuned spotter + checker (Nemotron Nano 12B v2 VL) | TODO: measure | TODO: measure | TODO: measure | TODO: run ID |
 
-Measured on held-out staged clips. TODO: number of clips and how they were labeled.
+On the test split only (never used in training).
 
-### 3. Our agents vs. one model
+### 3. Serving many cameras and incidents at once on vLLM
 
-| Setup | Picks the real exit over the decoy | Next-camera accuracy | Source |
+Load tests on the team's Brev GPU box (the coordinator's run states an A100 80 GB, shared by our models). Throughput grows much faster than latency as requests overlap, because vLLM batches them.
+
+**Spotter** (base `Qwen/Qwen3-VL-2B-Instruct`, 4 frames per request, 32 requests per level, 0 errors at every level): <!-- source: results/vllm_bench.json on Wali's branch (cc8d3ae) -->
+
+| Cameras at once | p50 latency | p95 latency | Cameras per minute |
 |---|---|---|---|
-| One model, same job (baseline) | TODO: measure | TODO: measure | TODO: run ID |
-| Clarity's camera agents + coordinator | TODO: measure | TODO: measure | TODO: run ID |
+| 1 | 0.671 s | 0.784 s | 87.9 |
+| 2 | 0.627 s | 0.743 s | 184.2 |
+| 4 | 0.681 s | 0.790 s | 344.2 |
+| 8 | 0.766 s | 0.927 s | 578.7 |
+| 16 | 1.068 s | 1.363 s | 777.7 |
+| 32 | 1.651 s | 1.805 s | 992.8 |
 
-Scored against the staged ground truth. TODO: which model the baseline uses and what it is given.
+At 32 cameras at once: 11.3× the throughput of one camera, for 2.5× the median latency. TODO: rerun with the fine-tuned spotter.
 
-### 4. NeMo Gym: baseline vs. final
+**Coordinator** (Nemotron Nano 9B v2, real coordinator prompt and JSON schema, 16 requests per level, every answer passed the verifier): <!-- source: dispatcher/IMPROVEMENTS.md on the Michael branch, "Serving throughput" -->
 
-See the NeMo Gym section below. TODO: one-line summary of the score change.
+| Requests at once | p50 latency | p95 latency | Requests/s | Output tokens/s |
+|---|---|---|---|---|
+| 1 | 1.53 s | 1.54 s | 0.65 | 68 |
+| 4 | 1.85 s | 1.86 s | 2.16 | 223 |
+| 8 | 2.25 s | 2.34 s | 3.51 | 362 |
+| 16 | 3.14 s | 3.16 s | 4.99 | 514 |
 
-### 5. Spotter fine-tuning (only if we fine-tune)
+At 16 at once: 7.6× the output throughput for about 2× the latency.
 
-TODO: before/after table on held-out test clips, or delete this section if the spotter is not fine-tuned.
+**End to end** (crime on camera to the coordinator's recommendation, from the bus logs with `python -m bus.metrics runs/<run_id>`): TODO: measure on the clip 8 run. Runs that contain `bus.fake_scenario` events are labeled SCRIPTED: their timings follow the script's pacing, not model speed.
+
+### 4. Our agents vs. one model
+
+| Setup | Next-camera accuracy | Source |
+|---|---|---|
+| One model, same job (baseline) | TODO: measure | TODO: run ID |
+| Clarity's camera agents + coordinator | TODO: measure | TODO: run ID |
+
+TODO: which model the baseline uses and what it is given, or delete this section.
+
+### 5. NeMo Gym: baseline vs. final
+
+TODO: only if we enter the NeMo Gym bounty (not yet confirmed); otherwise delete this section.
 
 ---
 
 ## Best Use of Red Hat vLLM
 
-TODO: Michael to write. Planned contents:
+vLLM serves the coordinator's model and the spotter on one GPU box, behind one OpenAI-compatible API (the checker is planned on it too). Sources: `dispatcher/IMPROVEMENTS.md` and `dispatcher/README.md` (Michael's branch) and `results/vllm_bench.json` (Wali's branch).
 
-- **Where vLLM sits.** One vLLM server per generative model on one Brev GPU (spotter, checker, coordinator), all behind the same OpenAI-compatible API. Every agent decision uses structured outputs (a JSON schema) at temperature 0. TODO: confirm.
-- **How we configured it.** TODO: GPU type, `vllm serve` flags for each model (context length, GPU memory share, max concurrent sequences, precision), and how the three models share one GPU.
-- **What we tuned, and what it changed.** TODO: each change with a measured before/after.
-- **Measured results.** TODO: three incidents at once (Results section 1): latency and throughput from our runs.
-- **Why vLLM.** TODO: why it fits on-site deployment (local inference, privacy, serving several models at once).
+**How it fits.** The coordinator's model, Nemotron Nano 9B v2, runs on vLLM 0.11.0 on port 8003 with the served model name `dispatcher`; the coordinator calls it with `temperature=0`, `max_tokens=400` and a JSON schema, so answers come back in the shape of a `dispatch`, and the verifier checks each one. The base spotter is served by vLLM too (load test in Results section 3). TODO: spotter and checker serve commands.
+
+**How we configured it.** One A100 80 GB shared by the team's models; the coordinator's server takes a 0.30 memory share, an 8192-token context and up to 16 concurrent sequences (full command in [Reproduce the full demo](#reproduce-the-full-demo)). The coordinator sends model calls for different incidents in parallel (up to 8, below vLLM's 16) so vLLM can batch them.
+
+**What we changed, and what it measured** (one change at a time, same scenario; small samples):
+
+| Change | Before | After |
+|---|---|---|
+| Removed `maxLength` from the JSON schema (lengths are checked by the verifier instead) | 13.3 s per call, 8 tokens/s | 1.6 s per call, ~65 tokens/s (2 + 2 calls) |
+| Removed `/no_think` from the system prompt | 0 of 5 answers valid, 5.6 s | 5 of 5 valid, 1.5 s |
+| Batch each bus poll, call the model for different incidents in parallel, skip repeated events (3 overlapping incidents) | slowest poll 3.9 s, 18 model calls | slowest poll 2.3 s, 15 model calls, 0 fallbacks (1 run) |
+| Retry once on unparseable JSON | 1 fallback in 15 dispatches | 0 fallbacks in 36 calls |
+
+**Measured results.** Continuous batching: the coordinator reaches 514 output tokens/s at 16 requests at once (7.6× one request, for about 2× the latency), and the spotter handles 992.8 cameras per minute at 32 at once (11.3× one camera, for 2.5× the median latency), with no errors. Tables: [Results section 3](#3-serving-many-cameras-and-incidents-at-once-on-vllm).
+
+**Tried, didn't help.** Prefix caching is switched on but vLLM 0.11 does not apply it to this hybrid Mamba model (its cache counter stayed at 0), so we don't claim it. A per-request setting to drop whitespace from structured output was accepted but ignored.
+
+**Why vLLM.** Local inference on hardware we control (the privacy case), one API for a vision model and a language model, JSON-schema outputs the coordinator can rely on, and batching that lets one GPU keep up with many cameras at once.
 
 ---
 
 ## Best Model Improvement with NeMo Gym
 
-TODO: Michael to write. Planned contents:
+TODO: not yet confirmed that we enter this bounty. If we do, Michael writes this section; otherwise delete it. Planned contents:
 
-- **Environment.** TODO: tasks built from the staged ground truth (which cameras the suspect reached, in what order), the tools the agent can call, and the code that scores each attempt.
+- **Environment.** TODO: tasks built from the staged ground truth, the tools the agent can call, and the code that scores each attempt.
 - **Baseline vs. final.** TODO: scores on the same held-out tasks with the same config.
 - **What caused the gain.** TODO: each change and its effect.
 - **How to run the scoring.** TODO: command from `eval/`.
@@ -420,22 +545,29 @@ TODO: Michael to write. Planned contents:
 
 ## Known limitations
 
-- **Staged, not real, footage.** The clips are short scenes acted by teammates at one site in daylight. TODO: confirm conditions (time of day, number of takes).
-- **Simultaneity is replayed.** The three incidents were filmed separately and replayed together. That tests the system under three-at-once load, but not three real chases in the same crowd.
-- **No stabbing in the demo.** The label exists, but we had no safe footage to test it.
+- **The fine-tuned spotter is not in the demo run yet.** Until it is wired in, the detections, relays and camera-agent answers come from a script (tagged `fake_scenario`, shown as "Scripted run"). The spotter's own results are the base vs. fine-tuned table. The coordinator's decisions are real model calls, or labeled "coordinator: rules mode".
+- **One incident in the demo.** The demo replays only test clip 8. Three overlapping incidents were tested with scripted events, not with our footage.
+- **Small test set.** 18 test camera views, only 2 of them without a crime, so the false-alarm rate rests on 6 answers.
+- **Train and test clips share one site, day and cast.** They come from the same afternoon around one building with the same teammates, so the test shows the spotter learned this setting, not that it works anywhere. The external CAVIAR and MEVA check helps only if those clips stay out of training.
+- **Not all test clips are published.** Clips 4 and 12 are test clips but are left out of the dataset, so outsiders can re-score only part of the test split.
+- **Burned-in labels on MEVA clips.** The MEVA example videos show the dataset's activity labels, which a model can read.
+- **Staged, not real, footage.** Short scenes acted by teammates, in daylight.
+- **The stabbing is mimed.** It is acted with empty hands and no props, so it looks unlike a real attack. We found no openly licensed stabbing footage to test against.
+- **Camera views were filmed one after another.** The views of a clip are separate short shots replayed on one clock, not one moment seen by several cameras.
+- **Rough camera positions.** GPS accuracy ranges from 5 to 189 m, worst indoors and in the garage.
 - **Replay, not live cameras.** Feeds are recorded clips played back as cameras, not live streams.
-- **Hand-built camera map.** Walking times between cameras come from our filmed takes, not from street routing.
-- **Camera names reveal the routes.** Camera names start with "Route N:" and `cameras.json` carries a `take` field, so anything that reads the camera map can tell which cameras belong to the same incident. We kept this on purpose so the demo can lay out the three routes clearly. Names never say a camera's role (crime spot, junction, exit or decoy); `data/build_site.py` writes roles only to the ground truth and rejects a spot name that mentions one.
+- **Fixed procedure text.** The coordinator's guidance is a fixed line per crime type in `dispatcher/guidance.py`, not a search over an agency's real procedures (we cut the lookup step).
 - **Not on agency hardware yet.** The demo runs on a rented Brev cloud GPU box standing in for the agency's server, and the dashboard on a laptop over a port-forward.
 - **Descriptions can be wrong.** A clothing description can match an innocent person or miss a suspect who changes clothes. That's why a human confirms every recommendation, and why each recommendation shows its evidence.
 - **No login on the bus.** It has no user accounts; it binds to `127.0.0.1` on the GPU box and is reached through a port-forward. TODO: confirm how the model servers are protected (vLLM `--api-key`, localhost only, or both).
-- **Small scale.** Tested with 12 cameras on one GPU. TODO: confirm, and note anything that failed under load.
 
 ## Next steps
 
+- Wire the fine-tuned spotter, the checker and the camera agents into the live pipeline, replacing the scripted perception.
+- Fine-tune and test the spotter on footage from other places, times of day and people, including more openly licensed footage.
+- Bring back several overlapping incidents on real footage.
+- Bring back the lookup step over an agency's real procedures (Nemotron Embed + Rerank).
 - Connect live camera streams instead of replayed clips.
-- Use street routing (OpenStreetMap) for walking times between cameras.
-- Test on more sites, lighting conditions, and openly licensed footage.
 - Package the stack to install on an agency's own servers.
 - TODO: add the next steps the team agrees on after the demo.
 
@@ -446,15 +578,15 @@ TODO: Michael to write. Planned contents:
 | Folder | What's inside |
 |---|---|
 | `contracts/` | JSON Schemas and examples for every message, plus `validate.py` |
-| `bus/` | Event server, client, scripted scenario, replay |
+| `bus/` | Event server, client, scripted scenario, replay, run metrics |
 | `data/` | Camera maps, clip log template, `convert_clips.py`, `build_site.py`, dataset notes and licenses |
-| `dashboard/` | Operator map, agent graph, receipts log (in progress) |
+| `dashboard/` | Operator map, agent graph, incident cards, receipts log, sighting video |
 | `feeds/` | Plays staged clips back as synchronized cameras (in progress) |
 
 The bus writes event logs to `runs/<run_id>/` when it runs.
 
-TODO: added when Wali's branch merges: `perception/` (spotter and checker), `agents/` (camera agents), `graph/` (camera graph).
-TODO: added when Michael's branch merges: `infra/` (vLLM serving), `dispatcher/` (coordinator), `lookup/`, `eval/` (NeMo Gym).
+TODO: added when Wali's branch merges: the spotter fine-tune and scoring code and results, `perception/` (spotter and checker), `agents/` (camera agents), `graph/` (camera graph).
+TODO: added when Michael's branch merges: `infra/` (vLLM serving), `dispatcher/` (coordinator, verifier, procedure lines in `guidance.py`), `scripts/bench_dispatcher.py`, `eval/` (NeMo Gym, only if we enter that bounty).
 
 ---
 
@@ -463,8 +595,8 @@ TODO: added when Michael's branch merges: `infra/` (vLLM serving), `dispatcher/`
 | Name | Role | GitHub |
 |---|---|---|
 | Mina | Event bus, camera feeds, staged clips and data, dashboard, video and write-up | TODO: handle |
-| Wali | Crime detection (spotter + checker), camera agents, camera graph | TODO: handle |
-| Michael | vLLM serving on Brev, coordinator, lookup, NeMo Gym | TODO: handle |
+| Wali | Spotter fine-tune and scoring, crime detection (spotter + checker), camera agents, camera graph | TODO: handle |
+| Michael | vLLM serving on Brev, coordinator. TODO: NeMo Gym, if we enter that bounty | TODO: handle |
 
 ---
 
@@ -476,4 +608,4 @@ TODO: added when Michael's branch merges: `infra/` (vLLM serving), `dispatcher/`
 
 ## License
 
-TODO: choose a license for the code. The staged clip dataset is licensed separately (see Data).
+TODO: choose a license for the code. The staged clip dataset and the fine-tuned model are licensed separately (see Data and The fine-tuned spotter).
