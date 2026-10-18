@@ -234,7 +234,7 @@ The hackathon cap is **33B parameters in total** across all generative language 
 
 | Source | What we use it for | License | Attribution |
 |---|---|---|---|
-| **Our staged clips** (13 clips filmed by the team on Oct 17) | Training and test clips for the spotter fine-tune, kept apart; the demo camera feeds (test clip 8); ground truth for evaluation. Published with the method, except clips 4, 11 and 12; audio is stripped. | TODO: license (planned: CC BY 4.0) | TODO: dataset link |
+| **Our staged clips** (13 clips filmed by the team on Oct 17) | Training and test clips for the spotter fine-tune, kept apart; the demo camera feeds (test clip 8); ground truth for evaluation. To be published with the method, except clips 4, 11 and 12, audio stripped: test clip 8 first (package and dataset card ready, `data/staged/DATASET_CARD.md`), the rest after a bystander check (clips 2, 5 and 6 show passers-by). | TODO: license (planned: CC BY 4.0) | TODO: dataset link |
 | **CAVIAR** (8 acted clips from one lobby camera) | External check set for the spotter (4 fights, 4 without a crime). TODO: say whether any are also used in training | CC BY-SA | See Attribution below |
 | **MEVA** (3 example clips) | External check set for the spotter (1 theft, 2 without a crime). TODO: say whether any are also used in training | CC BY 4.0 | See Attribution below |
 | **OpenStreetMap** | Dashboard base map around the Red Hat Annex, Raleigh | ODbL | "© OpenStreetMap contributors" (shown on the map) |
@@ -255,7 +255,7 @@ The method for the demo clip (test clip 8: filming, positions, timing, conversio
 - **Clip format.** [`data/convert_clips.py`](data/convert_clips.py) (ffmpeg) turns each iPhone clip into a 720p, constant 10 fps, H.264 copy with the audio removed, so every clip decodes the same way and no bystander voices are kept. The originals are not changed.
 - **Labels and ground truth:** per camera view, what happens, the crime type and the suspect's description (see [The fine-tuned spotter](#the-fine-tuned-spotter)). For replay, [`data/build_site.py`](data/build_site.py) turns a clip log (clip 8's is committed as `data/staged/clip_log_take1.csv`; template: `data/staged/clip_log_template.csv`) into the camera map (`data/sites/annex/cameras.json`), ground truth (`data/ground_truth/take<N>.json`) and clip manifest (`data/manifests/annex.json`), all built and committed for clip 8.
 - **Train/test split:** test clips 1, 3, 4, 7, 8, 12 and 13 are never used in training; the demo replays only test clip 8. TODO: list the training clips.
-- **Published:** the clips except 4, 11 and 12, audio stripped, with the method in [`data/staged/README.md`](data/staged/README.md). TODO: dataset link. The site files and a cleaned clip log (no phone owners) are committed.
+- **Published:** planned for every clip except 4, 11 and 12, audio stripped, with the method in [`data/staged/README.md`](data/staged/README.md). Test clip 8 goes first (passers-by blurred; dataset card in [`data/staged/DATASET_CARD.md`](data/staged/DATASET_CARD.md)); the others follow after a bystander check (clips 2, 5 and 6 show passers-by). TODO: dataset link. The site files and a cleaned clip log (no phone owners) are committed.
 
 ### Attribution
 

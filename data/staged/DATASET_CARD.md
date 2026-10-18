@@ -22,7 +22,10 @@ Clarity team: publishing checklist (HTML comment, so it doesn't show on Hugging 
 1. Rebuild the package from the repo root (blurs, copies, checks; also copies this card in as README.md):
      python data/publish_clip8.py --sheets
    Look at data/raw/publish/review/*.png: every non-actor person must be a blur in every frame.
-2. Replace <org> in this card with the Hugging Face account or org name, and run step 1 again.
+2. Replace <org> in this card with the Hugging Face account or org name, then copy ONLY the card into the package:
+     cp data/staged/DATASET_CARD.md data/raw/publish/clarity-clip8/README.md
+   Don't run step 1 again on this laptop: data/raw/staged/take1/ already holds the blurred clips (the demo plays them),
+   so a second run would blur and re-encode them twice. The unblurred converted clips are in data/raw/staged_unblurred/take1/.
 3. Upload data/raw/publish/clarity-clip8/ (cam1-3.mp4, take1.json, clip_log_take1.csv, README.md). Either:
    a. Web UI, no install: huggingface.co -> New dataset -> name clarity-clip8, license cc-by-4.0, Public ->
       Files and versions -> Add file -> Upload files -> drag in all files from the folder -> Commit.
@@ -64,7 +67,7 @@ All three videos are 1280x720, a constant 10 fps, H.264 (8-bit 4:2:0), with **no
 
 `take1.json` places the three views on one run clock, as if three cameras saw one escape: the suspect is in `cam_01` from 5.0 to 9.5 s, in `cam_02` from 12.5 to 13.75 s, and in `cam_03` from 19.75 to 22.35 s. The gaps (3 s from `cam_01` to `cam_02`, 6 s from `cam_02` to `cam_03`) are **estimated running times** over the distances between the spots (about 11 m and 22 m). They were not measured, because the views come from separate runs and no clock is in view. `camera_roles` marks each camera as `crime`, `path` or `exit`.
 
-Enter and exit times were read from frame contact sheets in 0.25 s steps.
+Enter and exit times were read from frame contact sheets in 0.25 s steps by our coding assistant (Claude Code, a development tool that is not part of Clarity); nobody has re-checked them frame by frame yet.
 
 ## Camera positions
 
@@ -84,7 +87,7 @@ The raw GPS comes from each clip's metadata. Its error (±14 to 28 m) is larger 
   - `cam1.mp4`: the lower legs of one person on the far sidewalk, at the very top edge of the frame, frames 0 to 44 (0 to 4.5 s).
   - `cam2.mp4`: no one but the suspect, so this clip is unchanged.
   
-  We checked every blurred frame on contact sheets at full resolution: no face, hair or clothing detail is left, only soft color patches.
+  Our coding assistant (Claude Code) checked every blurred frame on contact sheets at full resolution: no face, hair or clothing detail is left, only soft color patches. TODO: a teammate confirms this before upload.
 - **Cars:** passing and parked cars appear in the background. No licence plate is readable, and no driver can be recognized.
 - **No audio:** the conversion removed the sound track, which could carry bystanders' voices.
 
@@ -95,14 +98,14 @@ The method page, [`data/staged/README.md`](https://github.com/waliviqas/clarity-
 In short:
 1. One iPhone filmed the three spots one after another. The teammates acted the scene once per spot.
 2. `data/convert_clips.py` converted each clip to 720p, constant 10 fps, H.264 with no audio.
-3. Enter and exit times were read from contact sheets and typed into the clip log. `data/build_site.py` turned the log into `take1.json` and the camera map.
+3. Enter and exit times were read from contact sheets (by Claude Code, see above) and typed into the clip log. `data/build_site.py` turned the log into `take1.json` and the camera map.
 4. [`data/publish_clip8.py`](https://github.com/waliviqas/clarity-hackathon-n-r/blob/main/data/publish_clip8.py) applied the passer-by blur and built this package. It lists every blur box as frames plus a pixel rectangle; each box is cut out, blurred with a 3-pass box blur (radius up to 30 px) and put back for those frames only. `cam1` and `cam3` were re-encoded (H.264, CRF 18); `cam2` is byte-identical to the converted clip.
 
 ## Limitations
 
 - **Staged.** The snatch is acted, so it may look gentler or more obvious than a real one.
 - **Three runs, not one escape.** Each view is a separate run, so the suspect's moves and the light differ a little between views, and the times between views are estimates, not measurements.
-- **Few people.** Two teammates act: the suspect and the person robbed. The same actor, in the same outfit, also plays the suspect in the team's other, unpublished takes. There is little variety in people, outfits and body types.
+- **Few people.** Two teammates act: the suspect and the person robbed. The same actor, in the same outfit, also plays the suspect in the team's other takes, which are not part of this first release. There is little variety in people, outfits and body types.
 - **Small.** One incident, three clips, about 16 s of video, one street, one afternoon, daylight only.
 - **Not a fixed camera.** The phone was not on a fixed mount: the view moves during the clips, most visibly in `cam3`.
 - **GPS error.** Raw positions are accurate to only ±14 to 28 m, which is coarser than the spacing of the cameras.

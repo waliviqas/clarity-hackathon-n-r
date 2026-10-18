@@ -47,7 +47,7 @@ The cameras will be **hand-placed** in route order at their named spots, within 
 
 ## Safety and consent
 
-- **Only consenting teammates are on camera.** The three actors are teammates and agreed to publication under CC BY 4.0 (confirmed by the team on Oct 17).
+- **Only consenting teammates are on camera.** Everyone who acts is a member of the team, and all three team members agreed to publication under CC BY 4.0 (confirmed by the team on Oct 17). Clip 8 shows two of them: the suspect and the person robbed.
 - **No weapons and no weapon-like props.**
 - **No bystanders.** Any clip where a bystander's face could be recognized is re-filmed, blurred before publishing, or not published. Blurred for publishing and for the demo, with `data/publish_clip8.py` (moving boxes, heavy 3-pass box blur; every blurred frame checked on full-resolution contact sheets):
   - `cam_03`: two passers-by walking away (seen from behind), frames 0–38 (0–3.9 s); at frames 21–22 the suspect runs right past them, and one tight box touches the edge of the suspect's head.
