@@ -1,64 +1,68 @@
 # Data
 
-Owner: Mina. Status: v0 research notes, Sat Oct 17. **Licenses below were checked on the source pages on Oct 17; re-check before relying on one.**
+Owner: Mina. Status: final for the submission, Sun Oct 18. **Licenses below were checked on each source's own page on Oct 17–18; re-check before relying on one.**
 
-Raw downloads go in `data/raw/` (gitignored). Only small derived files (`cameras.json`, ground truth, manifests) are committed.
+Raw downloads and all video go in `data/raw/` (gitignored); clips are published only through a dataset link. Only small derived files (camera maps, ground truth, manifests, clip logs, labels, link lists) are committed.
 
-## What we need
+## What we use
 
-1. **Staged multi-camera clips (primary).** Teammates act out incidents across 3–4 phone cameras around the Red Hat Annex, including **three incidents at once**. Published with the method, they're our main open-data contribution and give exact ground truth for the relay demo and NeMo Gym tasks.
-2. **Licensed public footage (optional, not used in the demo).** Would strengthen the "meaningfully uses open data" criterion and give the spotter more examples of `fistfight` and `purse_snatch`.
-3. **Train/test split** if the spotter is fine-tuned: test clips never appear in training.
-4. **A real-world map** for the dashboard.
-
-**Primary open data:** our staged clips (published with the method, see below) plus OpenStreetMap. Our staged clips are split into training and test clips for the spotter fine-tune (Wali's `labels.csv`, `split` column); the demo uses test clip 8, and test clip 1 has a demo site of its own (`data/sites/annex_clip1/`, not published yet; see below). Eight CAVIAR clips and the MEVA example clips are an external check set (Wali's `labels_external.csv`, `results/before_external.json`); ex085 was dropped from it on Oct 18 because of its burned-in labels; see "External check clips" below. TODO: Wali to confirm none of them are used in training.
+1. **Our staged clips (the main open data).** On Oct 17 the team filmed 13 staged incidents (clips 1 to 13, 34 camera views) in downtown Raleigh, near the Red Hat Annex. Wali's `labels.csv` (repo root) labels every view and splits them for the spotter fine-tune: clips 1, 3, 4, 7, 8, 12 and 13 are test clips (18 views, never used for training); clips 2, 5, 6, 9, 10 and 11 are training clips (16 views).
+   - **Clip 8** (test; a phone snatch, 3 cameras) is **published** with its method: https://huggingface.co/datasets/WilwilMina/clarity-clip8 (method: [`staged/README.md`](staged/README.md)). The earlier scripted fallback run, `runs/run_1018-0028_r2s`, is on clip 8's site.
+   - **Clip 1** (test; a mimed stabbing, 4 cameras) is the **live demo** (`data/sites/annex_clip1/`). Both people on screen agreed to be filmed. It is **not published yet**: a frame-by-frame look found no recognizable bystanders, and a teammate's check comes before publishing.
+   - **Clips 4, 11 and 12 are not published** (clip 11 is a training clip).
+2. **Public clips**, filmed elsewhere:
+   - an **external check set** (CAVIAR and MEVA example clips) that tests the spotter on footage from outside our site;
+   - **public training clips** (AIRTLab, Mixkit and MEVA cuts), which went only into the spotter versions v4 and v5. Both scored lower than v3 and were rejected.
+3. **The final spotter, v3,** was trained on our training clips, on the crime fields only (whether there is a crime, and its type). Whether it also trained on the 11 external clips is an **open question for Wali** (see [External check clips](#external-check-clips-caviar-and-meva)).
+4. **OpenStreetMap** for the dashboard map.
 
 ## Sources
 
-| Source | What it gives us | License / terms | Use it for | Verdict |
+| Source | What it gives us | License / terms | How we use it | Status |
 |---|---|---|---|---|
-| **MEVA** (Multiview Extended Video with Activities), mevadata.org | ~100 consenting actors, scripted activities, indoor + outdoor cameras with overlapping and non-overlapping views; geo-registered outdoor cameras; actor GPS logs; 37 annotated activities incl. threat-based `person_steals_object` and `person_abandons_package`. Collected under IRB approval. | **CC BY 4.0** (attribution required) | Multi-camera relay scenarios, ground-truth paths, `purse_snatch`-like events (`person_steals_object`) | **Optional (not used in the demo)** |
-| **MEVA drop-4 subset on Hugging Face** (`Voxel51/extended_video_activities_drop_4`) | 201 clips of MEVA Known Facility 1; the MeVID re-ID benchmark annotates the same people across cameras on this footage | CC BY 4.0 (videos from mevadata.org) | Fastest way to start; check how many people appear on 3+ cameras within this subset | **Optional (not used in the demo)** |
-| **Airtlab violence dataset** (github.com/airtlab/A-Dataset-for-Automatic-Violence-Detection-in-Videos) | 350 staged clips by non-professional actors (230 violent, 120 non-violent such as hugs and high-fives), filmed from **2 viewpoints** | "Freely released for research and educational purposes" (no formal license file) | `fistfight` examples and hard negatives for the VLM | Good secondary; note terms in README |
-| **CAVIAR** (INRIA lobby), homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/ | Clips acted by the CAVIAR team in an entrance lobby, one high wide-angle camera (384×288): fights, walking, meeting, browsing | **CC BY-SA** (version not stated; adaptations stay CC BY-SA) | Spotter training candidates: 4 `fistfight`, 4 `none` | **Training candidate** |
-| UCF-Crime | 13 anomaly classes incl. Fighting, Robbery, Stealing, Assault, Shoplifting; real surveillance footage | No license stated on the pages checked; real victims | Possibly eval only | **Avoid in the demo** (unclear license, real people) |
-| RWF-2000 | 2,000 fight/non-fight surveillance clips | Videos **not available for download** due to privacy; no redistribution without lab approval | — | **Can't use** |
-| **OpenStreetMap** via Leaflet | Map tiles around the Red Hat Annex (190 Davie St, Raleigh) | **ODbL**; show "© OpenStreetMap contributors" on the map | Dashboard base map | **Use** (also counts as open data) |
+| **Our staged clips** ([`staged/README.md`](staged/README.md)) | 13 staged incidents, 34 camera views, filmed by the team on Oct 17; labels in `labels.csv` | Clip 8: **CC BY 4.0** | Spotter fine-tune (training clips) and its test (test clips); the two demo sites | **Used.** Clip 8 published; clip 1 is the live demo, not published yet |
+| **MEVA** (Multiview Extended Video with Activities), mevadata.org | ~100 consenting actors, scripted activities, indoor + outdoor cameras with overlapping and non-overlapping views; geo-registered outdoor cameras; actor GPS logs; 37 annotated activities incl. threat-based `person_steals_object` and `person_abandons_package`. Collected under IRB approval. | **CC BY 4.0** (attribution required) | Cut training clips (thefts, hugs, hand contact); example clips in the external check | **Used.** The training cuts went only into the rejected v4 and v5. ex007 and ex050 are in the external check (ex085 dropped); like CAVIAR's, they were in v2's training data, and whether v3 trained on them is open |
+| **MEVA drop-4 subset on Hugging Face** (`Voxel51/extended_video_activities_drop_4`) | 201 clips of MEVA Known Facility 1; the MeVID re-ID benchmark annotates the same people across cameras on this footage | CC BY 4.0 (videos from mevadata.org) | — | **Not used** |
+| **AIRTLab violence dataset** (github.com/airtlab/A-Dataset-for-Automatic-Violence-Detection-in-Videos) | 350 staged clips by non-professional actors (230 violent, 120 non-violent such as hugs and high-fives), filmed from **2 viewpoints** | "Freely released for research and educational purposes" (no formal license file) | Public training clips: stabbings, assaults and hard negatives; link only, never re-hosted | **Used only in the rejected v4 and v5**; v3 doesn't use it |
+| **Mixkit** (mixkit.co) | Hand-picked stock clips: thefts, one fleeing clip, normal scenes | Mixkit Stock Video Free License, checked on each clip page (Oct 18); its Acceptable Use Policy is unread | Public training clips; link only, never re-hosted | **Used only in the rejected v4 and v5** |
+| **CAVIAR** (INRIA lobby), homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/ | Clips acted by the CAVIAR team in an entrance lobby, one high wide-angle camera (384×288): fights, walking, meeting, browsing | **CC BY-SA** (version not stated; adaptations stay CC BY-SA) | External check: 4 `fistfight`, 4 `none` | **External check.** Also in v2's training data; whether v3 trained on them is open |
+| UCF-Crime | 13 anomaly classes incl. Fighting, Robbery, Stealing, Assault, Shoplifting; real surveillance footage | No license stated on the pages checked; real victims | — | **Not used** (unclear license, real people) |
+| RWF-2000 | 2,000 fight/non-fight surveillance clips | Videos **not available for download** due to privacy; no redistribution without lab approval | — | **Not used** (can't download) |
+| **OpenStreetMap** via Leaflet | Map tiles around the Red Hat Annex (190 Davie St, Raleigh) | **ODbL**; show "© OpenStreetMap contributors" on the map | Dashboard base map | **Used** (also open data) |
 
-### The stabbing gap
+### Stabbing: mimed, never with a prop
 
-No openly licensed dataset with stabbing footage turned up. Options, in order of preference:
-1. Keep `stabbing` as a label the VLM can output, but don't build the demo around it.
-2. Demo with `purse_snatch` and `fistfight` from our staged clips.
-3. **Never** stage a stabbing with any blade or knife prop at the venue.
+We found no openly licensed stabbing footage we could re-host. AIRTLab's acted stabbings are research and education only (link only), and they went only into the rejected v4 and v5. So our stabbings are mimed with empty hands, never with a knife or anything that looks like one. Test clip 1, the live demo, is one of them: the suspect mimes a stabbing (no prop), the person falls and the suspect runs off. In the recorded answers of the final system on clip 1 (`data/answers/clip1_system_v3_checker.json`), the spotter calls it an assault in all 3 runs, so the camera agents report a `fistfight` at `cam_07`.
 
 ## Staged footage (our own synthetic data)
 
-We may film teammates acting out a purse snatch or a scuffle across 3–4 phone cameras at the Annex. The rules allow this **only if we publish the clips and the method**. Requirements:
-- Only consenting teammates on camera; no bystanders' faces.
-- No weapons or props that look like weapons.
-- Log each take: cameras used, positions, who did what, at what time. That log is the ground truth.
-- Publish the clips (or a link) plus `data/staged/README.md` describing the method.
+The hackathon counts staged clips as open data only if we **publish the clips and the method** (method: [`staged/README.md`](staged/README.md)). How we filmed:
+- Everyone who acts in a scene agreed to be filmed. Passers-by appear in some clips, so every clip gets a bystander check before publishing, and nothing we publish shows a recognizable bystander (clip 8's passers-by are blurred).
+- No weapons and no props that look like weapons; stabbings are mimed with empty hands.
+- Each take is logged: cameras, positions, who did what, at what time. That log is the ground truth; the logs of the two demo sites are committed with `phone_owner` blank (`data/staged/clip_log_take1.csv`, `clip_log_take3.csv`).
+- Published: clip 8 with the method. Clip 1: publishing is pending a teammate's bystander check. Clips 4, 11 and 12 are not published.
 
-## Building the Annex site from the clip log
+## Building the demo sites from the clip logs
 
-The clip-8 site (`annex`) is built from the committed clip log `data/staged/clip_log_take1.csv` (take 1, `phone_owner` blank). From the repo root:
+Two sites are built from the committed clip logs (`phone_owner` blank), each with its own cameras:
+- `data/sites/annex_clip1/`: take 3, **test clip 1, the live demo** (a mimed stabbing, `cam_07` to `cam_10`), from `data/staged/clip_log_take3.csv`. The bus serves it unless `CLARITY_CAMERAS` names another file. Method: [`staged/README.md`](staged/README.md#clip-1-the-live-demo-site).
+- `data/sites/annex/`: take 1, **test clip 8, the published clip** (`cam_01` to `cam_03`), from `data/staged/clip_log_take1.csv`; the earlier scripted fallback run uses it. Method: [`staged/README.md`](staged/README.md).
 
-```
-python data/convert_clips.py "<folder with the original clips>" --out data/raw/staged/take1   # 720p, constant 10 fps, H.264, audio stripped
-python data/build_site.py data/staged/clip_log_take1.csv --check-clips data/raw/staged
-python contracts/validate.py data/sites/annex/cameras.json
-python -m feeds.replay --cameras data/sites/annex/cameras.json --check            # before every real run
-python data/check_build_site.py          # after changing build_site.py or a log: also checks both committed logs rebuild their site files
-```
-
-**Sites:** `data/sites/annex/` is take 1 (clip 8, method in [`staged/README.md`](staged/README.md)). One phone filmed its three views one after another, with no clock in view, so the runs between cameras are Wali's distance-based estimates (`travel_s` 3 s and 6 s). `data/sites/annex_clip1/` is take 3 (test clip 1, a mimed stabbing, `cam_07` to `cam_10`), a site of its own so the demo can switch from clip 8 to clip 1; built from `data/staged/clip_log_take3.csv` the same way (method: [`staged/README.md`](staged/README.md#clip-1-a-second-demo-site)):
+In both takes one phone filmed the views one after another, with no clock in view, so the runs between cameras are distance-based estimates (`travel_s`). From the repo root:
 
 ```
+python data/convert_clips.py "<folder with the original clips>" --out data/raw/staged/take3   # 720p, constant 10 fps, H.264, audio stripped
 python data/build_site.py data/staged/clip_log_take3.csv --site annex_clip1 --site-name "Red Hat Annex (staged clip 1)" --run-offset 0 --check-clips data/raw/staged
 python contracts/validate.py data/sites/annex_clip1/cameras.json
-python -m feeds.replay --cameras data/sites/annex_clip1/cameras.json --check
+python -m feeds.replay --cameras data/sites/annex_clip1/cameras.json --check      # before every real run
 python data/review_sheets.py data/raw/staged/take3     # whole frames, 2 per second, for the bystander check (data/raw/review/take3/)
+
+python data/convert_clips.py "<folder with the original clips>" --out data/raw/staged/take1
+python data/build_site.py data/staged/clip_log_take1.csv --check-clips data/raw/staged      # clip 8: site annex
+python contracts/validate.py data/sites/annex/cameras.json
+python -m feeds.replay --cameras data/sites/annex/cameras.json --check
+
+python data/check_build_site.py          # after changing build_site.py or a log: also checks both committed logs rebuild their site files
 ```
 
 Clip 7 is converted and its timing is in the team's local log (`data/staged/clip_log.csv`, gitignored because it names phone owners), but it is not built. For new takes, fill in a copy of `data/staged/clip_log_template.csv` (one row per camera) and commit a copy with `phone_owner` blank.
@@ -79,7 +83,15 @@ Clip 7 is converted and its timing is in the team's local log (`data/staged/clip
 
 ## External check clips (CAVIAR and MEVA)
 
-Collected first as training candidates; the spotter is now trained on the train split of our own staged clips, and these public clips serve as an external check set, filmed elsewhere (11 at first; ex085 was dropped on Oct 18 because of its burned-in labels) (TODO: Wali to confirm none are used in training; hard rule 6). Videos and frames live in `data/raw/training/` (gitignored). `data/training/staged_clips.csv` holds the labels (one row per person once verified); `data/training/SOURCES.md` has the license research and the shortfall against the 20-clip mix.
+Eleven public clips filmed elsewhere: 8 from CAVIAR and 3 MEVA example clips. They were collected as training candidates, then became the external check set, which tests the spotter on footage from outside our site. ex085 was dropped from the check on Oct 18 because of its burned-in labels, so 10 remain. The base model's results on all 11 are in `results/before_external.json` (repo root).
+
+**Open question for Wali: did these clips train v3?** Wali's draft labels for them, `labels_external.csv` (repo root), mark all 11 `split=train`, and they trained v2 ("+ 11 public clips" in the model card, `hf_model/README.md`). Whether v3, the final spotter, also trained on them is not recorded. Until Wali answers, the external check may overlap training (hard rule 6: training and test clips stay separate).
+
+Both label files are kept:
+- `labels_external.csv` (repo root, Wali): the draft labels, all `split=train`, used to train v2. Its `check` column marks the crime rows' outfits as low confidence (drafted from tiny overhead frames) and the other rows as dataset labels not checked frame by frame.
+- `data/training/labels_external_filled.csv` (Mina): the same 11 clips labeled from frames, every field checked on a second frame, in the same format (identical header, `split=external`). `data/training/staged_clips.csv` holds these labels one row per person (23 rows); `data/training/SOURCES.md` has the license research.
+
+Videos and frames live in `data/raw/training/` (gitignored).
 
 - **CAVIAR** (8 clips): Fight_RunAway1, Fight_RunAway2, Fight_OneManDown, Fight_Chase, Walk1, Walk2, Meet_WalkTogether1, Browse1. Source: EC Funded CAVIAR project/IST 2001 37540, http://homepages.inf.ed.ac.uk/rbf/CAVIAR/. License: CC BY-SA. We modified the clips (frame extraction, labels).
 - **MEVA** (3 example clips): ex085-theft, ex007-embrace-interaction, ex050-people-talking. "Multiview Extended Video with Activities" (MEVA) dataset by Kitware Inc., https://mevadata.org. License: CC BY 4.0 (https://mevadata.org/resources/MEVA-data-license.txt). We modified the clips (frame extraction, labels).
@@ -91,21 +103,29 @@ python data/scripts/fetch_staged_clips.py data/training/staged_clips.csv --fps 2
 python data/scripts/check_staged_clips.py data/training/staged_clips.csv                                   # label checks (needs pandas)
 ```
 
-## Public training clips (spotter fine-tune)
+## Public training clips (only in the rejected v4 and v5)
 
-Train split only; links, cuts and labels in `data/training/` (`public_clips_candidates.csv`, `labels_public.csv`; details in `training/SOURCES.md`). The clips are rebuilt from the links with `data/scripts/fetch_public_clips.py` and never re-hosted.
-- **AIRTLab**: stabbing, assault and non-violent IDs, cam1 + cam2. Research and education only (no LICENSE file); team decision: link only, don't re-host.
-- **Mixkit**: hand-picked thefts, one fleeing clip and normals, each page checked for the Stock Video Free License ("Restricted" items skipped); link only. Its Acceptable Use Policy is still unread, so using these clips is a team decision (drop the `mixkit_` rows if it rules out training).
-- **MEVA** (drops-123-r13): 10–15 s cuts around annotated thefts and hugs, CC BY 4.0; we cut and re-encoded them. ex085's video is never used.
+Prepared as `split=train` clips for the spotter fine-tune; links, cuts and labels in `data/training/` (`public_clips_candidates.csv`: 115 camera files; `labels_public.csv`: 32 labeled here; details in `training/SOURCES.md`). The clips are rebuilt from the links with `data/scripts/fetch_public_clips.py` and never re-hosted. **They trained only v4 and v5** ("+ 113 public clips" in `hf_model/README.md`), which scored lower than v3 and were rejected (every version's scores: `results/history.csv`). v3 doesn't use them.
+- **AIRTLab**: stabbing, assault and non-violent IDs, cam1 + cam2. Research and education only (no LICENSE file); team decision: link only, don't re-host. Any model version trained on these clips must say so on its model card.
+- **Mixkit**: hand-picked thefts, one fleeing clip and normals, each page checked for the Stock Video Free License ("Restricted" items skipped); link only. Its Acceptable Use Policy is still unread.
+- **MEVA** (drops-123-r13): 10–15 s cuts around annotated thefts and hugs, CC BY 4.0; we cut and re-encoded them. The clean source video behind ex085 (`2018-03-15.15-10-00.15-15-00.bus.G331`) is never cut.
+- **Michael's MEVA batch:** `scripts/meva_training_clips.py` (repo root, Michael) picks hugs, hand-to-hand interactions and thefts from MEVA's annotations, cuts each into a 5–15 s clip (720p H.264, no audio) on the GPU box, and writes `labels_meva.csv` in Wali's format (`split=train`). His batch (68 clips by his count) stays on the Brev box, not in git.
 
-## Derived files we commit
+## Files we commit
 
 | File | Contents | Consumers |
 |---|---|---|
-| `data/cameras.json` (one per site, e.g. `data/sites/annex/cameras.json`) | Camera graph per `contracts/schemas/cameras.schema.json` | Graph, feeds, bus, dashboard |
-| `data/ground_truth/*.json` | Per scenario: subject, activity, ordered `[{camera_id, t_enter, t_exit}]` | NeMo Gym tasks, eval |
-| `data/manifests/*.json` | Which clip maps to which camera and its start time | Feeds |
+| `data/sites/<site>/cameras.json` (`annex_clip1`: clip 1, the live demo and the bus default; `annex`: clip 8; `annex_placeholder`: made-up cameras for scripted runs) | Camera graph per `contracts/schemas/cameras.schema.json` | Graph, feeds, bus, dashboard |
+| `data/ground_truth/take<N>.json` (take 1: clip 8; take 3: clip 1) | Per incident: subject, activity, ordered `[{camera_id, t_enter, t_exit}]` on the run clock, camera roles | NeMo Gym tasks, eval, `bus.fake_scenario --ground-truth` |
+| `data/manifests/<site>.json` | Which clip maps to which camera and its start time | Feeds |
+| `data/staged/clip_log_take1.csv`, `clip_log_take3.csv` | The clip logs the two sites are built from (`phone_owner` blank) | `data/build_site.py` |
 | `data/answers/*.json` | Recorded model answers on our test clips, text only, converted from Wali's NeMo Gym results by `data/gym_answers.py` (e.g. `clip1_system_v3_checker.json`: his final system on clip 1, 3 runs per camera) | Camera agents: `python -m agents.run --answers` (replays without a GPU) |
+| `data/training/` | Public clips: links, cuts, licenses and labels, incl. `labels_external_filled.csv` (frame-checked external labels) | Spotter fine-tune, external check |
+| `labels.csv` (repo root, Wali) | Labels for our 13 staged clips, one row per camera view (34), with the train/test `split` | Fine-tune (`src/make_train_data.py`), eval, NeMo Gym tasks |
+| `labels_external.csv` (repo root, Wali) | Draft labels for the 11 external clips, all `split=train`; used to train v2 (v3: open question, see above) | Fine-tune, external check |
+| `results/` (repo root, Wali) | Scores: `history.csv` (every spotter version and the checker), `before.json` and `before_external.json` (base model), `nemo_gym/` (NeMo Gym runs), `vllm_bench.json` | README tables, `data/gym_answers.py` |
+| `hf_model/README.md` (repo root, Wali) | Model card of the fine-tuned spotter v3, with every version's scores | Hugging Face model page |
+| `scripts/meva_training_clips.py` (repo root, Michael) | Plans and cuts MEVA training clips, writes `labels_meva.csv` (his batch stays on the Brev box) | Spotter training clips |
 
 ## Attribution text (put in the README and the video credits)
 

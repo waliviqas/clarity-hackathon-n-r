@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "site_id": "annex_placeholder",
-  "site_name": "Red Hat Annex (PLACEHOLDER positions and times until filming)",
+  "site_name": "Red Hat Annex (PLACEHOLDER: made-up positions and times)",
   "map": {"center": {"lat": 35.7753, "lon": -78.6370}, "zoom": 18, "site_image": null},
   "cameras": [
     {"camera_id": "cam_01", "name": "Route 1: south walkway", "position": {"lat": 35.7752, "lon": -78.6375}, "site_xy": null, "heading_deg": null,
