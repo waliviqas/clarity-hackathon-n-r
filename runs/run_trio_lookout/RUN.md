@@ -6,7 +6,7 @@
 - **Cameras:** `data/sites/annex_trio_lookout/cameras.json`:
   - Route 2 (test clip 7, `cam_04`-`cam_06`): as in `data/sites/annex_trio/`.
   - Route 3 (test clip 1, `cam_07`-`cam_10`): on Wali's aligned spots from his updated take-3 log.
-  - Route 4 (test clip 3, `cam_11`-`cam_13`): on Wali's demo3 spots for the same clip files (`data/sites/demo3/cameras.json`: 35.77575,-78.637 / 35.7755,-78.6373 / 35.7756,-78.6371).
+  - Route 4 (test clip 3, `cam_11`-`cam_13`): on Wali's aligned demo2 spots for the same clip files (`data/sites/demo2/cameras.json`: 35.775593,-78.637447 / 35.775593,-78.637245 / 35.775593,-78.637447).
   - `cam_14` "Hillsborough St sidewalk": no neighbor of any route.
 - **Producers** (repo root, `CLARITY_RUN_ID=run_trio_lookout`, bus started with `CLARITY_CAMERAS=data/sites/annex_trio_lookout/cameras.json`):
   1. `python -m bus.server` (strict validation)
