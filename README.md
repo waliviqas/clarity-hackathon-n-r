@@ -131,7 +131,7 @@ Clarity is built to show the fine-tuned spotter doing its job in a realistic set
 | Part | In the demo run |
 |---|---|
 | Camera feeds | Real: test clip 8's three camera views, replayed as cameras |
-| Spotter, checker, camera agents | **Scripted** until the fine-tuned spotter is wired in. `python -m bus.fake_scenario --no-dispatch` publishes the detections, relays and camera-agent answers, each tagged `source: "fake_scenario"`, and the dashboard shows a **Scripted run** tag. The spotter's real results so far are the base vs. fine-tuned table above. TODO: the scripted events must follow clip 8 (today's script plays three example incidents on a placeholder map). |
+| Spotter, checker, camera agents | **Scripted** until the fine-tuned spotter is wired in. `python -m bus.fake_scenario --ground-truth data/ground_truth/take1.json --cameras data/sites/annex/cameras.json` plays clip 8 from its ground truth: the snatch detection at the bus shelter, the relays, and the camera agents' match answers at the next two cameras, each tagged `source: "fake_scenario"`; the dashboard's header shows a **Scripted run** tag. The spotter's real results so far are the base vs. fine-tuned table above. |
 | Coordinator | Real model: Nemotron Nano 9B v2 on vLLM makes the decisions. If a recording runs it in rules-only mode (`--no-model`), the video says so ("coordinator: rules mode"). |
 | Event bus, dashboard, the operator's Confirm / Dismiss | Real |
 
@@ -309,9 +309,9 @@ curl -s "http://127.0.0.1:8080/events?type=dispatch"
 python contracts/validate.py runs/run_fake1/events.jsonl
 ```
 
-`python -m bus.fake_scenario --no-dispatch` leaves out the scripted coordinator decisions, so a running coordinator makes them instead (see [Reproduce the full demo](#reproduce-the-full-demo)).
+`python -m bus.fake_scenario --no-dispatch` leaves out the scripted coordinator decisions, so a running coordinator makes them instead. `python -m bus.fake_scenario --ground-truth data/ground_truth/take1.json --cameras data/sites/annex/cameras.json` plays test clip 8 on its real site instead, also without scripted decisions (see [Reproduce the full demo](#reproduce-the-full-demo)).
 
-Replay a recorded run (this is also our demo fallback). Restart the bus with a new run ID so the copy is logged separately, then:
+Replay a recorded run (this is also our demo fallback). Restart the bus with a new run ID so the copy is logged separately, and stop any running coordinator (it would add a second set of decisions), then:
 
 ```bash
 python -m bus.replay runs/run_fake1/events.jsonl --speed 2
@@ -434,7 +434,7 @@ TODO: fill in once each part is merged. Planned order:
 5. **Bus.** `python -m bus.server` with `CLARITY_CAMERAS=data/sites/annex/cameras.json` and a fresh `CLARITY_RUN_ID`.
 6. **Coordinator.** `CLARITY_LLM_BASE_URL=http://localhost:8003/v1 CLARITY_LLM_MODEL=dispatcher python -m dispatcher.run`. Add `--no-model` for rules only (label any recording "coordinator: rules mode").
 7. **Feeds.** `python -m feeds.replay --cameras data/sites/annex/cameras.json` (plays the clips and publishes `camera_status`).
-8. **Perception (scripted for now).** `python -m bus.fake_scenario --no-dispatch` publishes the scripted detections, relays and camera-agent answers. TODO: a script that follows clip 8, then the commands for the fine-tuned spotter, checker and camera agents once they are wired in (perception reads frames through `feeds.base.open_feeds`).
+8. **Perception (scripted for now).** `python -m bus.fake_scenario --ground-truth data/ground_truth/take1.json --cameras data/sites/annex/cameras.json` publishes clip 8's scripted detections, relays and camera-agent answers. Start the coordinator first, and use a fresh `CLARITY_RUN_ID` for every take (the scripted event IDs repeat). TODO: the commands for the fine-tuned spotter and the camera agents once they are wired in.
 9. **Dashboard (laptop).** `cd dashboard && npm install && npm run dev`, then open http://127.0.0.1:5173 with the bus port-forwarded (Quick start step 4).
 
 **The demo video** will be recorded from a saved run replayed through the bus. TODO: run ID and how to replay it (`python -m bus.replay runs/<run_id>/events.jsonl`).
