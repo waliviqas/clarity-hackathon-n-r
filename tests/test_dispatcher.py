@@ -678,3 +678,28 @@ def test_no_direction_anywhere_means_no_heading_guess():
     c = case_from([det("det_1", "cam_03", 0, "purse_snatch", 0.8, direction=None),
                    rel("rel_1", 1, "cam_03", "cam_05", "subj_7", ["det_1"], direction="north")])
     assert subject_direction(c, "cam_03") is None  # only an outgoing relay: don't treat its edge as the heading
+
+
+# --- Mina's camera agents: placeholder confidence and "possible" relays ----
+
+def test_placeholder_confidence_is_treated_as_unknown(graph):
+    d = {**det("det_1", "cam_03", 0, "stabbing"), "confidence": 0.5, "confidence_known": False}
+    from dispatcher.rules import activity_conf
+    assert activity_conf(d) is None
+    assert gate(case_from([d]), CFG) == "ambiguous"  # unknown confidence: no rules auto-alert, goes to the model
+    out = Dispatcher(graph, None).process([d, rel("rel_1", 1, "cam_03", "cam_05", "subj_1", ["det_1"])])
+    assert "(conf" not in out[-1]["reason"]
+
+
+def test_known_confidence_still_used():
+    from dispatcher.rules import activity_conf
+    assert activity_conf({**det("det_1", "cam_03", 0, "stabbing"), "confidence": 0.9, "confidence_known": True}) == 0.9
+
+
+def test_possible_relay_after_uncertain_is_not_a_confirmed_sighting():
+    msgs = [det("det_1", "cam_03", 0, "purse_snatch", 0.8),
+            rel("rel_1", 1, "cam_03", "cam_05", "subj_7", ["det_1"]),
+            det("det_2", "cam_05", 40),
+            ver("ver_1", 41, "cam_05", "subj_7", "uncertain", ["rel_1", "det_2"]),
+            {**rel("rel_2", 42, "cam_05", "cam_08", "subj_7", ["det_2"]), "basis": "possible"}]
+    assert [p["camera_id"] for p in path(case_from(msgs))] == ["cam_03"]  # cam_05 was only uncertain

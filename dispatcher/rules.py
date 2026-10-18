@@ -54,10 +54,17 @@ class RuleConfig:
 
 
 def activity_conf(d: dict) -> float | None:
-    """activity_confidence, else the detection's overall confidence, else None (unknown, never treated as 0)."""
-    for key in ("activity_confidence", "confidence"):
-        if isinstance(d.get(key), (int, float)):
-            return float(d[key])
+    """activity_confidence, else the detection's overall confidence, else None (unknown, never treated as 0).
+
+    Mina's agents must fill the contract's required `confidence` even though the spotter gives none; they mark
+    that placeholder with `confidence_known: false`, so it isn't used as a real confidence.
+    """
+    if isinstance(d.get("activity_confidence"), (int, float)):
+        return float(d["activity_confidence"])
+    if d.get("confidence_known") is False:
+        return None
+    if isinstance(d.get("confidence"), (int, float)):
+        return float(d["confidence"])
     return None
 
 
@@ -82,6 +89,8 @@ def path(case: SubjectCase) -> list[dict]:
             first[cam] = (ts, eid)
 
     for r in case.of_type("relay"):
+        if r.get("basis") == "possible":  # sent onward after only an "uncertain" verdict: not a confirmed sighting
+            continue
         origin = [case.events[i] for i in r.get("evidence_event_ids", [])
                   if i in case.events and case.events[i]["type"] == "detection"
                   and case.events[i]["camera_id"] == r["from_camera"]]
