@@ -758,6 +758,6 @@ The code has no license file yet. Test clip 8 is CC BY 4.0. The fine-tuned model
 | `infra/` | vLLM serving (`serve_dispatcher.sh`, Michael; `serve_checker.sh`, Wali) |
 | `scripts/` | Coordinator load test, MEVA clip cutter |
 | `runs/run_1018-0028_r2s/` | The recorded fallback run: events and `RUN.md` |
-| `VLLM_BOUNTY.md` | Michael's full vLLM write-up |
+| `vllm_bounty/` | Michael's full vLLM write-up, with links to every file behind it |
 
 The bus writes event logs to `runs/<run_id>/` when it runs.
