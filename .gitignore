@@ -222,6 +222,8 @@ __marimo__/
 # --- Clarity ---
 # Raw datasets and video (commit only small derived files under data/; clips are published via a link)
 data/raw/
+# Training clips on Brev (rebuilt by data/scripts/fetch_public_clips.py); never commit video
+video-data/training-clips/videos/
 *.mp4
 *.avi
 *.mov
