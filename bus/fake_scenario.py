@@ -10,6 +10,10 @@ only by their cameras.json names, which are neutral ("Route 1: west door"); role
 the take's ground truth (data/ground_truth/take<N>.json, already in run-clock seconds). It publishes what
 camera agents would: the crime detection, then at each later camera a sighting, a "match" verdict and a
 relay on. It never scripts a dispatch: start a real dispatcher (python -m dispatcher.run) first.
+The crime camera comes from the take's camera_roles; its detection fires at the crime itself (t_crime on
+that camera's path step, run clock) or, without one, as the suspect leaves its view. Event and subject ids
+carry a fresh tag every run, so a rerun into the same bus and dispatcher is a new incident, not duplicates
+they drop. Before publishing it checks that the bus (GET /cameras) serves the take's site.
 
 Run from the repo root (bus running, started with the same CLARITY_CAMERAS):
     python -m bus.fake_scenario --speed 5
@@ -22,11 +26,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import time
+import urllib.error
+import urllib.request
+import uuid
 from pathlib import Path
 
-from bus.client import publish
+from bus.client import _bus_url, publish  # _bus_url: the address publish() posts to
 
 DEFAULT_CAMERAS = "data/sites/annex_placeholder/cameras.json"
 SOURCE = "fake_scenario"
@@ -56,10 +64,31 @@ SCENES = {
     "stabbing": "Attacked another person with stabbing motions, then ran off.",
 }
 VERDICT_AFTER_S = 0.5  # a camera agent answers a relay this long after the suspect walks into view
+RELAY_AFTER_S = 0.5  # ...and relays on no sooner than this after its own detection or verdict
+GT_FIELDS = ("site_id", "incident_id", "subject_id", "activity", "appearance", "path", "camera_roles")
+
+
+def read_json(path: str, what: str) -> dict:
+    """A JSON object from a file. Anything wrong is a ValueError with one readable line."""
+    if Path(path).is_dir():  # Windows would only say "Permission denied"
+        raise ValueError(f"{what} {path} is a folder; pass the .json file")
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{what} {path} not found") from None
+    except OSError as e:  # no permission, ...
+        raise ValueError(f"can't read {what} {path} ({e.strerror or e})") from None
+    except ValueError as e:  # not JSON, or not UTF-8
+        raise ValueError(f"{what} {path} is not valid JSON ({e})") from None
+    if not isinstance(data, dict):
+        raise ValueError(f"{what} {path} is not a JSON object")
+    return data
 
 
 def load_cameras(path: str) -> dict[str, dict]:
-    site = json.loads(Path(path).read_text(encoding="utf-8"))
+    site = read_json(path, "cameras file")
+    if not isinstance(site.get("cameras"), list):
+        raise ValueError(f"{path} has no 'cameras' list; pass a site's cameras.json")
     return {c["camera_id"]: c for c in site["cameras"]}
 
 
@@ -151,35 +180,103 @@ def incident_events(inc: dict, cams: dict[str, dict], run_id: str) -> list[dict]
     ]
 
 
+def is_time(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+
+
+def crime_camera(gt: dict) -> str | None:
+    """The take's crime camera, from camera_roles (a path may start with an approach camera); None if not one."""
+    roles = gt.get("camera_roles")
+    crimes = [cam for cam, role in roles.items() if role == "crime"] if isinstance(roles, dict) else []
+    return crimes[0] if len(crimes) == 1 else None
+
+
+def ground_truth_problem(gt: dict) -> str | None:
+    """What makes this unusable as a take's ground truth, or None."""
+    missing = [k for k in GT_FIELDS if k not in gt]
+    if missing:
+        return f"no {', '.join(missing)}; is it a take's ground truth, like data/ground_truth/take1.json?"
+    steps = gt["path"]
+    if not (isinstance(steps, list) and all(isinstance(s, dict) and isinstance(s.get("camera_id"), str)
+                                            and is_time(s.get("t_enter")) and is_time(s.get("t_exit"))
+                                            for s in steps)):
+        return "path must be a list of {camera_id, t_enter, t_exit}"
+    on_path, crime = [s["camera_id"] for s in steps], crime_camera(gt)
+    if crime not in on_path:
+        return "camera_roles needs exactly one 'crime' camera, and it must be on the path"
+    k = on_path.index(crime)
+    if k == len(steps) - 1:
+        return f"no camera after the crime camera {crime} on the path, so nothing gets relayed"
+    t_crime = steps[k].get("t_crime")
+    if t_crime is not None and not (is_time(t_crime) and steps[k]["t_enter"] <= t_crime <= steps[k]["t_exit"]):
+        return f"t_crime of {crime} must be a run-clock time between its t_enter and t_exit"
+    return None
+
+
 def load_ground_truth(path: str, cameras_path: str, cams: dict[str, dict]) -> dict:
-    """A take's ground truth, checked against the cameras file (which must be the one the bus serves)."""
-    gt = json.loads(Path(path).read_text(encoding="utf-8"))
-    site_id = json.loads(Path(cameras_path).read_text(encoding="utf-8")).get("site_id")
-    if gt.get("site_id") != site_id:
-        raise ValueError(f"{path} is for site {gt.get('site_id')!r} but {cameras_path} is site {site_id!r}; pass "
+    """A take's ground truth, checked against the cameras file (which must be the one the bus serves).
+    Anything wrong is a ValueError with one readable line."""
+    gt = read_json(path, "ground truth")
+    problem = ground_truth_problem(gt)
+    if problem:
+        raise ValueError(f"{path}: {problem}")
+    site_id = read_json(cameras_path, "cameras file").get("site_id")
+    if gt["site_id"] != site_id:
+        raise ValueError(f"{path} is for site {gt['site_id']!r} but {cameras_path} is site {site_id!r}; pass "
                          "--cameras with that site's cameras.json (the bus's CLARITY_CAMERAS)")
-    missing = [s["camera_id"] for s in gt["path"] if s["camera_id"] not in cams]
+    on_path = [s["camera_id"] for s in gt["path"]]
+    missing = [cam for cam in on_path if cam not in cams]
     if missing:
         raise ValueError(f"{', '.join(missing)} from {path} not in {cameras_path}")
-    if len(gt["path"]) < 2:
-        raise ValueError(f"{path}: the path needs 2+ cameras, or nothing gets relayed")
+    before = on_path[:on_path.index(crime_camera(gt))]
+    if before:
+        print(f"note: not scripted before the crime (nobody is looking for the suspect yet): {', '.join(before)}")
     if gt.get("decoy_camera_id"):
         print(f"note: decoy {gt['decoy_camera_id']} is not scripted in --ground-truth mode")
     return gt
 
 
-def take_events(gt: dict, cams: dict[str, dict], run_id: str) -> list[dict]:
+def check_bus_site(ground_truth: str, cameras_path: str) -> None:
+    """The bus must serve the take's site (GET /cameras): the dashboard and the dispatcher take their cameras
+    from it. A ValueError with one line if it serves another site or can't be read."""
+    want = read_json(cameras_path, "cameras file").get("site_id")  # the take's site (load_ground_truth checked)
+    url = f"{_bus_url()}/cameras"
+    try:
+        with urllib.request.urlopen(url, timeout=3) as resp:
+            served = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:  # the bus answered, but has no readable cameras file
+        raise ValueError(f"the bus at {url} serves no cameras (HTTP {e.code}); restart it with "
+                         f"CLARITY_CAMERAS={cameras_path}") from None
+    except (OSError, ValueError) as e:  # bus down, timeout, not JSON
+        raise ValueError(f"can't read the bus's cameras at {url} ({getattr(e, 'reason', e)}); start the bus "
+                         f"with CLARITY_CAMERAS={cameras_path}, or write a file with --out") from None
+    got = served.get("site_id") if isinstance(served, dict) else None
+    if got != want:
+        raise ValueError(f"the bus at {_bus_url()} serves site {got!r}, but {ground_truth} is site {want!r}; "
+                         f"restart the bus with CLARITY_CAMERAS={cameras_path}")
+
+
+def crime_moment(step: dict) -> float:
+    """When the crime camera's detection fires: at the crime (t_crime), else as the suspect leaves (t_exit);
+    never as they walk in, before anything has happened."""
+    return step["t_crime"] if step.get("t_crime") is not None else step["t_exit"]
+
+
+def take_events(gt: dict, cams: dict[str, dict], run_id: str, run_tag: str) -> list[dict]:
     """One staged take as its camera agents would publish it, at the ground truth's run-clock times.
 
-    The crime camera detects the crime as the suspect walks into view and relays to the next camera as they
-    leave it (expected there after the cameras.json travel time). Each later camera sees them walk in, answers
-    the relay with "match" and relays on. No dispatch: a real dispatcher decides.
+    The crime camera (camera_roles) detects the crime when it happens (crime_moment), then relays to the next
+    camera as the suspect leaves its view (expected there after the cameras.json travel time). Each later camera
+    sees the suspect walk in, answers the relay with "match" and relays on. Cameras before the crime (an approach)
+    aren't scripted. No dispatch: a real dispatcher decides. run_tag goes into every id, so each run is its own
+    incident.
     """
-    tag, subj, activity, look = (gt["incident_id"].removeprefix("inc_"), gt["subject_id"], gt["activity"],
-                                 gt["appearance"])
+    tag, subj, activity, look = (f"{gt['incident_id'].removeprefix('inc_')}_{run_tag}",
+                                 f"{gt['subject_id']}_{run_tag}", gt["activity"], gt["appearance"])
     scene = SCENES.get(activity, f"{activity.replace('_', ' ').capitalize()}, then ran off.")
     common = {"schema_version": "0.1", "run_id": run_id, "source": SOURCE}
-    steps, out = gt["path"], []
+    on_path = [s["camera_id"] for s in gt["path"]]
+    steps, out = gt["path"][on_path.index(crime_camera(gt)):], []
 
     def ev(type_, event_id, ts, **fields):
         out.append({"type": type_, "event_id": event_id, "ts": round(ts, 3), **common, **fields})
@@ -192,8 +289,9 @@ def take_events(gt: dict, cams: dict[str, dict], run_id: str) -> list[dict]:
         onward = link(cams, cam, nxt) if nxt else None
         heading = onward["direction"] if onward else relay_in["direction"]
         crime = relay_in is None
+        seen_at = crime_moment(step) if crime else step["t_enter"]
         # on_screen / what_happened: the spotter's extra fields, which the real detection adapter copies too.
-        det = ev("detection", f"det_{tag}_{i + 1}", step["t_enter"], camera_id=cam, track_id=f"trk_{cam}_{tag}",
+        det = ev("detection", f"det_{tag}_{i + 1}", seen_at, camera_id=cam, track_id=f"trk_{cam}_{tag}",
                  label="person", confidence=0.9, bbox=None, activity=activity if crime else "none",
                  activity_confidence=0.8 if crime else 0.95, direction=heading, appearance=look,
                  on_screen="crime" if crime else "fleeing",
@@ -207,15 +305,17 @@ def take_events(gt: dict, cams: dict[str, dict], run_id: str) -> list[dict]:
                               f"(expected {relay_in['expected_arrival_s']:.1f} s), moving {heading}.",
                        evidence_event_ids=[relay_in["event_id"], det])
         if onward:
-            ev("relay", f"rel_{tag}_{i + 1}", max(step["t_exit"], out[-1]["ts"]), from_camera=cam, to_camera=nxt,
-               subject_id=subj, summary=scene, direction=onward["direction"], activity=activity, confidence=0.85,
-               expected_arrival_s=onward["travel_time_s"], evidence_event_ids=[cause], appearance=look)
+            ev("relay", f"rel_{tag}_{i + 1}", max(step["t_exit"], out[-1]["ts"] + RELAY_AFTER_S),
+               from_camera=cam, to_camera=nxt, subject_id=subj, summary=scene, direction=onward["direction"],
+               activity=activity, confidence=0.85, expected_arrival_s=onward["travel_time_s"],
+               evidence_event_ids=[cause], appearance=look)
             relay_in = out[-1]
     return out
 
 
-def camera_status_events(cams: dict[str, dict], run_id: str) -> list[dict]:
-    return [{"type": "camera_status", "schema_version": "0.1", "event_id": f"cst_{cam_id}_0", "ts": 0.0,
+def camera_status_events(cams: dict[str, dict], run_id: str, run_tag: str = "") -> list[dict]:
+    n = f"{run_tag}_0" if run_tag else "0"  # cst_<cam>_<tag>_0 when tagged, like feeds/base.py
+    return [{"type": "camera_status", "schema_version": "0.1", "event_id": f"cst_{cam_id}_{n}", "ts": 0.0,
              "run_id": run_id, "source": SOURCE, "camera_id": cam_id, "status": "online", "fps": 1.0,
              "source_kind": "replay"} for cam_id in cams]
 
@@ -223,10 +323,14 @@ def camera_status_events(cams: dict[str, dict], run_id: str) -> list[dict]:
 def build(cameras_path: str, run_id: str, ground_truth: str | None = None) -> list[dict]:
     cams = load_cameras(cameras_path)
     if ground_truth:
-        script = take_events(load_ground_truth(ground_truth, cameras_path, cams), cams, run_id)
+        # A fresh tag per run: the dispatcher and the dashboard drop an event_id they've already seen, and the
+        # dispatcher files a known subject_id under its old incident, so a rerun into the same bus would vanish.
+        run_tag = uuid.uuid4().hex[:6]
+        gt = load_ground_truth(ground_truth, cameras_path, cams)
+        events = camera_status_events(cams, run_id, run_tag) + take_events(gt, cams, run_id, run_tag)
     else:
         script = [e for inc in INCIDENTS for e in incident_events(inc, cams, run_id)]
-    events = camera_status_events(cams, run_id) + script
+        events = camera_status_events(cams, run_id) + script
     return sorted(events, key=lambda e: e["ts"])  # stable sort keeps causal order at equal ts
 
 
@@ -244,7 +348,12 @@ def main() -> None:
     if args.speed <= 0:
         p.error("--speed must be greater than 0")
 
-    events = build(args.cameras, os.environ.get("CLARITY_RUN_ID", "run_fake"), args.ground_truth)
+    try:
+        events = build(args.cameras, os.environ.get("CLARITY_RUN_ID", "run_fake"), args.ground_truth)
+        if args.ground_truth and not args.out:
+            check_bus_site(args.ground_truth, args.cameras)
+    except ValueError as e:
+        raise SystemExit(f"error: {e}")  # one line on stderr, exit status 1
     if args.no_dispatch:
         events = [e for e in events if e["type"] != "dispatch"]
     if args.out:
