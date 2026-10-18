@@ -592,3 +592,23 @@ def test_generated_messages_never_send_null_confidences():
     from dispatcher.demo import MESSAGES
     for m in MESSAGES + DOC:
         assert m.get("activity_confidence", 0) is not None, m["event_id"]
+
+
+# --- Wali's spotter output: optional extra fields reach the model --------------
+
+def test_spotter_scene_text_reaches_model(graph):
+    from dispatcher.llm import build_user_message
+    d = {**det("det_sp", "cam_03", 0, "stabbing", None), "on_screen": "crime",
+         "what_happened": "suspect in black hoodie stabs a man on the sidewalk; victim falls; suspect runs off"}
+    msgs = [d, rel("rel_sp", 1, "cam_03", "cam_05", "subj_sp", ["det_sp"], activity="stabbing")]
+    c = case_from(msgs, "subj_sp")
+    payload = json.loads(build_user_message(c, path(c), [], graph).removeprefix("Case:" + chr(10)))
+    seen = next(e for e in payload["evidence"] if e["event_id"] == "det_sp")
+    assert seen["what_happened"].startswith("suspect in black hoodie") and seen["on_screen"] == "crime"
+
+
+def test_detection_without_spotter_extras_unchanged(graph):
+    from dispatcher.llm import build_user_message
+    c = case_from(DOC)
+    payload = json.loads(build_user_message(c, path(c), [], graph).removeprefix("Case:" + chr(10)))
+    assert all("what_happened" not in e for e in payload["evidence"])

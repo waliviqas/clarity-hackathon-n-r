@@ -61,6 +61,11 @@ def _evidence_view(m: dict, graph: CameraGraph, t0: float) -> dict:
         base.update(camera_id=m["camera_id"], activity=m.get("activity"),
                     activity_confidence=m.get("activity_confidence"), appearance=m.get("appearance"),
                     direction=m.get("direction"))
+        # Optional extra fields from Wali's spotter (contract allows extras): its scene sentence and
+        # whether the suspect commits the crime or is fleeing on this camera.
+        for extra in ("what_happened", "on_screen"):
+            if m.get(extra):
+                base[extra] = str(m[extra])[:300]
     elif m["type"] == "relay":
         base.update(from_camera=m["from_camera"], to_camera=m["to_camera"], summary=m.get("summary"),
                     appearance=m.get("appearance"), direction=m.get("direction"), confidence=m.get("confidence"))
