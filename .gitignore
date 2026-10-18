@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Videos live on Hugging Face (waliviqas/clarity-crime-clips) and on Brev, never in git
+*.mp4
+*.mov
+*.mpg
+*.avi
+*.mkv
+*.m4v
+.DS_Store
