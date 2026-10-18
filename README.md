@@ -1,23 +1,22 @@
 # Clarity
 
-> When a crime happens, one dispatcher is watching dozens of camera feeds and has minutes to act. Clarity spots the crime, follows the suspect from camera to camera, and tells officers where to head next.
+**When a crime happens on a security camera, Clarity follows the suspect to the next cameras and tells police where to go.**
 
-Clarity puts a small AI agent beside each security camera. When its camera shows a crime, the agent describes the suspect in words and passes the description to the cameras along the suspect's likely path. A coordinator agent pulls the reports together and recommends where officers should go, and a human operator confirms or dismisses every recommendation on a map. Video stays on the agency's own hardware; only text moves between agents.
+How it works, in three small AI models:
+1. **Spotter** (Qwen 2B, fine-tuned by us): watches each camera and spots the crime.
+2. **Checker** (NVIDIA Nemotron 12B): describes what the suspect is wearing, so the next cameras can find them.
+3. **Dispatcher** (NVIDIA Nemotron 9B): tells officers where to go. A person approves every alert.
 
-**At its core is a small vision model we fine-tuned for one job.** Our spotter, Qwen3-VL-2B with a LoRA fine-tune (version "v3"), watches one camera and decides whether it shows a crime, someone fleeing, or nothing, and names the crime type. A larger vision model, NVIDIA Nemotron Nano 12B v2 VL (the **checker**), then describes the suspect on the cameras the spotter flags. Both look at 8 frames per camera. On 18 held-out test camera views, 3 runs each, scored the same way in NeMo Gym, the fine-tune raised the full system's score from 0.723 to 0.821, and the share of right calls (crime, fleeing or nothing) from 67% to 89%. <!-- source: hf_model/README.md ("Base vs this model") and results/history.csv (rows before_nemo_gym_8f, after_nemo_gym_v3_8f), Wali's commit e710f89; full system: mean reward of results/nemo_gym/clarity_system_before_gym_8f.jsonl and clarity_system_8f_v2.jsonl -->
+All three run on one GPU with vLLM. Only text moves between cameras, never video.
 
-Built in 24 hours at the **NVIDIA x Red Hat Small Models Hack** (Raleigh, Oct 17–18, 2026). **Track: Fine-Tuned.**
+**Results:** after fine-tuning, the spotter makes the right call on **89%** of cameras (crime, someone running, or nothing), up from 67%, and the full system gets **82%** of its checks right, on test videos it never trained on (scored in NeMo Gym).
 
 | | |
 |---|---|
-| Fine-tuned model | Qwen3-VL-2B + our LoRA, version v3, 2.13B parameters. **TODO (model link):** Hugging Face page. Model card: [`hf_model/README.md`](hf_model/README.md) |
-| Base vs. fine-tuned | Full system 0.723 → **0.821**; spotter alone 0.374 → **0.456** (NeMo Gym, 18 held-out test views × 3 runs): [Results](#results) <!-- source: hf_model/README.md; mean reward of results/nemo_gym/clarity_system_before_gym_8f, clarity_system_8f_v2, clarity_before_gym_8f and clarity_after_gym_8f (.jsonl), Wali's commit e710f89 --> |
-| Models and size | Spotter 2.13B + checker 13.18B + coordinator 8.89B = **24.20B**, under the 33B cap: [Models](#models-and-parameter-budget) <!-- source: exact counts in dispatcher/README.md ("Models and the 33B cap"), Michael's commit 56712cc --> |
-| Demo | Live run on test clip 1, every model live on the GPU box: [`runs/run_live2_1027`](runs/run_live2_1027/RUN.md). The coordinator's first alert came 1.59 s after the crime detection, and the suspect was matched at all 3 later cameras. Fallbacks: [replay that run](#fallbacks-replays), or, as a last resort, a scripted run on clip 8. **TODO (live run):** demo video and screen-capture links <!-- source: runs/run_live2_1027/metrics.json (to_first_alert_wall_s 1.594) and RUN.md ("Result") --> |
-| Open data | Test clip 8 published as [WilwilMina/clarity-clip8](https://huggingface.co/datasets/WilwilMina/clarity-clip8) (CC BY 4.0), with the [filming method](data/staged/README.md). Test clip 1, the live demo, published as [WilwilMina/clarity-clip1](https://huggingface.co/datasets/WilwilMina/clarity-clip1) (CC BY 4.0) |
-| Bounty write-ups | [Best Use of Red Hat vLLM](#best-use-of-red-hat-vllm) · [Best Model Improvement with NeMo Gym](#best-model-improvement-with-nemo-gym) |
-
-> **Names.** On screen and in this README the AI dispatcher agent is the **coordinator**; in code and message contracts it is `dispatcher`. "Dispatcher" in the opening line means the human at the console. The **spotter** is our fine-tuned 2B model; the **checker** is Nemotron Nano 12B v2 VL.
+| Fine-tuned model | https://huggingface.co/waliviqas/clarity-spotter-qwen3vl-2b |
+| Our videos (open data) | https://huggingface.co/datasets/waliviqas/clarity-crime-clips |
+| Demo video | **TODO** |
+| Track | Fine-Tuned · NVIDIA x Red Hat Small Models Hack, Raleigh, Oct 17–18 2026 |
 
 **Contents:** [Problem](#the-problem-and-the-user) · [Demo](#the-demo) · [How it works](#how-it-works) · [Results](#results) · [Track fit](#track-fit-fine-tuned) · [NeMo Gym](#best-model-improvement-with-nemo-gym) · [Models](#models-and-parameter-budget) · [vLLM](#best-use-of-red-hat-vllm) · [Data](#data) · [How to run](#how-to-run) · [Limitations](#known-limitations) · [Team](#team)
 
