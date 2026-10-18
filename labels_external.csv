@@ -1,0 +1,12 @@
+clip,cam,split,on_screen,crime,what_happened,build,height,shirt,pants,shoes,glasses,headwear,hair,bag,weapon,vehicle,check,video
+cav_fight_runaway1,cam1,external,crime,assault,"fight, then one person runs away.",,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/Fight_RunAway1.mpg
+cav_fight_runaway2,cam1,external,crime,assault,"fight, then one person runs away (separate take from RunAway1).",,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/Fight_RunAway2.mpg
+cav_fight_onemandown,cam1,external,crime,assault,"fight, one person left on floor.",,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/Fight_OneManDown.mpg
+cav_fight_chase,cam1,external,crime,assault,fight with chase.,,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/Fight_Chase.mpg
+meva_ex085_theft,cam1,external,crime,stealing,"person_steals_object (MEVA def: larceny of backpack/purse/luggage). Confirm it is a grab from a person, not an unattended item, before keeping as purse_snatch.",,,,,,,,,,,,"dataset label, not verified frame by frame; confirm grab from a person",video-data/training-clips/videos/ex085-theft.mp4
+cav_walk1,cam1,external,none,none,walking.,,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/Walk1.mpg
+cav_walk2,cam1,external,none,none,walking.,,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/Walk2.mpg
+cav_meet_walktogether1,cam1,external,none,none,people meet and walk together.,,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/Meet_WalkTogether1.mpg
+cav_browse1,cam1,external,none,none,browsing.,,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/Browse1.mpg
+meva_ex007_embrace,cam1,external,none,none,person_embraces_person (hug) - hard negative.,,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/ex007-embrace-interaction.mp4
+meva_ex050_talking,cam1,external,none,none,person_talks_to_person - hard negative.,,,,,,,,,,,,"dataset label, not verified frame by frame",video-data/training-clips/videos/ex050-people-talking.mp4

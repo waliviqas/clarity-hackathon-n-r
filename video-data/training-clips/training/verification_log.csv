@@ -1,0 +1,12 @@
+clip_id,source_url,status,local_path,n_frames,duration_s,note,checked_at_utc
+cav_fight_runaway1,https://homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/Fight_RunAway1/Fight_RunAway1.mpg,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:35+00:00
+cav_fight_runaway2,https://homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/Fight_RunAway2/Fight_RunAway2.mpg,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:35+00:00
+cav_fight_onemandown,https://homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/Fight_OneManDown/Fight_OneManDown.mpg,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:36+00:00
+cav_fight_chase,https://homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/Fight_Chase/Fight_Chase.mpg,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:36+00:00
+meva_ex085_theft,https://mevadata-public-01.s3.amazonaws.com/examples/videos/ex085-theft.mp4,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:36+00:00
+cav_walk1,https://homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/Walk1/Walk1.mpg,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:36+00:00
+cav_walk2,https://homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/Walk2/Walk2.mpg,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:37+00:00
+cav_meet_walktogether1,https://homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/Meet_WalkTogether1/Meet_WalkTogether1.mpg,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:37+00:00
+cav_browse1,https://homepages.inf.ed.ac.uk/rbf/CAVIARDATA1/Browse1/Browse1.mpg,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:37+00:00
+meva_ex007_embrace,https://mevadata-public-01.s3.amazonaws.com/examples/videos/ex007-embrace-interaction.mp4,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:38+00:00
+meva_ex050_talking,https://mevadata-public-01.s3.amazonaws.com/examples/videos/ex050-people-talking.mp4,failed,,,,URLError: <urlopen error Tunnel connection failed: 403 Forbidden>,2026-10-17T23:07:38+00:00

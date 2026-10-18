@@ -84,6 +84,7 @@ def main() -> None:
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--limit", type=int, default=0, help="only score the first N cameras (for quick checks)")
     parser.add_argument("--out", default="results/before.json")
+    parser.add_argument("--name", default="", help="label for this run in results/history.csv, e.g. before or after")
     args = parser.parse_args()
 
     labels = [row for row in csv.DictReader(open(args.labels, newline="")) if row["split"] == args.split]
@@ -92,7 +93,8 @@ def main() -> None:
 
     cameras, latencies, errors = [], [], 0
     for label in labels:
-        video = Path(args.clips) / label["clip"] / f"{label['cam']}.mp4"
+        # Rows from outside datasets carry their own file path; our clips follow clipN/camK.mp4.
+        video = Path(label["video"]) if label.get("video") else Path(args.clips) / label["clip"] / f"{label['cam']}.mp4"
         answers: list[dict | None] = []
         for _ in range(args.runs):
             start = time.perf_counter()
@@ -131,8 +133,24 @@ def main() -> None:
         "model": MODEL, "split": args.split, "runs_per_camera": args.runs, "cameras_scored": len(cameras),
         "prompt": PROMPT, "summary": summary, "cameras": cameras,
     }, indent=2))
+    record_history(out.parent / "history.csv", args.name or out.stem, MODEL, args.split, len(cameras), summary)
     print(json.dumps(summary, indent=2))
     print(f"Saved {out}")
+
+
+HISTORY_FIELDS = ["time", "name", "model", "split", "cameras", "on_screen_accuracy", "crime_type_accuracy",
+                  "false_alarm_rate", "description_accuracy", "consistent_cameras", "failed_requests", "mean_latency_s"]
+
+
+def record_history(path: Path, name: str, model: str, split: str, cameras: int, summary: dict) -> None:
+    """Append one line per eval run so every before/after score is kept in one table."""
+    new_file = not path.exists()
+    with open(path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=HISTORY_FIELDS, extrasaction="ignore", lineterminator="\n")
+        if new_file:
+            writer.writeheader()
+        writer.writerow({"time": time.strftime("%Y-%m-%d %H:%M"), "name": name, "model": model,
+                         "split": split, "cameras": cameras, **summary})
 
 
 if __name__ == "__main__":

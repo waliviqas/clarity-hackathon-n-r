@@ -1,0 +1,35 @@
+clip,cam,latitude,longitude,gps_accuracy_m,altitude_m,spot_name,facing,dist_from_prev_cam_m,est_run_s_from_prev_cam,recorded_at,ended_at,duration_s,gap_from_prev_cam_s,source_file,note
+clip1,cam1,35.7755,-78.6371,6,98,sidewalk by street parking,,,,2026-10-17 16:05:04,2026-10-17 16:05:11,8.0,,IMG_7352.MOV,
+clip1,cam2,35.7757,-78.6370,25,98,sidewalk by painted parklet,,24,7,2026-10-17 16:06:47,2026-10-17 16:06:49,2.9,95,IMG_7353.MOV,
+clip1,cam3,35.7756,-78.6368,20,100,crosswalk corner,,21,6,2026-10-17 16:07:08,2026-10-17 16:07:13,5.4,18,IMG_7354.MOV,
+clip1,cam4,35.7756,-78.6368,5,101,sidewalk by building column,,0,0,2026-10-17 16:08:02,2026-10-17 16:08:06,4.1,49,IMG_7355.MOV,
+clip2,cam1,35.7755,-78.6367,9,97,plaza corner by bike rack,,,,2026-10-17 16:09:01,2026-10-17 16:09:07,6.2,,IMG_7356.MOV,
+clip2,cam2,35.7757,-78.6368,6,103,sidewalk by trash bin,,24,7,2026-10-17 16:09:52,2026-10-17 16:09:54,2.4,45,IMG_7357.MOV,
+clip2,cam3,35.7757,-78.6367,21,98,sidewalk by parked cars,,9,3,2026-10-17 16:10:26,2026-10-17 16:10:29,3.8,32,IMG_7358.MOV,
+clip2,cam4,35.7758,-78.6368,5,98,sidewalk by parking meter,,14,4,2026-10-17 16:11:16,2026-10-17 16:11:19,3.6,46,IMG_7359.MOV,
+clip3,cam1,35.7757,-78.6370,60,150,patio planters,,,,2026-10-17 16:13:48,2026-10-17 16:13:56,8.5,,IMG_7360.MOV,"weak GPS (+/-60 m), position approximate"
+clip3,cam2,35.7755,-78.6373,7,121,cafe patio,,35,10,2026-10-17 16:14:47,2026-10-17 16:14:52,5.0,50,IMG_7361.MOV,
+clip3,cam3,35.7756,-78.6371,6,138,patio planters (second angle),,21,6,2026-10-17 16:15:26,2026-10-17 16:15:30,4.1,34,IMG_7362.MOV,
+clip4,cam1,35.7753,-78.6371,18,106,garage aisle,,,,2026-10-17 16:21:21,2026-10-17 16:21:29,8.8,,IMG_7363.MOV,indoors/covered: GPS less reliable
+clip4,cam2,35.7752,-78.6371,30,106,garage open bay,,11,3,2026-10-17 16:22:33,2026-10-17 16:22:43,10.2,63,IMG_7365.MOV,indoors/covered: GPS less reliable
+clip4,cam3,35.7753,-78.6371,24,106,garage far aisle,,11,3,2026-10-17 16:23:23,2026-10-17 16:23:30,7.4,40,IMG_7366.MOV,indoors/covered: GPS less reliable
+clip5,cam1,35.7752,-78.6370,23,106,garage aisle by pillar,,,,2026-10-17 16:25:08,2026-10-17 16:25:20,12.4,,IMG_7368.MOV,indoors/covered: GPS less reliable
+clip5,cam2,35.7750,-78.6372,11,96,garage lower level,,29,8,2026-10-17 16:26:34,2026-10-17 16:26:43,9.2,74,IMG_7369.MOV,indoors/covered: GPS less reliable
+clip5,cam3,35.7750,-78.6374,34,97,garage aisle near entrance,,18,5,2026-10-17 16:27:31,2026-10-17 16:27:37,6.4,48,IMG_7370.MOV,"weak GPS (+/-34 m), position approximate; indoors/covered: GPS less reliable"
+clip6,cam1,35.7750,-78.6374,9,98,garage pedestrian ramp,,,,2026-10-17 16:30:30,2026-10-17 16:30:41,11.7,,IMG_7371.MOV,indoors/covered: GPS less reliable
+clip6,cam2,35.7752,-78.6373,189,105,garage level aisle,,24,7,2026-10-17 16:31:48,2026-10-17 16:31:53,5.1,66,IMG_7372.MOV,"weak GPS (+/-189 m), position approximate; indoors/covered: GPS less reliable"
+clip6,cam3,35.7749,-78.6374,29,98,garage parking row,,35,10,2026-10-17 16:32:45,2026-10-17 16:32:49,4.6,52,IMG_7373.MOV,indoors/covered: GPS less reliable
+clip6,cam4,35.7750,-78.6378,43,97,garage exit gates,,38,11,2026-10-17 16:34:05,2026-10-17 16:34:16,11.0,75,IMG_7374.MOV,"weak GPS (+/-43 m), position approximate; indoors/covered: GPS less reliable"
+clip7,cam1,35.7750,-78.6387,28,102,street corner sidewalk,,,,2026-10-17 16:39:02,2026-10-17 16:39:09,7.6,,IMG_7377.MOV,
+clip7,cam2,35.7749,-78.6387,6,118,sidewalk by bollard,,11,3,2026-10-17 16:39:30,2026-10-17 16:39:36,6.0,20,IMG_7378.MOV,
+clip7,cam3,35.7749,-78.6387,5,116,crosswalk sidewalk,,0,0,2026-10-17 16:40:19,2026-10-17 16:40:25,6.0,43,IMG_7379.MOV,
+clip8,cam1,35.7745,-78.6386,14,142,bus shelter,,,,2026-10-17 16:41:45,2026-10-17 16:41:53,8.4,,IMG_7380.MOV,
+clip8,cam2,35.7744,-78.6386,26,140,sidewalk by tree grate,,11,3,2026-10-17 16:43:28,2026-10-17 16:43:31,3.2,95,IMG_7381.MOV,
+clip8,cam3,35.7746,-78.6386,28,146,covered walkway,,22,6,2026-10-17 16:43:50,2026-10-17 16:43:54,4.2,19,IMG_7382.MOV,
+clip9,cam1,35.7755,-78.6373,75,107,garage parking row,,,,2026-10-17 16:54:10,2026-10-17 16:54:22,12.5,,IMG_7383.MOV,"weak GPS (+/-75 m), position approximate; indoors/covered: GPS less reliable"
+clip9,cam2,35.7755,-78.6375,24,106,garage driving lane,,18,5,2026-10-17 16:55:03,2026-10-17 16:55:08,5.1,41,IMG_7384.MOV,indoors/covered: GPS less reliable
+clip10,cam1,35.7749,-78.6374,8,100,garage pedestrian ramp,,,,2026-10-17 16:58:05,2026-10-17 16:58:13,8.8,,IMG_7385.MOV,indoors/covered: GPS less reliable
+clip10,cam2,35.7750,-78.6372,41,99,garage parking bay,,21,6,2026-10-17 16:58:18,2026-10-17 16:58:21,3.3,4,IMG_7386.MOV,"weak GPS (+/-41 m), position approximate; indoors/covered: GPS less reliable"
+clip11,cam1,35.7751,-78.6371,12,96,indoor workroom,,,,2026-10-17 17:23:43,2026-10-17 17:23:50,7.7,,IMG_7387.MOV,indoors/covered: GPS less reliable
+clip12,cam1,35.7751,-78.6371,13,96,main event hall,,,,2026-10-17 17:24:07,2026-10-17 17:24:15,8.8,,IMG_7388.MOV,indoors/covered: GPS less reliable
+clip13,cam1,35.7755,-78.6370,14,96,hallway by meeting room door,,,,2026-10-17 17:38:46,2026-10-17 17:38:53,7.4,,IMG_7390.MOV,indoors/covered: GPS less reliable
