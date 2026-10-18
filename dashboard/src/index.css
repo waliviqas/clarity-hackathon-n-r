@@ -94,13 +94,13 @@ button:focus-visible { outline: 2px solid var(--chase-2); outline-offset: 1px; }
                height:100% + its own scroll, which resolves to content height here), never shrinks,
                capped at column - 340 px (graph and receipts minimums); past that it scrolls inside
      receipts  everything left over (flex-grow), never below 140 px
-   Card heights (src/panels/IncidentCards.css): title 41, needs-decision card 107 (128 with an error
-   line), gaps 6, bottom padding 8. Three needs-decision cards = 41 + 3*107 + 2*6 + 8 = 382 px
-   (445 with three error lines), + 1 px slot border.
-   1920x1080 full screen (1032 px column): graph 300, cards 383, receipts 349 (no incidents: cards
-   ~71, receipts ~661). In a browser window (~944 px viewport, 896 px column): graph 300, cards 383,
-   receipts 213; worst case cards 446 -> receipts 150. With the disconnected banner (~858 px): 3 cards
-   -> receipts 175; worst case -> receipts 140, graph 272. */
+   Card heights (src/panels/IncidentCards.css, measured by qa): title 41, needs-decision card 120 (~141
+   with an error line), gaps 6, bottom padding 8. Three needs-decision cards = 41 + 3*120 + 2*6 + 8 =
+   421 px (~484 with three error lines), + 1 px slot border.
+   1920x1080 full screen (1032 px column): graph 300, cards 422, receipts 310 (no incidents: cards
+   ~71, receipts ~661). In a browser window (~944 px viewport, 896 px column): graph 300, cards 422,
+   receipts 174; worst case cards ~485 -> receipts 140, graph ~271. With the disconnected banner
+   (~858 px): 3 cards -> receipts 140, graph ~296; worst case -> receipts 140, graph ~233. */
 .right {
   display: flex;
   flex-direction: column;

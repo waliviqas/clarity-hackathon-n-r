@@ -2,10 +2,13 @@
 // Order: needs your decision, then tracking, then resolved. Confirm / Dismiss POST an operator_action
 // through sendOperatorAction (lib builds the op_ id and the run-clock ts). Clicking a card selects its
 // latest dispatch so the map, graph and receipts highlight what it cites.
-// Compact so three "needs your decision" cards fit at once (~110 px each, buttons beside the
-// recommendation); tracking cards ~85 px; resolved cards collapse to one ~44 px line. Clamped text
-// stays in the DOM (screen readers get all of it) and is repeated in a title attribute for hover.
-// "Watch last sighting" opens SightingModal: the camera clip of the newest path step.
+// Compact so three "needs your decision" cards fit at once (~122 px each: the button group sits beside
+// the recommendation); tracking cards ~85 px; resolved cards collapse to one ~44 px line. The title
+// wraps to a second line instead of hiding the place name. Clamped text stays in the DOM (screen
+// readers get all of it) and is repeated in a title attribute for hover.
+// "Watch last sighting" opens SightingModal: the camera clip of the newest path step. It sits in the
+// button group after Confirm / Dismiss (or alone there on tracking cards); one-line resolved cards
+// have no button group, so it stays on their single line.
 
 import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
@@ -223,6 +226,15 @@ export default function IncidentCards() {
                 ev.stopPropagation(); // opening the video doesn't toggle the card's selection
                 setWatching(inc.incident_id);
               };
+              const watchButton = hasSighting(inc) ? (
+                <button
+                  type="button"
+                  className="ic-watch"
+                  aria-haspopup="dialog"
+                  aria-label={`Watch last sighting, ${spoken}`}
+                  onClick={onWatch}
+                >Watch last sighting</button>
+              ) : null;
 
               return (
                 <li
@@ -233,44 +245,43 @@ export default function IncidentCards() {
                 >
                   <div className="ic-top">
                     {/* The whole card is clickable; this button is the keyboard / screen-reader way in.
-                        Its click bubbles to the card, so it has no handler of its own. */}
+                        Its click bubbles to the card, so it has no handler of its own. The inner span
+                        carries the 2-line clamp (a button can't be a -webkit-box itself everywhere). */}
                     <button type="button" className="ic-name" title={title} aria-pressed={selection === d.event_id}>
-                      {title}
+                      <span className="ic-name-text">{title}</span>
                     </button>
                     <span className={`ic-status tone-${status.tone}`}>{status.word}</span>
                     {busy && <span className="ic-sending" role="status">Sending…</span>}
-                    {/* Resolved cards are one line: the recommendation shrinks into what's left of it. */}
+                    {/* Resolved cards are one line: the recommendation shrinks into what's left of it,
+                        and "Watch last sighting" stays on that line (they have no button group). */}
                     {oneLine && reco && <span className="ic-reco-inline" title={reco}>{reco}</span>}
-                    {hasSighting(inc) && (
-                      <button
-                        type="button"
-                        className="ic-watch"
-                        aria-haspopup="dialog"
-                        aria-label={`Watch last sighting, ${spoken}`}
-                        onClick={onWatch}
-                      >Watch last sighting</button>
-                    )}
+                    {oneLine && watchButton}
                     {inc.scripted && <span className="tag">{LABELS.scripted}</span>}
                   </div>
                   {!oneLine && (
                     <div className="ic-body">
                       <p className="ic-reco" title={reco || undefined}>{reco}</p>
-                      {showButtons && (
+                      {(showButtons || watchButton) && (
                         <div className="ic-actions">
-                          <button
-                            type="button"
-                            className="ic-btn ic-btn-confirm"
-                            aria-label={`Confirm ${spoken}`}
-                            disabled={!!busy}
-                            onClick={onButton('confirm')}
-                          >Confirm</button>
-                          <button
-                            type="button"
-                            className="ic-btn"
-                            aria-label={`Dismiss ${spoken}`}
-                            disabled={!!busy}
-                            onClick={onButton('dismiss')}
-                          >Dismiss</button>
+                          {showButtons && (
+                            <>
+                              <button
+                                type="button"
+                                className="ic-btn ic-btn-confirm"
+                                aria-label={`Confirm ${spoken}`}
+                                disabled={!!busy}
+                                onClick={onButton('confirm')}
+                              >Confirm</button>
+                              <button
+                                type="button"
+                                className="ic-btn"
+                                aria-label={`Dismiss ${spoken}`}
+                                disabled={!!busy}
+                                onClick={onButton('dismiss')}
+                              >Dismiss</button>
+                            </>
+                          )}
+                          {watchButton}
                         </div>
                       )}
                     </div>
