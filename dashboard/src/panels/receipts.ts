@@ -1,15 +1,17 @@
-// Receipts log rows: every bus event as one readable sentence (pure, no React, no runtime imports,
-// so plain Node can run it against a real bus log). ReceiptsLog.tsx renders the rows.
+// Receipts log rows: every bus event as one readable sentence (pure, no React; its only runtime import
+// is the pure text.ts, so plain Node can run it against a real bus log). ReceiptsLog.tsx renders the rows.
 //
 //   12.0 s  Route 1: west door confirmed the red-hoodie suspect
 //   41.0 s  Route 1: courtyard gate saw no match for the red-hoodie suspect
 //    2.0 s  Coordinator: watch Route 1: west door; send an officer toward Route 1: south walkway
 //    0.0 s  12 cameras online
 //
-// Cameras are named only by their cameras.json name (never a role). The dispatcher is "coordinator".
+// Cameras are named only by their cameras.json name (never a role). The dispatcher is "coordinator";
+// its codes, "Procedure: …" line and confidences are tidied by text.ts (the same words as the cards).
 // camera_status is noise: repeats are dropped and consecutive reports collapse into one muted line.
 
 import type { ClarityEvent, Dispatch } from '../lib';
+import { reasonText, splitRecommendation, withCameraNames } from './text.ts';
 
 export interface Part {
   text: string;
@@ -115,11 +117,6 @@ export function suspectPhrase(appearance: string | null | undefined): string {
   return `the suspect (${pick.join(' ')})`;
 }
 
-/** Free text from agents may name cameras by id ("the cam_03 relay"): show their names instead. */
-function withCameraNames(text: string, ctx: ReceiptContext): string {
-  return text.replace(/\bcam_[A-Za-z0-9_-]+/g, (id) => ctx.cameraName(id) || id);
-}
-
 function activityWord(a: unknown, ctx: ReceiptContext): string {
   const key = str(a);
   const known = own(ctx.labels.activity, key);
@@ -137,8 +134,8 @@ function join(...sentences: string[]): string {
 }
 
 /** Coordinator recommendations start with a verb ("Watch …"): lowercase it after "Coordinator: ". */
-function recommendationText(reco: string, ctx: ReceiptContext, cameraNames: readonly string[]): string {
-  const t = noFullStop(withCameraNames(reco, ctx));
+function recommendationText(reco: string, cameraNames: readonly string[]): string {
+  const t = noFullStop(reco);
   if (!t) return t;
   const first = t.split(/\s/, 1)[0];
   if (!/^[A-Z][a-z]+$/.test(first) || cameraNames.some((n) => n && t.startsWith(n))) return t;
@@ -269,7 +266,7 @@ export function buildRows(events: readonly ClarityEvent[], ctx: ReceiptContext, 
           { text: ` to watch for ${suspect(e.subject_id, e.appearance)}` }];
         const eta = typeof e.expected_arrival_s === 'number' && Number.isFinite(e.expected_arrival_s)
           ? `Expected there in about ${Math.round(e.expected_arrival_s)} s.` : '';
-        detail = join(sentence(withCameraNames(str(e.summary), ctx)), headingSentence(e.direction), eta);
+        detail = join(sentence(withCameraNames(str(e.summary), ctx.cameraName)), headingSentence(e.direction), eta);
         break;
       }
       case 'agent_verdict': {
@@ -279,13 +276,17 @@ export function buildRows(events: readonly ClarityEvent[], ctx: ReceiptContext, 
           : e.decision === 'no_match' ? ` saw no match for ${who}`
             : ` wasn't sure about ${who}`;
         parts = [cam(e.camera_id), { text: verb }];
-        detail = sentence(withCameraNames(str(e.reason), ctx));
+        detail = sentence(withCameraNames(str(e.reason), ctx.cameraName));
         break;
       }
       case 'dispatch': {
         subjectId = e.subject_id;
-        const reco = recommendationText(str(e.recommendation), ctx, names);
-        const lead: Part[] = e.status === 'alert' && e.requires_human_confirm === true
+        const decide = e.status === 'alert' && e.requires_human_confirm === true;
+        // A line that already says "needs your decision" drops the dispatcher's "Operator review needed.",
+        // as the cards do; the procedure moves to the detail (shown when selected, and in the tooltip).
+        const said = splitRecommendation(e.recommendation, ctx.cameraName, decide);
+        const reco = recommendationText(said.text, names);
+        const lead: Part[] = decide
           ? [{ text: coordinator, tone: 'strong' }, { text: ' ' }, { text: 'needs your decision', tone: 'alert' }, { text: ': ' }]
           : e.status === 'alert'
             ? [{ text: `${coordinator} alert`, tone: 'strong' }, { text: ': ' }]
@@ -295,7 +296,8 @@ export function buildRows(events: readonly ClarityEvent[], ctx: ReceiptContext, 
         parts = reco ? [...lead, { text: reco }]
           : [{ text: coordinator, tone: 'strong' }, { text: ` updated the ${activityWord(e.incident_type, ctx)} incident` }];
         const priority = str(e.priority) ? `${capitalize(str(e.priority))} priority.` : '';
-        detail = join(priority, sentence(withCameraNames(str(e.reason), ctx)));
+        detail = join(priority, sentence(reasonText(e.reason, ctx.cameraName)),
+          said.procedure ? sentence(`Procedure: ${said.procedure}`) : '');
         break;
       }
       case 'operator_action': {

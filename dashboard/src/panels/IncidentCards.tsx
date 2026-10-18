@@ -6,6 +6,9 @@
 // the recommendation); tracking cards ~85 px; resolved cards collapse to one ~44 px line. The title
 // wraps to a second line instead of hiding the place name. Clamped text stays in the DOM (screen
 // readers get all of it) and is repeated in a title attribute for hover.
+// The words come from text.ts (shared with the receipts): camera codes as names, no "Operator review
+// needed." (the status already asks), and the dispatcher's "Procedure: …" as a small line under the
+// recommendation on cards with Confirm / Dismiss (it fits beside the button group); elsewhere on hover.
 // "Watch last sighting" opens SightingModal: the camera clip of the newest path step. It sits in the
 // button group after Confirm / Dismiss (or alone there on tracking cards); one-line resolved cards
 // have no button group, so it stays on their single line.
@@ -17,6 +20,7 @@ import {
 } from '../lib';
 import type { Camera, IncidentView, OperatorDecision } from '../lib';
 import SightingModal from './SightingModal.tsx';
+import { cardText } from './text.ts';
 import './IncidentCards.css';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -24,12 +28,6 @@ const TYPE_LABEL: Record<string, string> = {
   fistfight: 'Fistfight',
   purse_snatch: 'Purse snatch',
   none: 'Incident',
-};
-
-const PRIORITY_LABEL: Record<string, string> = {
-  high: 'High priority',
-  medium: 'Medium priority',
-  low: 'Low priority',
 };
 
 const MSG_NETWORK = "Couldn't reach the event bus. Try again when it reconnects.";
@@ -99,25 +97,6 @@ function hasSighting(inc: IncidentView): boolean {
     && typeof (s as { ts?: unknown }).ts === 'number' && Number.isFinite((s as { ts: number }).ts));
 }
 
-/** Ends a fragment with a full stop unless it already ends a sentence. */
-function sentence(s: string): string {
-  return /[.!?]$/.test(s) ? s : `${s}.`;
-}
-
-/** One muted line under the recommendation, as plain sentences: priority, suspect, the coordinator's reason.
-    e.g. "High priority. Suspect: male, red hoodie, blue jeans. Seen at Route 1: south walkway, then …" */
-function metaLine(inc: IncidentView): string {
-  const d = inc.dispatch;
-  const parts: string[] = [];
-  const priority = own(PRIORITY_LABEL, d.priority);
-  if (priority) parts.push(sentence(priority));
-  const look = typeof d.subject_appearance === 'string' ? d.subject_appearance.trim().replace(/\.+$/, '') : '';
-  if (look) parts.push(sentence(`Suspect: ${look}`));
-  const reason = typeof d.reason === 'string' ? d.reason.trim() : '';
-  if (reason) parts.push(sentence(reason));
-  return parts.join(' ');
-}
-
 export default function IncidentCards() {
   const incidents = useIncidents();
   const { byId } = useCameras();
@@ -185,6 +164,7 @@ export default function IncidentCards() {
   };
 
   const toggleSelect = (dispatchId: string) => select(selection === dispatchId ? null : dispatchId);
+  const nameOf = (cameraId: string) => cameraName(own(byId, cameraId), cameraId);
 
   return (
     <div className="ic">
@@ -210,13 +190,17 @@ export default function IncidentCards() {
               const showButtons = d.requires_human_confirm === true && !inc.action;
               const busy = own(sending, inc.incident_id);
               const error = inc.action ? undefined : own(errors, inc.incident_id);
-              const meta = metaLine(inc);
-              const reco = typeof d.recommendation === 'string' ? d.recommendation : '';
+              const said = cardText(d, nameOf);
+              const { meta, reco } = said;
               // Resolved cards collapse to one line, unless they somehow still ask for a decision.
               const oneLine = phase === 'done' && !showButtons;
+              // The procedure gets its own small line where Confirm / Dismiss leave room beside it.
+              const showProcedure = showButtons && !oneLine && !!said.procedure;
               const isSelected = selection === d.event_id || selectedIncident === inc.incident_id;
-              const cls = ['ic-card', `is-${phase}`, oneLine ? 'is-line' : '', isSelected ? 'is-selected' : '']
-                .filter(Boolean).join(' ');
+              const cls = [
+                'ic-card', `is-${phase}`, oneLine ? 'is-line' : '', showButtons ? 'has-decision' : '',
+                isSelected ? 'is-selected' : '',
+              ].filter(Boolean).join(' ');
 
               const onButton = (action: OperatorDecision) => (ev: MouseEvent<HTMLButtonElement>) => {
                 ev.stopPropagation();
@@ -254,13 +238,20 @@ export default function IncidentCards() {
                     {busy && <span className="ic-sending" role="status">Sending…</span>}
                     {/* Resolved cards are one line: the recommendation shrinks into what's left of it,
                         and "Watch last sighting" stays on that line (they have no button group). */}
-                    {oneLine && reco && <span className="ic-reco-inline" title={reco}>{reco}</span>}
+                    {oneLine && reco && <span className="ic-reco-inline" title={said.title}>{reco}</span>}
                     {oneLine && watchButton}
                     {inc.scripted && <span className="tag">{LABELS.scripted}</span>}
                   </div>
                   {!oneLine && (
                     <div className="ic-body">
-                      <p className="ic-reco" title={reco || undefined}>{reco}</p>
+                      <div className="ic-say">
+                        <p className="ic-reco" title={(showProcedure ? reco : said.title) || undefined}>{reco}</p>
+                        {showProcedure && (
+                          <p className="ic-proc" title={`Procedure: ${said.procedure}`}>
+                            <span className="ic-proc-label">Procedure:</span> {said.procedure}
+                          </p>
+                        )}
+                      </div>
                       {(showButtons || watchButton) && (
                         <div className="ic-actions">
                           {showButtons && (

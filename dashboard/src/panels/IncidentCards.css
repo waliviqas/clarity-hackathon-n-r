@@ -2,11 +2,14 @@
    Quiet by design: 6px radius, 4px left bar in the subject's chase color, no shadows, no gradients,
    nothing animates. A card that needs a decision gets an --alert border and a faint flat tint.
    Compact by design (3 decision cards + buttons fit in ~430 px at 1920x1080):
-     needs your decision  120 px   title row / recommendation (18px, 2 lines max) beside the button
+     needs your decision  122 px   title row / recommendation (18px, 2 lines max) beside the button
                                    group (Confirm Dismiss, then Watch last sighting under them) / meta
                                    (107 px when there's no sighting to watch)
      tracking, alert      ~85 px   title row / recommendation (15px, 1 line) + Watch / meta line
+                                   (with Confirm / Dismiss: 122 px, recommendation up to 2 lines)
      resolved             ~44 px   one line (title, status, reco, Watch, tag); wraps to 2 when narrow
+   A dispatcher "Procedure: …" line (13px, 15 px tall, one line) sits under the recommendation on cards
+   with Confirm / Dismiss: 2 x 22 + 15 = 59 px, the button group's height, so the card doesn't grow.
    A title too long for row 1 wraps to a second line (+22 px) instead of hiding the place name.     */
 
 .ic { height: 100%; display: flex; flex-direction: column; min-height: 0; }
@@ -92,11 +95,10 @@
   text-overflow: ellipsis;
 }
 
-/* Row 2: recommendation, with the button group on the right of it. */
+/* Row 2: recommendation (+ procedure line), with the button group on the right of it. */
 .ic-body { display: flex; align-items: center; gap: 12px; margin-top: 3px; min-width: 0; }
+.ic-say { flex: 1; min-width: 0; }
 .ic-reco {
-  flex: 1;
-  min-width: 0;
   margin: 0;
   font-size: var(--fs-body);
   line-height: 20px;
@@ -107,12 +109,29 @@
   line-clamp: 1;
   overflow: hidden;
 }
+/* A tracking card with Confirm / Dismiss (the real dispatcher asks from the first update) has room for
+   a second 20 px line beside the 59 px button group: 2 x 20 + 15 (procedure) = 55 px. */
+.ic-card.has-decision .ic-reco {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
 .ic-card.is-decide .ic-reco {
   font-size: var(--fs-title); /* 18px: smaller than --fs-reco so 3 decision cards fit; 2 lines max */
   line-height: 22px;
   -webkit-line-clamp: 2;
   line-clamp: 2;
 }
+/* The dispatcher's fixed procedure guidance: quiet (muted, small), one line, full text on hover. */
+.ic-proc {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  line-height: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ic-proc-label { font-weight: 600; }
 /* Button group: Confirm, Dismiss side by side (the primary decision), then "Watch last sighting" on
    its own line under them, as wide as the pair. Stacking keeps the group as narrow as Confirm +
    Dismiss alone, so the recommendation keeps its full width: 33 + 4 + 22 = 59 px tall, i.e. +15 px
