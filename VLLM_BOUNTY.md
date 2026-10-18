@@ -1,18 +1,19 @@
 # Best Use of Red Hat vLLM: Clarity
 
-Owner: Michael. Status: draft, numbers measured Sat Oct 17. Items marked **TODO** are still to be filled in.
+Owner: Michael (spotter details from Wali). Status: draft, numbers measured Sat Oct 17. Items marked **TODO** are still to be filled in.
 
 ## What vLLM does in Clarity
 
-Every generative model in Clarity is served by vLLM on **one NVIDIA A100 80 GB** (Brev), behind vLLM's OpenAI-compatible API. Nothing runs through a hosted API: the camera pipeline and the dispatcher talk to their own vLLM servers.
+Every model Clarity runs is served by vLLM on **one NVIDIA A100 80 GB** (Brev), behind vLLM's OpenAI-compatible API. Nothing runs through a hosted API: the camera pipeline and the dispatcher talk to their own vLLM servers, all on vLLM **0.11.0** (newer releases need a newer GPU driver than the Brev A100 has).
 
 | Model | Role | Params | vLLM endpoint | GPU share |
 |---|---|---|---|---|
 | `nvidia/NVIDIA-Nemotron-Nano-9B-v2` | Dispatcher: decides what the operator should do for each incident | 8.89B | `:8003`, served as `dispatcher` | `--gpu-memory-utilization 0.30` (~26.8 GB measured) |
-| `Qwen/Qwen3-VL-2B-Instruct` (+ Wali's fine-tune) | Spotter: reads frames from each camera and reports what happened | 2.13B | `:8001` | ~14.8 GB per instance (measured) |
-| `nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16` | Checker | 13.18B | **TODO** (confirm with Wali) | **TODO** |
+| `Qwen/Qwen3-VL-2B-Instruct` | Spotter, base model (before fine-tuning) | 2.13B | `:8001` | `0.2` (~14.8 GB measured) |
+| Wali's fine-tuned spotter (LoRA merged into Qwen3-VL-2B) | Spotter, fine-tuned (the Fine-Tuned track model) | 2.13B | `:8005`, served as `spotter-ft` | `0.2` (~14.8 GB measured) |
+| `nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16` | Checker | 13.18B | downloaded, **not served** | — |
 
-Total generative parameters: 24.20B (≤ 33B cap; exact counts from the published safetensors).
+Together the three servers use **0.70 of the A100** (0.30 + 0.2 + 0.2). Generative parameters in the running system: dispatcher 8.89B + spotter 2.13B = **11.02B**; with the checker it would be 24.20B (both ≤ 33B; exact counts from the published safetensors). The base and fine-tuned spotter are the same model before and after training, served side by side only for the before/after comparison.
 
 ```
 cameras ─► spotter (Qwen3-VL-2B, vLLM :8001) ─► camera agents ─► bus ─► dispatcher (Nano 9B v2, vLLM :8003) ─► dashboard
@@ -22,8 +23,8 @@ cameras ─► spotter (Qwen3-VL-2B, vLLM :8001) ─► camera agents ─► bus
 ## Why vLLM (what it gives us that we measured)
 
 1. **Continuous batching = many cameras and incidents at once.** Clarity's load is many small, concurrent requests (every camera, every open incident). vLLM batches them on the fly: the dispatcher's output throughput rises **~7×** from 1 to 16 concurrent incidents while latency only doubles; the spotter goes from **88 to 993 cameras/min** from 1 to 32 concurrent cameras.
-2. **Structured outputs make a small model dependable.** Every dispatcher answer is constrained to a JSON schema (enums for status and priority), so it always parses and our verifier can check every claim against the evidence. **TODO:** measured usable-answer rate with vs without the schema (`scripts/reliability_dispatcher.py`).
-3. **Several models on one GPU.** `--gpu-memory-utilization` lets the dispatcher, the spotter, and the fine-tuned spotter share one A100 without stepping on each other.
+2. **Structured outputs make small models dependable.** Both the dispatcher and the spotter use vLLM's `response_format` JSON schema: the dispatcher's status and priority are enums, the spotter's `on_screen` and `crime` are enums, so answers parse and our code can check them (the dispatcher's verifier checks every claim against the evidence). **TODO:** measured usable-answer rate with vs without the schema (`scripts/reliability_dispatcher.py`).
+3. **Several models on one GPU.** `--gpu-memory-utilization` lets the dispatcher (0.30), the base spotter (0.2), and the fine-tuned spotter (0.2) share one A100 without stepping on each other.
 4. **One OpenAI-compatible API for every model.** Components only know a base URL and a model name, so the same client code runs against any model, and switching or restarting a model doesn't touch the pipeline.
 5. **Day-0 support for a hybrid Mamba model.** Nemotron Nano 9B v2 (Mamba-2 + attention) runs on vLLM 0.11 with `--trust-remote-code` and `--mamba_ssm_cache_dtype float32` per the model card.
 
@@ -50,7 +51,16 @@ vllm serve nvidia/NVIDIA-Nemotron-Nano-9B-v2 --served-model-name dispatcher --ho
 
 Client side: `temperature=0`, `max_tokens=400`, `response_format` = JSON schema, one retry on unparseable JSON.
 
-Spotter serve command: **TODO** (from Wali).
+Spotter (Wali), base and fine-tuned, on the same A100:
+
+```bash
+vllm serve Qwen/Qwen3-VL-2B-Instruct --port 8001 --gpu-memory-utilization 0.2 --max-model-len 16384
+vllm serve models/spotter-ft-merged --served-model-name spotter-ft --port 8005 --gpu-memory-utilization 0.2 --max-model-len 16384
+```
+
+- `--max-model-len 16384`: each spotter request carries several camera frames as images.
+- **Fine-tuned model served as merged weights, not as a LoRA adapter:** LoRA serving (`--enable-lora`) crashes on vLLM 0.11 for Qwen3-VL with image inputs, so the LoRA add-on is merged into the base weights and served as its own model.
+- `--host 127.0.0.1` will be added on the next restart, as on the dispatcher.
 
 ## Optimizations, one change at a time (dispatcher)
 
@@ -76,7 +86,7 @@ Full log with sample sizes and commits: [`dispatcher/IMPROVEMENTS.md`](dispatche
 
 Ranges are two runs. The 5.56 s p95 at concurrency 4 was one outlier on the shared GPU.
 
-**Spotter** (Wali's `src/bench.py` → `results/vllm_bench.json`, 4 frames per request, 32 requests per level, 0 errors):
+**Spotter** (Wali's `src/bench.py` → `results/vllm_bench.json`, base Qwen3-VL-2B on **0.2 of one A100**, 4 frames per request, 32 requests per level, 0 errors):
 
 | Concurrent cameras | p50 latency | Cameras/min |
 |---|---|---|
@@ -94,6 +104,7 @@ Ranges are two runs. The 5.56 s p95 at concurrency 4 was one outlier on the shar
 
 - **Prefix caching:** enabled, but `vllm:prefix_cache_queries_total` stayed 0; vLLM 0.11 doesn't apply it to this hybrid Mamba model.
 - **Per-request `disable_any_whitespace`:** accepted but ignored on vLLM 0.11. The JSON retry covers the occasional runaway whitespace instead.
+- **LoRA serving for the fine-tuned spotter:** `--enable-lora` crashes on vLLM 0.11 with Qwen3-VL and images. Workaround: merge the LoRA into the base weights and serve the merged model (`spotter-ft`, `:8005`).
 
 ## Reproduce
 
@@ -108,6 +119,8 @@ python -m dispatcher.run                                  # live dispatcher on t
 ## TODO before submission
 
 - [ ] Reliability numbers (`scripts/reliability_dispatcher.py`), after Wali's GPU evaluation finishes
-- [ ] Spotter and checker serve commands and memory shares (Wali)
+- [x] Spotter serve commands and memory shares (Wali); checker is downloaded but not served
+- [ ] Decide whether the checker is part of the submitted system (if not, the README's model table and budget should say 11.02B, not 24.20B)
+- [ ] Spotter throughput rerun on the fine-tuned model (optional)
 - [ ] End-to-end latency with `bus.metrics` (Mina, one full run)
 - [ ] Final pass: numbers match the latest runs
