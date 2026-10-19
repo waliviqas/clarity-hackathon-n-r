@@ -17,11 +17,11 @@ Every camera is a node on a graph of the city's cameras, linked to the cameras n
 
 ## Under the hood
 
-Three small AI models, all running on one GPU with vLLM:
+Three small open models, about 24B parameters total, all running on one NVIDIA A100 (Brev) with vLLM:
 
-1. **Spotter** (Qwen 2B, fine-tuned by us): watches every camera and spots the crime.
-2. **Checker** (NVIDIA Nemotron 12B): describes what the suspect is wearing, so the next cameras can find them.
-3. **Dispatcher** (NVIDIA Nemotron 9B): tells officers where to go. A person approves every alert.
+1. **Spotter** (Qwen3-VL-2B, fine-tuned by us): watches every camera and spots the crime.
+2. **Checker** (NVIDIA Nemotron Nano 12B v2 VL): describes what the suspect is wearing, so the next cameras can find them.
+3. **Dispatcher** (NVIDIA Nemotron Nano 9B v2): tells officers where to go. A person approves every alert.
 
 Only text moves between cameras, never video.
 
