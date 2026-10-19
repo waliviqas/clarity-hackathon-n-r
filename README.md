@@ -7,6 +7,14 @@
 
 <p align="center"><img src="docs/demo.gif" alt="Clarity following a suspect across cameras" width="640"></p>
 
+Every camera is a node on a graph of the city's cameras, linked to the cameras next to it. Each camera has its own agent, and agents relay context about the crime to each other.
+
+1. **Spot:** a camera's agent sees a crime and names it.
+2. **Describe:** it writes down what the suspect looks like.
+3. **Relay:** it sends that description to the neighboring cameras the suspect is likely to pass.
+4. **Follow:** when a neighbor spots a match, it relays again, so the chase moves camera to camera.
+5. **Dispatch:** the dispatcher tells officers where to go, and a person approves every alert.
+
 ## Under the hood
 
 Three small AI models, all running on one GPU with vLLM:
