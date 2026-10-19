@@ -3,8 +3,6 @@
 
 **6 minutes and 17 seconds.** That's the median amount of time it takes to call the police about a serious crime. With Clarity, it happens instantly.
 
-Built at the NVIDIA x Red Hat Small Models Hack, Raleigh, Oct 17–18 2026. Track: **Fine-Tuned**.
-
 ## How it works
 
 Three small AI models, all running on one GPU with vLLM:
@@ -33,3 +31,5 @@ Tested in NeMo Gym on our own videos the model never trained on:
 ## Team
 
 Wali Viqas, Michael Venecia, Mina Abdel-Masih
+
+Built at the NVIDIA x Red Hat Small Models Hack, Raleigh, Oct 17–18 2026. Track: **Fine-Tuned**.
