@@ -1,7 +1,7 @@
 # Clarity
 [![Clarity demo video](https://markdown-videos-api.jorgenkh.no/youtube/VknNMVP4zog?width=1280&height=720)](https://www.youtube.com/watch?v=VknNMVP4zog)
 
-**When a crime happens on a security camera, Clarity follows the suspect to the next cameras and tells police where to go.**
+**6 minutes and 17 seconds.** That's the median amount of time it takes to call the police about a serious crime. With Clarity, it happens instantly.
 
 Built at the NVIDIA x Red Hat Small Models Hack, Raleigh, Oct 17–18 2026. Track: **Fine-Tuned**.
 
