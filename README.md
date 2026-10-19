@@ -5,8 +5,6 @@
 
 Built at the NVIDIA x Red Hat Small Models Hack, Raleigh, Oct 17–18 2026. Track: **Fine-Tuned**.
 
-**Demo video:** TODO
-
 ## How it works
 
 Three small AI models, all running on one GPU with vLLM:
