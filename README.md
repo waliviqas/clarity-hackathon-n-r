@@ -5,7 +5,7 @@
 
 ## How it works
 
-![Clarity following a suspect across cameras](docs/demo.gif)
+<p align="center"><img src="docs/demo.gif" alt="Clarity following a suspect across cameras" width="640"></p>
 
 ## Under the hood
 
