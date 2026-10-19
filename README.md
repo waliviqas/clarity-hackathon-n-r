@@ -5,6 +5,8 @@
 
 ## How it works
 
+## Under the hood
+
 Three small AI models, all running on one GPU with vLLM:
 
 1. **Spotter** (Qwen 2B, fine-tuned by us): watches every camera and spots the crime.
