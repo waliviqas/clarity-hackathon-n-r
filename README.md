@@ -1,4 +1,6 @@
 # Clarity
+[![Clarity demo video]
+(https://img.youtube.com/vi/VknNMVP4zog/maxresdefault.jpg)](https://www.youtube.com/watch?v=VknNMVP4zog)
 
 **When a crime happens on a security camera, Clarity follows the suspect to the next cameras and tells police where to go.**
 
