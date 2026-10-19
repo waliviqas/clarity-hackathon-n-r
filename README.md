@@ -5,6 +5,8 @@
 
 ## How it works
 
+![Clarity following a suspect across cameras](docs/demo.gif)
+
 ## Under the hood
 
 Three small AI models, all running on one GPU with vLLM:
